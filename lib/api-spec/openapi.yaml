@@ -3,20 +3,40 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: SEORx API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication and user profile
+  - name: organizations
+    description: Organization management
+  - name: clients
+    description: Client management
+  - name: audits
+    description: SEO audit jobs
+  - name: issues
+    description: SEO audit issues
+  - name: reports
+    description: Report generation
+  - name: dashboard
+    description: Dashboard metrics and summaries
+  - name: ai-providers
+    description: AI provider configuration
+  - name: pagespeed
+    description: PageSpeed Insights integration
+  - name: approvals
+    description: Human approval workflow
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,7 +44,801 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      operationId: updateMe
+      tags: [auth]
+      summary: Update current user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserProfileBody"
+      responses:
+        "200":
+          description: Updated user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /organizations:
+    get:
+      operationId: listOrganizations
+      tags: [organizations]
+      summary: List all organizations for the current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of organizations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Organization"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createOrganization
+      tags: [organizations]
+      summary: Create a new organization
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrganizationBody"
+      responses:
+        "201":
+          description: Created organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /organizations/{id}:
+    get:
+      operationId: getOrganization
+      tags: [organizations]
+      summary: Get organization by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: updateOrganization
+      tags: [organizations]
+      summary: Update organization
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrganizationBody"
+      responses:
+        "200":
+          description: Updated organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteOrganization
+      tags: [organizations]
+      summary: Delete organization
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /organizations/{orgId}/members:
+    get:
+      operationId: listOrgMembers
+      tags: [organizations]
+      summary: List members of an organization
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/OrgMember"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: inviteOrgMember
+      tags: [organizations]
+      summary: Invite a member to an organization
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteOrgMemberBody"
+      responses:
+        "201":
+          description: Invited member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrgMember"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /clients:
+    get:
+      operationId: listClients
+      tags: [clients]
+      summary: List all clients accessible to current user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: query
+          schema:
+            type: string
+          description: Filter by organization ID
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by name or domain
+      responses:
+        "200":
+          description: List of clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Client"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createClient
+      tags: [clients]
+      summary: Create a new client
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClientBody"
+      responses:
+        "201":
+          description: Created client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /clients/{id}:
+    get:
+      operationId: getClient
+      tags: [clients]
+      summary: Get client by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: updateClient
+      tags: [clients]
+      summary: Update client
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateClientBody"
+      responses:
+        "200":
+          description: Updated client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteClient
+      tags: [clients]
+      summary: Delete client
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /audits:
+    get:
+      operationId: listAudits
+      tags: [audits]
+      summary: List audit jobs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: clientId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, running, completed, failed]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of audit jobs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createAudit
+      tags: [audits]
+      summary: Create a new audit job
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAuditBody"
+      responses:
+        "201":
+          description: Created audit job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Audit"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /audits/{id}:
+    get:
+      operationId: getAudit
+      tags: [audits]
+      summary: Get audit job by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Audit job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteAudit
+      tags: [audits]
+      summary: Delete audit job
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /audits/{id}/issues:
+    get:
+      operationId: listAuditIssues
+      tags: [issues]
+      summary: List issues for an audit
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [critical, high, medium, low, info]
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, approved, dismissed, fixed]
+      responses:
+        "200":
+          description: List of issues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuditIssue"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /issues/{id}/approve:
+    put:
+      operationId: approveIssue
+      tags: [approvals]
+      summary: Approve an issue fix recommendation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApproveIssueBody"
+      responses:
+        "200":
+          description: Approved issue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditIssue"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /issues/{id}/dismiss:
+    put:
+      operationId: dismissIssue
+      tags: [approvals]
+      summary: Dismiss an issue
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DismissIssueBody"
+      responses:
+        "200":
+          description: Dismissed issue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditIssue"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /reports:
+    get:
+      operationId: listReports
+      tags: [reports]
+      summary: List generated reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: clientId
+          in: query
+          schema:
+            type: string
+        - name: auditId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Report"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createReport
+      tags: [reports]
+      summary: Generate a report for an audit
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReportBody"
+      responses:
+        "201":
+          description: Created report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /reports/{id}:
+    get:
+      operationId: getReport
+      tags: [reports]
+      summary: Get report by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteReport
+      tags: [reports]
+      summary: Delete report
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard summary statistics
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /dashboard/recent-audits:
+    get:
+      operationId: getRecentAudits
+      tags: [dashboard]
+      summary: Get recent audit activity
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Recent audits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Audit"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /dashboard/issue-breakdown:
+    get:
+      operationId: getIssueBreakdown
+      tags: [dashboard]
+      summary: Get issue severity breakdown across all audits
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Issue breakdown by severity and category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IssueBreakdown"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /dashboard/score-trends:
+    get:
+      operationId: getScoreTrends
+      tags: [dashboard]
+      summary: Get SEO score trends over time
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: clientId
+          in: query
+          schema:
+            type: string
+        - name: days
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Score trend data points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScoreTrend"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /ai-providers:
+    get:
+      operationId: listAiProviders
+      tags: [ai-providers]
+      summary: List AI provider configurations
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of AI providers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AiProvider"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createAiProvider
+      tags: [ai-providers]
+      summary: Add an AI provider configuration
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAiProviderBody"
+      responses:
+        "201":
+          description: Created AI provider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiProvider"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /ai-providers/{id}:
+    put:
+      operationId: updateAiProvider
+      tags: [ai-providers]
+      summary: Update AI provider configuration
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAiProviderBody"
+      responses:
+        "200":
+          description: Updated AI provider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiProvider"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteAiProvider
+      tags: [ai-providers]
+      summary: Delete AI provider configuration
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /pagespeed/{auditId}:
+    get:
+      operationId: getPageSpeedResults
+      tags: [pagespeed]
+      summary: Get PageSpeed results for an audit
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: auditId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: PageSpeed results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PageSpeedResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +848,691 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        clerkId:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        avatarUrl:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [superadmin, admin, agency, client, viewer]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - clerkId
+        - email
+        - role
+        - createdAt
+        - updatedAt
+
+    UpdateUserProfileBody:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        avatarUrl:
+          type: string
+
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        logoUrl:
+          type: string
+          nullable: true
+        plan:
+          type: string
+          enum: [free, starter, professional, enterprise]
+        memberCount:
+          type: integer
+        clientCount:
+          type: integer
+        auditCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - slug
+        - plan
+        - memberCount
+        - clientCount
+        - auditCount
+        - createdAt
+        - updatedAt
+
+    CreateOrganizationBody:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        logoUrl:
+          type: string
+      required:
+        - name
+        - slug
+
+    UpdateOrganizationBody:
+      type: object
+      properties:
+        name:
+          type: string
+        logoUrl:
+          type: string
+        plan:
+          type: string
+          enum: [free, starter, professional, enterprise]
+
+    OrgMember:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        email:
+          type: string
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [admin, agency, client, viewer]
+        joinedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - email
+        - role
+        - joinedAt
+
+    InviteOrgMemberBody:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, agency, client, viewer]
+      required:
+        - email
+        - role
+
+    Client:
+      type: object
+      properties:
+        id:
+          type: string
+        orgId:
+          type: string
+        name:
+          type: string
+        domain:
+          type: string
+        industry:
+          type: string
+          nullable: true
+        contactEmail:
+          type: string
+          nullable: true
+        logoUrl:
+          type: string
+          nullable: true
+        seoScore:
+          type: number
+          nullable: true
+        lastAuditAt:
+          type: string
+          format: date-time
+          nullable: true
+        auditCount:
+          type: integer
+        issueCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - orgId
+        - name
+        - domain
+        - auditCount
+        - issueCount
+        - createdAt
+        - updatedAt
+
+    CreateClientBody:
+      type: object
+      properties:
+        orgId:
+          type: string
+        name:
+          type: string
+        domain:
+          type: string
+        industry:
+          type: string
+        contactEmail:
+          type: string
+          format: email
+        logoUrl:
+          type: string
+      required:
+        - orgId
+        - name
+        - domain
+
+    UpdateClientBody:
+      type: object
+      properties:
+        name:
+          type: string
+        domain:
+          type: string
+        industry:
+          type: string
+        contactEmail:
+          type: string
+        logoUrl:
+          type: string
+
+    Audit:
+      type: object
+      properties:
+        id:
+          type: string
+        clientId:
+          type: string
+        clientName:
+          type: string
+        url:
+          type: string
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        seoScore:
+          type: number
+          nullable: true
+        issueCount:
+          type: integer
+        criticalCount:
+          type: integer
+        highCount:
+          type: integer
+        mediumCount:
+          type: integer
+        lowCount:
+          type: integer
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - clientId
+        - clientName
+        - url
+        - status
+        - issueCount
+        - criticalCount
+        - highCount
+        - mediumCount
+        - lowCount
+        - createdAt
+        - updatedAt
+
+    AuditDetail:
+      allOf:
+        - $ref: "#/components/schemas/Audit"
+        - type: object
+          properties:
+            crawledPages:
+              type: integer
+            scanDurationMs:
+              type: integer
+              nullable: true
+            aiProviderUsed:
+              type: string
+              nullable: true
+            pageSpeedScore:
+              type: number
+              nullable: true
+            issues:
+              type: array
+              items:
+                $ref: "#/components/schemas/AuditIssue"
+
+    AuditList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Audit"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+      required:
+        - items
+        - total
+        - limit
+        - offset
+
+    CreateAuditBody:
+      type: object
+      properties:
+        clientId:
+          type: string
+        url:
+          type: string
+          format: uri
+        maxPages:
+          type: integer
+          default: 100
+        includePageSpeed:
+          type: boolean
+          default: false
+        aiProviderId:
+          type: string
+          nullable: true
+      required:
+        - clientId
+        - url
+
+    AuditIssue:
+      type: object
+      properties:
+        id:
+          type: string
+        auditId:
+          type: string
+        url:
+          type: string
+        category:
+          type: string
+          enum: [meta, content, performance, links, structured_data, mobile, security, crawlability]
+        severity:
+          type: string
+          enum: [critical, high, medium, low, info]
+        title:
+          type: string
+        description:
+          type: string
+        recommendation:
+          type: string
+          nullable: true
+        aiRecommendation:
+          type: string
+          nullable: true
+        priorityScore:
+          type: number
+        status:
+          type: string
+          enum: [open, approved, dismissed, fixed]
+        approvedBy:
+          type: string
+          nullable: true
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        affectedElement:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - auditId
+        - url
+        - category
+        - severity
+        - title
+        - description
+        - priorityScore
+        - status
+        - createdAt
+
+    ApproveIssueBody:
+      type: object
+      properties:
+        notes:
+          type: string
+
+    DismissIssueBody:
+      type: object
+      properties:
+        reason:
+          type: string
+
+    Report:
+      type: object
+      properties:
+        id:
+          type: string
+        auditId:
+          type: string
+        clientId:
+          type: string
+        clientName:
+          type: string
+        title:
+          type: string
+        format:
+          type: string
+          enum: [pdf, html, json]
+        status:
+          type: string
+          enum: [generating, ready, failed]
+        downloadUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - auditId
+        - clientId
+        - clientName
+        - title
+        - format
+        - status
+        - createdAt
+        - updatedAt
+
+    ReportDetail:
+      allOf:
+        - $ref: "#/components/schemas/Report"
+        - type: object
+          properties:
+            summary:
+              type: string
+              nullable: true
+            issueCount:
+              type: integer
+            topIssues:
+              type: array
+              items:
+                $ref: "#/components/schemas/AuditIssue"
+
+    CreateReportBody:
+      type: object
+      properties:
+        auditId:
+          type: string
+        title:
+          type: string
+        format:
+          type: string
+          enum: [pdf, html, json]
+          default: pdf
+        includeAiSummary:
+          type: boolean
+          default: true
+      required:
+        - auditId
+        - title
+
+    DashboardStats:
+      type: object
+      properties:
+        totalClients:
+          type: integer
+        totalAudits:
+          type: integer
+        totalIssues:
+          type: integer
+        criticalIssues:
+          type: integer
+        resolvedIssues:
+          type: integer
+        avgSeoScore:
+          type: number
+        auditsThisMonth:
+          type: integer
+        pendingApprovals:
+          type: integer
+      required:
+        - totalClients
+        - totalAudits
+        - totalIssues
+        - criticalIssues
+        - resolvedIssues
+        - avgSeoScore
+        - auditsThisMonth
+        - pendingApprovals
+
+    IssueBreakdown:
+      type: object
+      properties:
+        bySeverity:
+          type: array
+          items:
+            type: object
+            properties:
+              severity:
+                type: string
+              count:
+                type: integer
+            required:
+              - severity
+              - count
+        byCategory:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+              count:
+                type: integer
+            required:
+              - category
+              - count
+      required:
+        - bySeverity
+        - byCategory
+
+    ScoreTrend:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        avgScore:
+          type: number
+        auditCount:
+          type: integer
+      required:
+        - date
+        - avgScore
+        - auditCount
+
+    AiProvider:
+      type: object
+      properties:
+        id:
+          type: string
+        orgId:
+          type: string
+        name:
+          type: string
+        provider:
+          type: string
+          enum: [openai, anthropic, gemini, ollama, custom]
+        model:
+          type: string
+        baseUrl:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        isDefault:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - orgId
+        - name
+        - provider
+        - model
+        - isActive
+        - isDefault
+        - createdAt
+        - updatedAt
+
+    CreateAiProviderBody:
+      type: object
+      properties:
+        orgId:
+          type: string
+        name:
+          type: string
+        provider:
+          type: string
+          enum: [openai, anthropic, gemini, ollama, custom]
+        model:
+          type: string
+        apiKey:
+          type: string
+          nullable: true
+        baseUrl:
+          type: string
+          nullable: true
+        isDefault:
+          type: boolean
+          default: false
+      required:
+        - orgId
+        - name
+        - provider
+        - model
+
+    UpdateAiProviderBody:
+      type: object
+      properties:
+        name:
+          type: string
+        model:
+          type: string
+        apiKey:
+          type: string
+          nullable: true
+        baseUrl:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        isDefault:
+          type: boolean
+
+    PageSpeedResult:
+      type: object
+      properties:
+        auditId:
+          type: string
+        url:
+          type: string
+        performanceScore:
+          type: number
+        accessibilityScore:
+          type: number
+        bestPracticesScore:
+          type: number
+        seoScore:
+          type: number
+        fcp:
+          type: number
+          description: First Contentful Paint (ms)
+        lcp:
+          type: number
+          description: Largest Contentful Paint (ms)
+        cls:
+          type: number
+          description: Cumulative Layout Shift
+        tbt:
+          type: number
+          description: Total Blocking Time (ms)
+        ttfb:
+          type: number
+          description: Time to First Byte (ms)
+        fetchedAt:
+          type: string
+          format: date-time
+      required:
+        - auditId
+        - url
+        - performanceScore
+        - accessibilityScore
+        - bestPracticesScore
+        - seoScore
+        - fetchedAt

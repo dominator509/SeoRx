@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "SEORx"
+version = "1.0.0"
+id = "artifacts/seorx"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24258
+
+[services.development]
+run = "pnpm --filter @workspace/seorx run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/seorx", "run", "build" ]
+publicDir = "artifacts/seorx/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24258"
+BASE_PATH = "/"
