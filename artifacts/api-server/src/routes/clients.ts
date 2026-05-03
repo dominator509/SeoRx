@@ -42,10 +42,9 @@ router.get("/clients", requireAuth, async (req, res) => {
 router.post("/clients", requireAuth, enforceClientLimit(), async (req, res) => {
   try {
     const { name, domain, industry, contactEmail, logoUrl } = req.body;
-    const orgId = req.body.orgId ?? null;
 
     const id = crypto.randomUUID();
-    await db.insert(clientsTable).values({ id, orgId, name, domain, industry, contactEmail, logoUrl });
+    await db.insert(clientsTable).values({ id, name, domain, industry, contactEmail, logoUrl });
     const client = await db.query.clientsTable.findFirst({ where: eq(clientsTable.id, id) });
     res.status(201).json({ ...client, auditCount: 0, issueCount: 0 });
   } catch (err) {
