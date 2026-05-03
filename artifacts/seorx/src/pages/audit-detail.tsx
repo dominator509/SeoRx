@@ -20,7 +20,7 @@ import { ArrowLeft, CheckCircle, XCircle, AlertTriangle, Zap, Clock } from "luci
 import { format } from "date-fns";
 
 function seoRing(score?: number | null, label?: string) {
-  if (score == null) return null;
+  if (score == null || Number.isNaN(score) || score <= 0) return null;
   const color = score >= 70 ? "#00b86b" : score >= 40 ? "#f59e0b" : "#ef4444";
   return (
     <div className="flex flex-col items-center gap-1">
@@ -60,10 +60,21 @@ function statusBadge(status: string) {
 }
 
 function metricValue(value: any, kind: "ms" | "seconds" | "ratio") {
-  if (value == null || Number.isNaN(value)) return "—";
-  if (kind === "seconds") return `${(Number(value) / 1000).toFixed(2)}s`;
-  if (kind === "ratio") return Number(value).toFixed(3);
-  return `${Number(value).toFixed(0)}ms`;
+  const num = Number(value);
+  if (value == null || Number.isNaN(num) || num <= 0) return "—";
+  if (kind === "seconds") return `${(num / 1000).toFixed(2)}s`;
+  if (kind === "ratio") return num.toFixed(3);
+  return `${num.toFixed(0)}ms`;
+}
+
+function metricCard(label: string, value: string, desc: string) {
+  return (
+    <div className="bg-muted/50 rounded-lg p-3 min-w-0">
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</div>
+      <div className={`text-xl font-bold text-foreground mt-1 ${value === "—" ? "tracking-widest" : ""}`}>{value}</div>
+      <div className="text-[10px] text-muted-foreground">{desc}</div>
+    </div>
+  );
 }
 
 export default function AuditDetail() {
