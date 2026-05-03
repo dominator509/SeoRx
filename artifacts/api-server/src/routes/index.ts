@@ -9,6 +9,7 @@ import reportsRouter from "./reports";
 import dashboardRouter from "./dashboard";
 import aiProvidersRouter from "./ai-providers";
 import pagespeedRouter from "./pagespeed";
+import stripeRouter from "./stripe";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(reportsRouter);
 router.use(dashboardRouter);
 router.use(aiProvidersRouter);
 router.use(pagespeedRouter);
+router.use(stripeRouter);
 
 export default router;

@@ -6,8 +6,8 @@ import {
   clientsTable,
   pageSpeedResultsTable,
 } from "@workspace/db";
-import { eq, and, sql, desc } from "drizzle-orm";
-import { requireAuth } from "../lib/auth";
+import { eq, and, sql, desc, inArray } from "drizzle-orm";
+import { requireAuth, getUserOrgIds, assertClientAccess, assertAuditAccess } from "../lib/rbac";
 import { crawlSite } from "../lib/crawler";
 import { analyzeCrawlResult } from "../lib/seo-analyzer";
 import { getActiveProvider, generateBatchRecommendations } from "../lib/ai-adapter";
@@ -18,22 +18,23 @@ const router = Router();
 router.get("/audits", requireAuth, async (req, res) => {
   try {
     const { clientId, status, limit = "20", offset = "0" } = req.query as {
-      clientId?: string;
-      status?: string;
-      limit?: string;
-      offset?: string;
+      clientId?: string; status?: string; limit?: string; offset?: string;
     };
-    const conditions = [];
-    if (clientId) conditions.push(eq(auditsTable.clientId, clientId));
+
+    // Scope to user's orgs
+    const orgIds = getUserOrgIds(req);
+    if (orgIds.length === 0) { res.json({ items: [], total: 0, limit: Number(limit), offset: Number(offset) }); return; }
+
+    const allowedClients = await db.select({ id: clientsTable.id }).from(clientsTable).where(inArray(clientsTable.orgId, orgIds));
+    const allowedClientIds = allowedClients.map((c) => c.id);
+    if (allowedClientIds.length === 0) { res.json({ items: [], total: 0, limit: Number(limit), offset: Number(offset) }); return; }
+
+    const conditions: any[] = [inArray(auditsTable.clientId, allowedClientIds)];
+    if (clientId && allowedClientIds.includes(clientId)) conditions.push(eq(auditsTable.clientId, clientId));
     if (status) conditions.push(eq(auditsTable.status as any, status));
 
-    const audits = conditions.length
-      ? await db.select().from(auditsTable).where(and(...conditions)).orderBy(desc(auditsTable.createdAt)).limit(Number(limit)).offset(Number(offset))
-      : await db.select().from(auditsTable).orderBy(desc(auditsTable.createdAt)).limit(Number(limit)).offset(Number(offset));
-
-    const total = conditions.length
-      ? await db.$count(auditsTable, and(...conditions))
-      : await db.$count(auditsTable);
+    const audits = await db.select().from(auditsTable).where(and(...conditions)).orderBy(desc(auditsTable.createdAt)).limit(Number(limit)).offset(Number(offset));
+    const total = await db.$count(auditsTable, and(...conditions));
 
     const enriched = await Promise.all(
       audits.map(async (audit) => {
@@ -67,10 +68,14 @@ router.post("/audits", requireAuth, async (req, res) => {
   try {
     const { clientId, url, maxPages = 50, includePageSpeed = false, aiProviderId } = req.body;
 
+    // RBAC: user must have access to the client
+    const client = await assertClientAccess(req, clientId as string);
+    if (!client) { res.status(403).json({ error: "Access denied or client not found" }); return; }
+
     // Validate URL
     let normalizedUrl: string;
     try {
-      const u = new URL(url.startsWith("http") ? url : `https://${url}`);
+      const u = new URL((url as string).startsWith("http") ? url : `https://${url}`);
       normalizedUrl = u.href;
     } catch {
       res.status(400).json({ error: "Invalid URL" });
@@ -88,22 +93,12 @@ router.post("/audits", requireAuth, async (req, res) => {
       status: "pending",
     });
 
-    // Start real crawl asynchronously
-    runRealAudit(id, clientId, normalizedUrl, maxPages, includePageSpeed).catch((err) => {
+    runRealAudit(id, clientId as string, normalizedUrl, maxPages as number, includePageSpeed as boolean).catch((err) => {
       logger.error({ err, auditId: id }, "Real audit failed");
     });
 
     const audit = await db.query.auditsTable.findFirst({ where: eq(auditsTable.id, id) });
-    const client = await db.query.clientsTable.findFirst({ where: eq(clientsTable.id, clientId) });
-    res.status(201).json({
-      ...audit,
-      clientName: client?.name ?? "",
-      issueCount: 0,
-      criticalCount: 0,
-      highCount: 0,
-      mediumCount: 0,
-      lowCount: 0,
-    });
+    res.status(201).json({ ...audit, clientName: client.name, issueCount: 0, criticalCount: 0, highCount: 0, mediumCount: 0, lowCount: 0 });
   } catch (err) {
     req.log.error({ err }, "Failed to create audit");
     res.status(500).json({ error: "Internal server error" });
@@ -113,8 +108,9 @@ router.post("/audits", requireAuth, async (req, res) => {
 router.get("/audits/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
-    const audit = await db.query.auditsTable.findFirst({ where: eq(auditsTable.id, id) });
-    if (!audit) { res.status(404).json({ error: "Not found" }); return; }
+    const audit = await assertAuditAccess(req, id);
+    if (!audit) { res.status(404).json({ error: "Not found or access denied" }); return; }
+
     const client = await db.query.clientsTable.findFirst({ where: eq(clientsTable.id, audit.clientId) });
     const issues = await db.query.auditIssuesTable.findMany({ where: eq(auditIssuesTable.auditId, audit.id) });
     const issueCounts = { criticalCount: 0, highCount: 0, mediumCount: 0, lowCount: 0, issueCount: issues.length };
@@ -133,7 +129,10 @@ router.get("/audits/:id", requireAuth, async (req, res) => {
 
 router.delete("/audits/:id", requireAuth, async (req, res) => {
   try {
-    await db.delete(auditsTable).where(eq(auditsTable.id, req.params.id as string));
+    const id = req.params.id as string;
+    const audit = await assertAuditAccess(req, id);
+    if (!audit) { res.status(403).json({ error: "Access denied" }); return; }
+    await db.delete(auditsTable).where(eq(auditsTable.id, id));
     res.status(204).send();
   } catch (err) {
     req.log.error({ err }, "Failed to delete audit");
@@ -144,7 +143,11 @@ router.delete("/audits/:id", requireAuth, async (req, res) => {
 router.get("/audits/:id/issues", requireAuth, async (req, res) => {
   try {
     const { severity, category, status } = req.query as { severity?: string; category?: string; status?: string };
-    const conditions = [eq(auditIssuesTable.auditId, req.params.id as string)];
+    const id = req.params.id as string;
+    const audit = await assertAuditAccess(req, id);
+    if (!audit) { res.status(403).json({ error: "Access denied" }); return; }
+
+    const conditions: any[] = [eq(auditIssuesTable.auditId, id)];
     if (severity) conditions.push(eq(auditIssuesTable.severity as any, severity));
     if (category) conditions.push(eq(auditIssuesTable.category as any, category));
     if (status) conditions.push(eq(auditIssuesTable.status as any, status));
@@ -156,25 +159,14 @@ router.get("/audits/:id/issues", requireAuth, async (req, res) => {
   }
 });
 
-// ─── Real audit engine ──────────────────────────────────────────────────────
+// ─── Real audit engine ────────────────────────────────────────────────────────
 
-async function runRealAudit(
-  auditId: string,
-  clientId: string,
-  url: string,
-  maxPages: number,
-  includePageSpeed: boolean,
-) {
+async function runRealAudit(auditId: string, clientId: string, url: string, maxPages: number, includePageSpeed: boolean) {
   const auditStart = Date.now();
-
   try {
     logger.info({ auditId, url }, "Starting real SEO crawl");
+    await db.update(auditsTable).set({ status: "running", updatedAt: new Date() }).where(eq(auditsTable.id, auditId));
 
-    await db.update(auditsTable)
-      .set({ status: "running", updatedAt: new Date() })
-      .where(eq(auditsTable.id, auditId));
-
-    // Phase 1: Crawl the site
     const crawlResult = await crawlSite(url, {
       maxPages,
       maxDepth: 4,
@@ -185,35 +177,24 @@ async function runRealAudit(
       },
     });
 
-    logger.info(
-      { auditId, pages: crawlResult.pages.length, errors: crawlResult.errors.length },
-      "Crawl complete",
-    );
+    logger.info({ auditId, pages: crawlResult.pages.length, errors: crawlResult.errors.length }, "Crawl complete");
 
-    // Phase 2: Analyze for SEO issues
     const { issues, seoScore } = analyzeCrawlResult(crawlResult);
-
     logger.info({ auditId, issueCount: issues.length, seoScore }, "SEO analysis complete");
 
-    // Phase 3: Try to get AI recommendations for top issues
     let aiProviderUsed: string | null = null;
     let aiRecommendationMap = new Map<number, string>();
-
     try {
       const aiProvider = await getActiveProvider();
       if (aiProvider) {
-        logger.info({ auditId, provider: aiProvider.provider, model: aiProvider.model }, "Generating AI recommendations");
+        logger.info({ auditId, provider: aiProvider.provider }, "Generating AI recommendations");
         aiRecommendationMap = await generateBatchRecommendations(issues, url, aiProvider, 10);
         aiProviderUsed = `${aiProvider.provider}/${aiProvider.model}`;
-        logger.info({ auditId, count: aiRecommendationMap.size }, "AI recommendations generated");
-      } else {
-        logger.info({ auditId }, "No active AI provider configured, skipping AI recommendations");
       }
     } catch (aiErr) {
-      logger.warn({ auditId, err: aiErr }, "AI recommendation phase failed, continuing without");
+      logger.warn({ auditId, err: aiErr }, "AI phase failed, continuing without");
     }
 
-    // Phase 4: Persist issues
     for (let i = 0; i < issues.length; i++) {
       const issue = issues[i];
       await db.insert(auditIssuesTable).values({
@@ -232,14 +213,9 @@ async function runRealAudit(
       });
     }
 
-    // Phase 5: PageSpeed data (synthetic until real API key is configured)
-    if (includePageSpeed) {
-      await seedPageSpeedData(auditId, url);
-    }
+    if (includePageSpeed) await seedPageSpeedData(auditId, url);
 
     const scanDurationMs = Date.now() - auditStart;
-
-    // Phase 6: Mark complete and update client score
     await db.update(auditsTable).set({
       status: "completed",
       seoScore,
@@ -250,20 +226,11 @@ async function runRealAudit(
       updatedAt: new Date(),
     }).where(eq(auditsTable.id, auditId));
 
-    await db.update(clientsTable).set({
-      seoScore,
-      lastAuditAt: new Date(),
-      updatedAt: new Date(),
-    }).where(eq(clientsTable.id, clientId));
-
+    await db.update(clientsTable).set({ seoScore, lastAuditAt: new Date(), updatedAt: new Date() }).where(eq(clientsTable.id, clientId));
     logger.info({ auditId, seoScore, scanDurationMs }, "Audit complete");
   } catch (err) {
     logger.error({ auditId, err }, "Audit failed");
-    await db.update(auditsTable).set({
-      status: "failed",
-      scanDurationMs: Date.now() - auditStart,
-      updatedAt: new Date(),
-    }).where(eq(auditsTable.id, auditId));
+    await db.update(auditsTable).set({ status: "failed", scanDurationMs: Date.now() - auditStart, updatedAt: new Date() }).where(eq(auditsTable.id, auditId));
   }
 }
 
@@ -276,30 +243,20 @@ async function seedPageSpeedData(auditId: string, url: string) {
   const score = Math.round(Math.max(30, 100 - lcp * 10 - cls * 100 - ttfb * 20));
 
   await db.insert(pageSpeedResultsTable).values({
-    id: crypto.randomUUID(),
-    auditId,
-    url,
-    device: "mobile",
+    id: crypto.randomUUID(), auditId, url, device: "mobile",
     performanceScore: score,
     accessibilityScore: Math.round(65 + Math.random() * 30),
     bestPracticesScore: Math.round(60 + Math.random() * 35),
     seoScore: Math.round(55 + Math.random() * 40),
-    lcp,
-    fid,
-    cls,
-    fcp,
-    ttfb,
+    lcp, fid, cls, fcp, ttfb,
     speedIndex: parseFloat((lcp * 1.2).toFixed(2)),
     totalBlockingTime: Math.round(fid * 0.8),
   });
 
-  const desktopBoost = 1.3;
+  const db2 = 1.3;
   await db.insert(pageSpeedResultsTable).values({
-    id: crypto.randomUUID(),
-    auditId,
-    url,
-    device: "desktop",
-    performanceScore: Math.min(100, Math.round(score * desktopBoost)),
+    id: crypto.randomUUID(), auditId, url, device: "desktop",
+    performanceScore: Math.min(100, Math.round(score * db2)),
     accessibilityScore: Math.round(70 + Math.random() * 28),
     bestPracticesScore: Math.round(65 + Math.random() * 30),
     seoScore: Math.round(60 + Math.random() * 38),

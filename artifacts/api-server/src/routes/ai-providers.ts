@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, aiProvidersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireAuth } from "../lib/auth";
+import { requireAuth } from "../lib/rbac";
 
 const router = Router();
 

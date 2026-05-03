@@ -1,8 +1,9 @@
 import { Router } from "express";
-import { getAuth, clerkClient } from "@clerk/express";
+import { clerkClient } from "@clerk/express";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireAuth, getOrCreateUser } from "../lib/auth";
+import { requireAuth } from "../lib/rbac";
+import { getOrCreateUser } from "../lib/auth";
 
 const router = Router();
 
@@ -27,20 +28,10 @@ router.put("/auth/me", requireAuth, async (req, res) => {
   const clerkId = (req as any).clerkUserId as string;
   try {
     const { firstName, lastName, avatarUrl } = req.body;
-    const user = await db.query.usersTable.findFirst({
-      where: eq(usersTable.clerkId, clerkId),
-    });
-    if (!user) {
-      res.status(404).json({ error: "User not found" });
-      return;
-    }
-    await db
-      .update(usersTable)
-      .set({ firstName, lastName, avatarUrl, updatedAt: new Date() })
-      .where(eq(usersTable.clerkId, clerkId));
-    const updated = await db.query.usersTable.findFirst({
-      where: eq(usersTable.clerkId, clerkId),
-    });
+    const user = await db.query.usersTable.findFirst({ where: eq(usersTable.clerkId, clerkId) });
+    if (!user) { res.status(404).json({ error: "User not found" }); return; }
+    await db.update(usersTable).set({ firstName, lastName, avatarUrl, updatedAt: new Date() }).where(eq(usersTable.clerkId, clerkId));
+    const updated = await db.query.usersTable.findFirst({ where: eq(usersTable.clerkId, clerkId) });
     res.json(updated);
   } catch (err) {
     req.log.error({ err }, "Failed to update user");

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, pageSpeedResultsTable, auditsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireAuth } from "../lib/auth";
+import { requireAuth, assertAuditAccess } from "../lib/rbac";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -121,20 +121,19 @@ router.get("/pagespeed/:auditId", requireAuth, async (req, res) => {
     const { device = "mobile" } = req.query as { device?: string };
     const deviceType = device === "desktop" ? "desktop" : "mobile";
 
+    // RBAC: verify user has access to this audit
+    const audit = await assertAuditAccess(req, auditId);
+    if (!audit) {
+      res.status(404).json({ error: "Not found or access denied" });
+      return;
+    }
+
     const existing = await db.query.pageSpeedResultsTable.findFirst({
       where: eq(pageSpeedResultsTable.auditId, auditId),
     });
 
     if (existing) {
       res.json(existing);
-      return;
-    }
-
-    const audit = await db.query.auditsTable.findFirst({
-      where: eq(auditsTable.id, auditId),
-    });
-    if (!audit) {
-      res.status(404).json({ error: "Not found" });
       return;
     }
 

@@ -1,15 +1,20 @@
 import { Router } from "express";
 import { db, clientsTable, auditsTable, auditIssuesTable } from "@workspace/db";
-import { eq, and, like, or, sql } from "drizzle-orm";
-import { requireAuth } from "../lib/auth";
+import { eq, and, like, or, sql, inArray } from "drizzle-orm";
+import { requireAuth, getUserOrgIds, assertClientAccess } from "../lib/rbac";
 
 const router = Router();
 
 router.get("/clients", requireAuth, async (req, res) => {
   try {
     const { orgId, search } = req.query as { orgId?: string; search?: string };
-    const conditions = [];
-    if (orgId) conditions.push(eq(clientsTable.orgId, orgId));
+
+    // Scope to orgs the user belongs to
+    const allowedOrgIds = getUserOrgIds(req);
+    if (allowedOrgIds.length === 0) { res.json([]); return; }
+
+    const conditions: any[] = [inArray(clientsTable.orgId, allowedOrgIds)];
+    if (orgId && allowedOrgIds.includes(orgId)) conditions.push(eq(clientsTable.orgId, orgId));
     if (search) {
       conditions.push(
         or(
@@ -18,14 +23,16 @@ router.get("/clients", requireAuth, async (req, res) => {
         ),
       );
     }
-    const clients = conditions.length
-      ? await db.select().from(clientsTable).where(and(...conditions))
-      : await db.select().from(clientsTable);
+
+    const clients = await db.select().from(clientsTable).where(and(...conditions));
 
     const enriched = await Promise.all(
       clients.map(async (client) => {
         const auditCount = await db.$count(auditsTable, eq(auditsTable.clientId, client.id));
-        const issueCount = await db.$count(auditIssuesTable, sql`${auditIssuesTable.auditId} IN (SELECT id FROM audits WHERE client_id = ${client.id})`);
+        const issueCount = await db.$count(
+          auditIssuesTable,
+          sql`${auditIssuesTable.auditId} IN (SELECT id FROM audits WHERE client_id = ${client.id})`,
+        );
         return { ...client, auditCount, issueCount };
       }),
     );
@@ -39,11 +46,17 @@ router.get("/clients", requireAuth, async (req, res) => {
 router.post("/clients", requireAuth, async (req, res) => {
   try {
     const { orgId, name, domain, industry, contactEmail, logoUrl } = req.body;
+
+    // RBAC: user must belong to this org
+    const allowedOrgIds = getUserOrgIds(req);
+    if (!allowedOrgIds.includes(orgId)) {
+      res.status(403).json({ error: "Not a member of the specified organization" });
+      return;
+    }
+
     const id = crypto.randomUUID();
     await db.insert(clientsTable).values({ id, orgId, name, domain, industry, contactEmail, logoUrl });
-    const client = await db.query.clientsTable.findFirst({
-      where: eq(clientsTable.id, id),
-    });
+    const client = await db.query.clientsTable.findFirst({ where: eq(clientsTable.id, id) });
     res.status(201).json({ ...client, auditCount: 0, issueCount: 0 });
   } catch (err) {
     req.log.error({ err }, "Failed to create client");
@@ -54,15 +67,14 @@ router.post("/clients", requireAuth, async (req, res) => {
 router.get("/clients/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
-    const client = await db.query.clientsTable.findFirst({
-      where: eq(clientsTable.id, id),
-    });
-    if (!client) {
-      res.status(404).json({ error: "Not found" });
-      return;
-    }
+    const client = await assertClientAccess(req, id);
+    if (!client) { res.status(404).json({ error: "Not found or access denied" }); return; }
+
     const auditCount = await db.$count(auditsTable, eq(auditsTable.clientId, client.id));
-    const issueCount = await db.$count(auditIssuesTable, sql`${auditIssuesTable.auditId} IN (SELECT id FROM audits WHERE client_id = ${client.id})`);
+    const issueCount = await db.$count(
+      auditIssuesTable,
+      sql`${auditIssuesTable.auditId} IN (SELECT id FROM audits WHERE client_id = ${client.id})`,
+    );
     res.json({ ...client, auditCount, issueCount });
   } catch (err) {
     req.log.error({ err }, "Failed to get client");
@@ -73,12 +85,17 @@ router.get("/clients/:id", requireAuth, async (req, res) => {
 router.put("/clients/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
+    const client = await assertClientAccess(req, id);
+    if (!client) { res.status(403).json({ error: "Access denied" }); return; }
+
     const { name, domain, industry, contactEmail, logoUrl } = req.body;
-    await db.update(clientsTable).set({ name, domain, industry, contactEmail, logoUrl, updatedAt: new Date() }).where(eq(clientsTable.id, id));
-    const client = await db.query.clientsTable.findFirst({ where: eq(clientsTable.id, id) });
-    if (!client) { res.status(404).json({ error: "Not found" }); return; }
-    const auditCount = await db.$count(auditsTable, eq(auditsTable.clientId, client.id));
-    res.json({ ...client, auditCount, issueCount: 0 });
+    await db
+      .update(clientsTable)
+      .set({ name, domain, industry, contactEmail, logoUrl, updatedAt: new Date() })
+      .where(eq(clientsTable.id, id));
+    const updated = await db.query.clientsTable.findFirst({ where: eq(clientsTable.id, id) });
+    const auditCount = await db.$count(auditsTable, eq(auditsTable.clientId, id));
+    res.json({ ...updated, auditCount, issueCount: 0 });
   } catch (err) {
     req.log.error({ err }, "Failed to update client");
     res.status(500).json({ error: "Internal server error" });
@@ -88,6 +105,8 @@ router.put("/clients/:id", requireAuth, async (req, res) => {
 router.delete("/clients/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
+    const client = await assertClientAccess(req, id);
+    if (!client) { res.status(403).json({ error: "Access denied" }); return; }
     await db.delete(clientsTable).where(eq(clientsTable.id, id));
     res.status(204).send();
   } catch (err) {

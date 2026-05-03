@@ -1,31 +1,27 @@
 import { Router } from "express";
 import { db, organizationsTable, orgMembersTable, clientsTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
-import { requireAuth } from "../lib/auth";
+import { requireAuth, getMembershipForOrg, getUserOrgIds } from "../lib/rbac";
 
 const router = Router();
 
 router.get("/organizations", requireAuth, async (req, res) => {
-  const clerkId = (req as any).clerkUserId as string;
   try {
-    const members = await db.query.orgMembersTable.findMany({
-      where: eq(orgMembersTable.userId, clerkId),
-    });
-    const orgIds = members.map((m) => m.orgId);
-    if (orgIds.length === 0) {
-      res.json([]);
-      return;
-    }
+    // Use preloaded org memberships from RBAC context
+    const orgIds = getUserOrgIds(req);
+    if (orgIds.length === 0) { res.json([]); return; }
+
     const orgs = await db.query.organizationsTable.findMany({
       where: sql`${organizationsTable.id} = ANY(ARRAY[${sql.join(orgIds.map((id) => sql`${id}`), sql`, `)}]::text[])`,
     });
     const enriched = await Promise.all(
       orgs.map(async (org) => {
+        const membership = getMembershipForOrg(req, org.id);
         const [memberCount, clientCount] = await Promise.all([
           db.$count(orgMembersTable, eq(orgMembersTable.orgId, org.id)),
           db.$count(clientsTable, eq(clientsTable.orgId, org.id)),
         ]);
-        return { ...org, memberCount, clientCount, auditCount: 0 };
+        return { ...org, memberCount, clientCount, auditCount: 0, myRole: membership?.role };
       }),
     );
     res.json(enriched);
@@ -37,6 +33,7 @@ router.get("/organizations", requireAuth, async (req, res) => {
 
 router.post("/organizations", requireAuth, async (req, res) => {
   const clerkId = (req as any).clerkUserId as string;
+  const userEmail = req.seorxUser?.email ?? "";
   try {
     const { name, slug, logoUrl } = req.body;
     const id = crypto.randomUUID();
