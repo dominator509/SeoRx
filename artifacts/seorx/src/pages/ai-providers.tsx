@@ -21,7 +21,6 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { useUser } from "@clerk/react";
 import { Plus, Cpu, Trash2, CheckCircle } from "lucide-react";
 
 const PROVIDER_MODELS: Record<string, string[]> = {
@@ -33,7 +32,6 @@ const PROVIDER_MODELS: Record<string, string[]> = {
 };
 
 const createSchema = z.object({
-  orgId: z.string().min(1),
   name: z.string().min(2, "Name required"),
   provider: z.enum(["openai", "anthropic", "gemini", "ollama", "custom"]),
   model: z.string().min(1, "Model required"),
@@ -43,7 +41,6 @@ const createSchema = z.object({
 });
 
 export default function AiProviders() {
-  const { user } = useUser();
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -74,9 +71,8 @@ export default function AiProviders() {
 
   const form = useForm<z.infer<typeof createSchema>>({
     resolver: zodResolver(createSchema),
-    defaultValues: { orgId: "", name: "", provider: "openai", model: "gpt-4o", apiKey: "", baseUrl: "", isDefault: false },
+    defaultValues: { name: "", provider: "openai", model: "gpt-4o", apiKey: "", baseUrl: "", isDefault: false },
   });
-  const activeOrgId = user?.unsafeMetadata?.orgId as string | undefined;
 
   const selectedProvider = form.watch("provider");
   const models = PROVIDER_MODELS[selectedProvider] ?? [];
@@ -105,12 +101,7 @@ export default function AiProviders() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Add AI Provider</DialogTitle></DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit((v) => createProvider.mutate({ data: { ...v, orgId: activeOrgId ?? v.orgId } as any }))} className="space-y-4">
-                {!activeOrgId && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-                    No active organization is selected.
-                  </div>
-                )}
+              <form onSubmit={form.handleSubmit((v) => createProvider.mutate({ data: v as any }))} className="space-y-4">
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem><FormLabel>Display Name</FormLabel><FormControl><Input placeholder="My OpenAI Provider" {...field} data-testid="input-provider-name" /></FormControl><FormMessage /></FormItem>
                 )} />
