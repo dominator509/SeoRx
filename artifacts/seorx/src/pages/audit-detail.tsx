@@ -27,8 +27,7 @@ function seoRing(score?: number | null, label?: string) {
       <div className="relative w-16 h-16">
         <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
           <circle cx="32" cy="32" r="26" fill="none" stroke="hsl(var(--muted))" strokeWidth="6" />
-          <circle cx="32" cy="32" r="26" fill="none" stroke={color} strokeWidth="6"
-            strokeDasharray={`${(score / 100) * 163} 163`} strokeLinecap="round" />
+          <circle cx="32" cy="32" r="26" fill="none" stroke={color} strokeWidth="6" strokeDasharray={`${(score / 100) * 163} 163`} strokeLinecap="round" />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
           <span className="text-sm font-bold" style={{ color }}>{score}</span>
@@ -58,6 +57,13 @@ function statusBadge(status: string) {
     fixed: "bg-blue-100 text-blue-700 border-blue-200",
   };
   return <Badge variant="outline" className={`text-[10px] font-semibold ${map[status] ?? ""}`}>{status}</Badge>;
+}
+
+function metricValue(value: any, kind: "ms" | "seconds" | "ratio") {
+  if (value == null || Number.isNaN(value)) return "—";
+  if (kind === "seconds") return `${(Number(value) / 1000).toFixed(2)}s`;
+  if (kind === "ratio") return Number(value).toFixed(3);
+  return `${Number(value).toFixed(0)}ms`;
 }
 
 export default function AuditDetail() {
@@ -105,7 +111,6 @@ export default function AuditDetail() {
     },
   });
 
-  // Poll for running audits
   useEffect(() => {
     if (audit?.status !== "running" && audit?.status !== "pending") return;
     const interval = setInterval(() => {
@@ -115,48 +120,46 @@ export default function AuditDetail() {
   }, [audit?.status, id, qc]);
 
   if (auditLoading) {
-    return <div className="p-6 space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-32 w-full" /></div>;
+    return <div className="p-4 sm:p-6 space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-32 w-full" /></div>;
   }
-  if (!audit) return <div className="p-6 text-muted-foreground">Audit not found.</div>;
+  if (!audit) return <div className="p-4 sm:p-6 text-muted-foreground">Audit not found.</div>;
 
   const auditData = audit as any;
 
   return (
-    <div className="p-6 space-y-5 max-w-6xl">
+    <div className="p-4 sm:p-6 space-y-5 max-w-6xl mx-auto">
       <Link href="/audits">
         <Button variant="ghost" size="sm" className="gap-1.5 -ml-2">
           <ArrowLeft className="w-4 h-4" />All Audits
         </Button>
       </Link>
 
-      {/* Audit header */}
       <Card>
-        <CardContent className="p-5">
-          <div className="flex items-start gap-4">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap mb-1">
-                <h1 className="text-lg font-bold text-foreground">{auditData.clientName}</h1>
+                <h1 className="text-lg sm:text-xl font-bold text-foreground">{auditData.clientName}</h1>
                 <Badge variant="outline" className={`text-[10px] font-semibold ${
                   audit.status === "completed" ? "bg-emerald-100 text-emerald-700 border-emerald-200"
                   : audit.status === "running" ? "bg-blue-100 text-blue-700 border-blue-200 animate-pulse"
                   : "bg-gray-100 text-gray-600 border-gray-200"
                 }`}>{audit.status}</Badge>
               </div>
-              <div className="text-sm text-muted-foreground mb-3">{audit.url}</div>
-              <div className="flex items-center gap-5 text-xs text-muted-foreground">
-                {audit.crawledPages && <span>{audit.crawledPages} pages crawled</span>}
-                {audit.scanDurationMs && <span><Clock className="w-3 h-3 inline mr-1" />{(audit.scanDurationMs / 1000).toFixed(1)}s scan</span>}
+              <div className="text-sm text-muted-foreground break-all mb-3">{audit.url}</div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                {audit.crawledPages != null && <span>{audit.crawledPages} pages crawled</span>}
+                {audit.scanDurationMs != null && <span><Clock className="w-3 h-3 inline mr-1" />{(audit.scanDurationMs / 1000).toFixed(1)}s scan</span>}
                 {audit.completedAt && <span>Completed {format(new Date(audit.completedAt), "MMM d, yyyy HH:mm")}</span>}
               </div>
             </div>
-            <div className="flex gap-4 flex-shrink-0">
+            <div className="flex gap-4 flex-wrap sm:flex-nowrap sm:flex-shrink-0">
               {seoRing(audit.seoScore, "SEO Score")}
               {seoRing(auditData.criticalCount != null ? (100 - auditData.criticalCount * 10) : null, "Health")}
             </div>
           </div>
 
-          {/* Issue severity summary */}
-          <div className="grid grid-cols-4 gap-3 mt-4 pt-4 border-t border-border">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-border">
             {[
               { label: "Critical", count: auditData.criticalCount, color: "text-red-500 bg-red-50 border-red-100" },
               { label: "High", count: auditData.highCount, color: "text-orange-500 bg-orange-50 border-orange-100" },
@@ -173,16 +176,15 @@ export default function AuditDetail() {
       </Card>
 
       <Tabs defaultValue="issues">
-        <TabsList>
+        <TabsList className="w-full sm:w-auto grid grid-cols-2">
           <TabsTrigger value="issues">Issues ({auditData.issueCount ?? 0})</TabsTrigger>
           <TabsTrigger value="pagespeed">PageSpeed</TabsTrigger>
         </TabsList>
 
         <TabsContent value="issues" className="space-y-4 mt-4">
-          {/* Filters */}
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Select value={severityFilter} onValueChange={setSeverityFilter}>
-              <SelectTrigger className="w-36"><SelectValue placeholder="All severities" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="All severities" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All severities</SelectItem>
                 <SelectItem value="critical">Critical</SelectItem>
@@ -192,7 +194,7 @@ export default function AuditDetail() {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-36"><SelectValue placeholder="All statuses" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="All statuses" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 <SelectItem value="open">Open</SelectItem>
@@ -219,49 +221,31 @@ export default function AuditDetail() {
                         : "text-blue-500"
                       }`} />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
                           <span className="font-semibold text-sm text-foreground">{issue.title}</span>
                           {severityBadge(issue.severity)}
                           {statusBadge(issue.status)}
                           {issue.category && <Badge variant="secondary" className="text-[10px]">{issue.category?.replace(/_/g, " ")}</Badge>}
-                          {issue.priorityScore != null && (
-                            <span className="ml-auto text-[10px] font-bold text-muted-foreground">Priority: {issue.priorityScore}/100</span>
-                          )}
+                          {issue.priorityScore != null && <span className="text-[10px] font-bold text-muted-foreground">Priority: {issue.priorityScore}/100</span>}
                         </div>
-                        <p className="text-sm text-muted-foreground mb-2">{issue.description}</p>
+                        <p className="text-sm text-muted-foreground mb-2 leading-relaxed">{issue.description}</p>
                         <div className="bg-muted/50 rounded-md p-3 mb-2">
-                          <p className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1">
-                            <Zap className="w-3 h-3 text-primary" />Recommendation
-                          </p>
-                          <p className="text-xs text-muted-foreground">{issue.recommendation}</p>
+                          <p className="text-xs font-semibold text-foreground mb-1 flex items-center gap-1"><Zap className="w-3 h-3 text-primary" />Recommendation</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{issue.recommendation}</p>
                         </div>
                         {issue.aiRecommendation && (
                           <div className="bg-primary/5 border border-primary/20 rounded-md p-3">
-                            <p className="text-xs font-semibold text-primary mb-1 flex items-center gap-1">
-                              <Zap className="w-3 h-3" />AI Analysis
-                            </p>
-                            <p className="text-xs text-muted-foreground">{issue.aiRecommendation}</p>
+                            <p className="text-xs font-semibold text-primary mb-1 flex items-center gap-1"><Zap className="w-3 h-3" />AI Analysis</p>
+                            <p className="text-xs text-muted-foreground leading-relaxed">{issue.aiRecommendation}</p>
                           </div>
                         )}
                       </div>
                       {issue.status === "open" && (
-                        <div className="flex gap-1.5 flex-shrink-0">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1 text-emerald-600 border-emerald-200 hover:bg-emerald-50 h-7 text-xs"
-                            onClick={() => setApproveId(issue.id)}
-                            data-testid={`approve-issue-${issue.id}`}
-                          >
+                        <div className="flex flex-col sm:flex-row gap-1.5 flex-shrink-0">
+                          <Button size="sm" variant="outline" className="gap-1 text-emerald-600 border-emerald-200 hover:bg-emerald-50 h-7 text-xs" onClick={() => setApproveId(issue.id)} data-testid={`approve-issue-${issue.id}`}>
                             <CheckCircle className="w-3.5 h-3.5" />Approve
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1 text-gray-500 h-7 text-xs"
-                            onClick={() => setDismissId(issue.id)}
-                            data-testid={`dismiss-issue-${issue.id}`}
-                          >
+                          <Button size="sm" variant="outline" className="gap-1 text-gray-500 h-7 text-xs" onClick={() => setDismissId(issue.id)} data-testid={`dismiss-issue-${issue.id}`}>
                             <XCircle className="w-3.5 h-3.5" />Dismiss
                           </Button>
                         </div>
@@ -281,29 +265,26 @@ export default function AuditDetail() {
             </CardContent></Card>
           ) : (
             <div className="space-y-4">
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
                   { label: "Performance", score: (pagespeed as any).performanceScore },
                   { label: "Accessibility", score: (pagespeed as any).accessibilityScore },
                   { label: "Best Practices", score: (pagespeed as any).bestPracticesScore },
                   { label: "SEO", score: (pagespeed as any).seoScore },
                 ].map(({ label, score }) => (
-                  <Card key={label}><CardContent className="p-4 flex flex-col items-center gap-2">
-                    {seoRing(score)}
-                    <span className="text-xs text-muted-foreground font-medium">{label}</span>
-                  </CardContent></Card>
+                  <Card key={label}><CardContent className="p-4 flex flex-col items-center gap-2">{seoRing(score)}<span className="text-xs text-muted-foreground font-medium text-center">{label}</span></CardContent></Card>
                 ))}
               </div>
               <Card>
                 <CardHeader><CardTitle className="text-sm font-semibold">Core Web Vitals</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {[
-                      { label: "FCP", value: `${((pagespeed as any).fcp / 1000).toFixed(2)}s`, desc: "First Contentful Paint" },
-                      { label: "LCP", value: `${((pagespeed as any).lcp / 1000).toFixed(2)}s`, desc: "Largest Contentful Paint" },
-                      { label: "CLS", value: (pagespeed as any).cls?.toFixed(3), desc: "Cumulative Layout Shift" },
-                      { label: "TBT", value: `${(pagespeed as any).tbt}ms`, desc: "Total Blocking Time" },
-                      { label: "TTFB", value: `${(pagespeed as any).ttfb}ms`, desc: "Time to First Byte" },
+                      { label: "FCP", value: metricValue((pagespeed as any).fcp, "seconds"), desc: "First Contentful Paint" },
+                      { label: "LCP", value: metricValue((pagespeed as any).lcp, "seconds"), desc: "Largest Contentful Paint" },
+                      { label: "CLS", value: metricValue((pagespeed as any).cls, "ratio"), desc: "Cumulative Layout Shift" },
+                      { label: "TBT", value: metricValue((pagespeed as any).tbt, "ms"), desc: "Total Blocking Time" },
+                      { label: "TTFB", value: metricValue((pagespeed as any).ttfb, "ms"), desc: "Time to First Byte" },
                     ].map(({ label, value, desc }) => (
                       <div key={label} className="bg-muted/50 rounded-lg p-3">
                         <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</div>

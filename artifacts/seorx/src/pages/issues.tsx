@@ -63,16 +63,16 @@ function IssuesList({ auditId, auditClientName, severity, status, onApprove, onD
                     <span className="text-xs text-muted-foreground hover:text-primary">{auditClientName}</span>
                   </Link>
                 </div>
-                <p className="text-sm text-muted-foreground">{issue.description}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{issue.description}</p>
                 {issue.aiRecommendation && (
                   <div className="mt-2 bg-primary/5 border border-primary/20 rounded-md p-2.5">
                     <p className="text-xs font-semibold text-primary flex items-center gap-1 mb-1"><Zap className="w-3 h-3" />AI Analysis</p>
-                    <p className="text-xs text-muted-foreground">{issue.aiRecommendation}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">{issue.aiRecommendation}</p>
                   </div>
                 )}
               </div>
               {issue.status === "open" && (
-                <div className="flex gap-1.5 flex-shrink-0">
+                <div className="flex flex-col sm:flex-row gap-1.5 flex-shrink-0">
                   <Button size="sm" variant="outline" className="gap-1 text-emerald-600 border-emerald-200 hover:bg-emerald-50 h-7 text-xs" onClick={() => onApprove(issue.id)} data-testid={`approve-${issue.id}`}>
                     <CheckCircle className="w-3.5 h-3.5" />Approve
                   </Button>
@@ -129,15 +129,15 @@ export default function Issues() {
   });
 
   return (
-    <div className="p-6 space-y-5 max-w-5xl">
+    <div className="p-4 sm:p-6 space-y-5 max-w-5xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold">Issues</h1>
         <p className="text-sm text-muted-foreground mt-0.5">All SEO issues across completed audits</p>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
         <Select value={severity} onValueChange={setSeverity}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All severities</SelectItem>
             <SelectItem value="critical">Critical</SelectItem>
@@ -147,7 +147,7 @@ export default function Issues() {
           </SelectContent>
         </Select>
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="open">Open</SelectItem>

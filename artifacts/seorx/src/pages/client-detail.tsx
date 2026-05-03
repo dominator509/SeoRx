@@ -17,11 +17,7 @@ function seoScoreRing(score?: number | null) {
     <div className="relative w-20 h-20">
       <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
         <circle cx="40" cy="40" r="32" fill="none" stroke="hsl(var(--muted))" strokeWidth="8" />
-        <circle
-          cx="40" cy="40" r="32" fill="none" stroke={color} strokeWidth="8"
-          strokeDasharray={`${(score / 100) * 201} 201`}
-          strokeLinecap="round"
-        />
+        <circle cx="40" cy="40" r="32" fill="none" stroke={color} strokeWidth="8" strokeDasharray={`${(score / 100) * 201} 201`} strokeLinecap="round" />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
         <span className="text-xl font-bold" style={{ color }}>{score}</span>
@@ -54,7 +50,7 @@ export default function ClientDetail() {
 
   if (clientLoading) {
     return (
-      <div className="p-6 space-y-4">
+      <div className="p-4 sm:p-6 space-y-4">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-64 w-full" />
@@ -63,54 +59,58 @@ export default function ClientDetail() {
   }
 
   if (!client) {
-    return <div className="p-6 text-muted-foreground">Client not found.</div>;
+    return <div className="p-4 sm:p-6 text-muted-foreground">Client not found.</div>;
   }
 
   return (
-    <div className="p-6 space-y-5 max-w-5xl">
+    <div className="p-4 sm:p-6 space-y-5 max-w-5xl mx-auto">
       <Link href="/clients">
         <Button variant="ghost" size="sm" className="gap-1.5 -ml-2 mb-1">
           <ArrowLeft className="w-4 h-4" />All Clients
         </Button>
       </Link>
 
-      {/* Header card */}
       <Card>
-        <CardContent className="p-6 flex items-start gap-6">
-          <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
-            <Globe className="w-7 h-7 text-muted-foreground" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-foreground">{client.name}</h1>
-            <div className="flex items-center gap-4 mt-2 flex-wrap">
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Globe className="w-3.5 h-3.5" />{client.domain}
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col lg:flex-row lg:items-start gap-5">
+            <div className="flex items-start gap-4 flex-1 min-w-0">
+              <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                <Globe className="w-7 h-7 text-muted-foreground" />
               </div>
-              {client.industry && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Building2 className="w-3.5 h-3.5" />{client.industry}
+              <div className="min-w-0">
+                <h1 className="text-2xl font-bold text-foreground break-words">{client.name}</h1>
+                <div className="flex items-center gap-4 mt-2 flex-wrap">
+                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <Globe className="w-3.5 h-3.5" />{client.domain}
+                  </div>
+                  {client.industry && (
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Building2 className="w-3.5 h-3.5" />{client.industry}
+                    </div>
+                  )}
+                  {client.contactEmail && (
+                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground break-all">
+                      <Mail className="w-3.5 h-3.5" />{client.contactEmail}
+                    </div>
+                  )}
                 </div>
-              )}
-              {client.contactEmail && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Mail className="w-3.5 h-3.5" />{client.contactEmail}
-                </div>
-              )}
+              </div>
+            </div>
+            <div className="flex items-center justify-between sm:justify-start gap-4 flex-wrap">
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">SEO Score</div>
+                {seoScoreRing(client.seoScore)}
+              </div>
+              <Link href={`/audits/new?clientId=${client.id}`}>
+                <Button size="sm" className="gap-1.5 whitespace-nowrap">
+                  <Search className="w-4 h-4" />New Audit
+                </Button>
+              </Link>
             </div>
           </div>
-          <div className="flex-shrink-0 text-center">
-            <div className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">SEO Score</div>
-            {seoScoreRing(client.seoScore)}
-          </div>
-          <Link href={`/audits/new?clientId=${client.id}`}>
-            <Button size="sm" className="gap-1.5 flex-shrink-0">
-              <Search className="w-4 h-4" />New Audit
-            </Button>
-          </Link>
         </CardContent>
       </Card>
 
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         <Card><CardContent className="p-4 text-center">
           <div className="text-2xl font-bold text-foreground">{client.auditCount ?? 0}</div>
@@ -126,7 +126,6 @@ export default function ClientDetail() {
         </CardContent></Card>
       </div>
 
-      {/* Audit history */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold">Audit History</CardTitle>
