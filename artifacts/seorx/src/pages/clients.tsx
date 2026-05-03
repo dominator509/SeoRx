@@ -29,7 +29,7 @@ import { Plus, Search, Globe, ArrowRight, Trash2, ExternalLink } from "lucide-re
 import { format } from "date-fns";
 
 const createSchema = z.object({
-  orgId: z.string().min(1, "Organization is required"),
+  orgId: z.string().optional(),
   name: z.string().min(2, "Name required"),
   domain: z.string().min(3, "Domain required").regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, "Enter a valid domain"),
   industry: z.string().optional(),
@@ -103,11 +103,6 @@ export default function Clients() {
             <DialogHeader><DialogTitle>Add Client</DialogTitle></DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit((v) => createClient.mutate({ data: { ...v, orgId: activeOrgId ?? v.orgId } as any }))} className="space-y-4">
-                {!activeOrgId && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
-                    No active organization is selected.
-                  </div>
-                )}
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem><FormLabel>Client Name</FormLabel><FormControl><Input placeholder="Acme Corp" {...field} data-testid="input-client-name" /></FormControl><FormMessage /></FormItem>
                 )} />
