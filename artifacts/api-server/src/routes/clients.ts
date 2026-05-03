@@ -1,21 +1,16 @@
 import { Router } from "express";
 import { db, clientsTable, auditsTable, auditIssuesTable } from "@workspace/db";
 import { eq, and, like, or, sql, inArray } from "drizzle-orm";
-import { requireAuth, getUserOrgIds, assertClientAccess } from "../lib/rbac";
+import { requireAuth, assertClientAccess } from "../lib/rbac";
 import { enforceClientLimit } from "../lib/plan-enforcement";
 
 const router = Router();
 
 router.get("/clients", requireAuth, async (req, res) => {
   try {
-    const { orgId, search } = req.query as { orgId?: string; search?: string };
+    const { search } = req.query as { search?: string };
 
-    // Scope to orgs the user belongs to
-    const allowedOrgIds = getUserOrgIds(req);
-    if (allowedOrgIds.length === 0) { res.json([]); return; }
-
-    const conditions: any[] = [inArray(clientsTable.orgId, allowedOrgIds)];
-    if (orgId && allowedOrgIds.includes(orgId)) conditions.push(eq(clientsTable.orgId, orgId));
+    const conditions: any[] = [];
     if (search) {
       conditions.push(
         or(
@@ -46,14 +41,8 @@ router.get("/clients", requireAuth, async (req, res) => {
 
 router.post("/clients", requireAuth, enforceClientLimit(), async (req, res) => {
   try {
-    const { orgId, name, domain, industry, contactEmail, logoUrl } = req.body;
-
-    // RBAC: user must belong to this org
-    const allowedOrgIds = getUserOrgIds(req);
-    if (!allowedOrgIds.includes(orgId)) {
-      res.status(403).json({ error: "Not a member of the specified organization" });
-      return;
-    }
+    const { name, domain, industry, contactEmail, logoUrl } = req.body;
+    const orgId = req.body.orgId ?? null;
 
     const id = crypto.randomUUID();
     await db.insert(clientsTable).values({ id, orgId, name, domain, industry, contactEmail, logoUrl });
