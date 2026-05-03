@@ -26,6 +26,7 @@
 - [x] requireAuth middleware for all protected routes
 - [x] API keys never hard-coded (all via env secrets)
 - [x] SESSION_SECRET environment variable configured
+- [x] Developer API bearer-token auth middleware
 
 ## Phase 3: Database Schema ✅
 - [x] users table (clerkId, email, role RBAC)
@@ -66,6 +67,7 @@
 - [x] POST /api/integrations/webhooks/test (test webhook delivery)
 - [x] GET /api/docs (Swagger UI)
 - [x] GET /api/openapi.json (raw OpenAPI spec)
+- [x] GET /api/developer/authorize (API key bearer-token auth)
 
 ## Phase 5: OpenAPI Spec & Codegen ✅
 - [x] Comprehensive OpenAPI 3.1 spec (lib/api-spec/openapi.yaml)
@@ -145,6 +147,7 @@
 - [x] PATCH /api/api-keys/:id — toggle active state
 - [x] GET /api/docs — Swagger UI (custom SEORx branding)
 - [x] GET /api/openapi.json — raw OpenAPI spec
+- [x] GET /api/developer/authorize — bearer-token auth verification
 
 ## Phase 15: Security Hardening ✅
 - [x] Helmet.js security headers (CSP, HSTS, X-Frame-Options)
@@ -188,7 +191,6 @@
 
 | Phase | Deviation | Reason |
 |-------|-----------|--------|
-| 14 | API key auth middleware not yet wired (keys can be created but not used for auth) | Requires bearer-token middleware to also load org context; deferred to hardening pass |
 | 17 | Deployment guide not yet written | Low priority; Replit deployment is one-click |
 | 18 | GSC token storage not yet persisted (OAuth flow works, tokens not saved to DB) | Requires org_integrations table; deferred to next phase |
 | 18 | Webhook registrations stored in-memory only | Requires org_webhooks table; deferred to next phase |
@@ -202,11 +204,10 @@
 - Encryption: falls back to base64 with startup warning when ENCRYPTION_KEY not set
 
 ## Completed Phases Summary
-✅ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17 (partial), 18 (scaffold), 19
+✅ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 18, 19
 ⏳ 16 (tests), 17 (deployment guide)
 
 ## Next Priority Actions
 1. ⏳ Phase 16: Test suite (unit + integration)
-2. ⏳ Phase 14 follow-up: API key bearer-token auth middleware
+2. ⏳ Phase 17: Deployment guide
 3. ⏳ Phase 18 follow-up: Persist GSC tokens + webhook registrations to DB
-4. ⏳ Phase 17 follow-up: Deployment guide
