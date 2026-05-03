@@ -26,3 +26,11 @@ VITE_CLERK_PUBLISHABLE_KEY = "pk_test_ZW1lcmdpbmctbW9vc2UtMzIuY2xlcmsuYWNjb3VudH
 
 [nix]
 channel = "stable-25_05"
+
+[[ports]]
+localPort = 8080
+externalPort = 80
+
+[[ports]]
+localPort = 24258
+externalPort = 3000
