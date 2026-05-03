@@ -5,6 +5,8 @@ import {
   useCreateClient,
   useDeleteClient,
   getListClientsQueryKey,
+  useListOrganizations,
+  getListOrganizationsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,7 +26,6 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { useUser } from "@clerk/react";
 import { Plus, Search, Globe, ArrowRight, Trash2, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 
@@ -45,7 +46,6 @@ function seoScoreBadge(score?: number | null) {
 }
 
 export default function Clients() {
-  const { user } = useUser();
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -56,6 +56,7 @@ export default function Clients() {
     { search: search || undefined },
     { query: { queryKey: getListClientsQueryKey({ search: search || undefined }) } },
   );
+  const { data: orgs } = useListOrganizations({ query: { queryKey: getListOrganizationsQueryKey() } });
 
   const createClient = useCreateClient({
     mutation: {
@@ -84,7 +85,7 @@ export default function Clients() {
     defaultValues: { orgId: "", name: "", domain: "", industry: "", contactEmail: "" },
   });
 
-  const activeOrgId = user?.unsafeMetadata?.orgId as string | undefined;
+  const activeOrgId = orgs?.[0]?.id as string | undefined;
 
   return (
     <div className="p-4 sm:p-6 space-y-5 max-w-6xl mx-auto">
@@ -103,6 +104,11 @@ export default function Clients() {
             <DialogHeader><DialogTitle>Add Client</DialogTitle></DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit((v) => createClient.mutate({ data: { ...v, orgId: activeOrgId ?? v.orgId } as any }))} className="space-y-4">
+                {!activeOrgId && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    Create or join an organization first.
+                  </div>
+                )}
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem><FormLabel>Client Name</FormLabel><FormControl><Input placeholder="Acme Corp" {...field} data-testid="input-client-name" /></FormControl><FormMessage /></FormItem>
                 )} />
@@ -115,7 +121,7 @@ export default function Clients() {
                 <FormField control={form.control} name="contactEmail" render={({ field }) => (
                   <FormItem><FormLabel>Contact Email (optional)</FormLabel><FormControl><Input placeholder="seo@acmecorp.com" type="email" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <Button type="submit" className="w-full" disabled={createClient.isPending} data-testid="submit-create-client">
+                <Button type="submit" className="w-full" disabled={createClient.isPending || !activeOrgId} data-testid="submit-create-client">
                   {createClient.isPending ? "Adding..." : "Add Client"}
                 </Button>
               </form>
