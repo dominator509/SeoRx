@@ -1,12 +1,11 @@
 import { Router } from "express";
 import { db, clientsTable, auditsTable, auditIssuesTable } from "@workspace/db";
 import { eq, and, like, or, sql, inArray } from "drizzle-orm";
-import { requireAuth, assertClientAccess } from "../lib/rbac";
-import { enforceClientLimit } from "../lib/plan-enforcement";
+import { assertClientAccess } from "../lib/rbac";
 
 const router = Router();
 
-router.get("/clients", requireAuth, async (req, res) => {
+router.get("/clients", async (req, res) => {
   try {
     const { search } = req.query as { search?: string };
 
@@ -39,7 +38,7 @@ router.get("/clients", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/clients", requireAuth, enforceClientLimit(), async (req, res) => {
+router.post("/clients", async (req, res) => {
   try {
     const { name, domain, industry, contactEmail, logoUrl } = req.body;
 
@@ -53,7 +52,7 @@ router.post("/clients", requireAuth, enforceClientLimit(), async (req, res) => {
   }
 });
 
-router.get("/clients/:id", requireAuth, async (req, res) => {
+router.get("/clients/:id", async (req, res) => {
   try {
     const id = req.params.id as string;
     const client = await assertClientAccess(req, id);
@@ -71,7 +70,7 @@ router.get("/clients/:id", requireAuth, async (req, res) => {
   }
 });
 
-router.put("/clients/:id", requireAuth, async (req, res) => {
+router.put("/clients/:id", async (req, res) => {
   try {
     const id = req.params.id as string;
     const client = await assertClientAccess(req, id);
@@ -91,7 +90,7 @@ router.put("/clients/:id", requireAuth, async (req, res) => {
   }
 });
 
-router.delete("/clients/:id", requireAuth, async (req, res) => {
+router.delete("/clients/:id", async (req, res) => {
   try {
     const id = req.params.id as string;
     const client = await assertClientAccess(req, id);

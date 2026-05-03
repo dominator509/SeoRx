@@ -121,10 +121,7 @@ export default function Onboarding() {
             <CardHeader><CardTitle>Add your first client</CardTitle></CardHeader>
             <CardContent>
               <Form {...clientForm}>
-                <form
-                  onSubmit={clientForm.handleSubmit((v) => createClient.mutate({ data: v }))}
-                  className="space-y-4"
-                >
+                <form onSubmit={clientForm.handleSubmit((v) => createClient.mutate({ data: v }))} className="space-y-4">
                   <FormField control={clientForm.control} name="name" render={({ field }) => (
                     <FormItem><FormLabel>Client Name</FormLabel><FormControl><Input placeholder="Acme Corp" {...field} data-testid="input-client-name" /></FormControl><FormMessage /></FormItem>
                   )} />
