@@ -108,6 +108,8 @@ async function buildAll() {
       "unicode-properties",
       "restructure",
       "dfa",
+      "swagger-ui-express",
+      "js-yaml",
     ],
     sourcemap: "linked",
     plugins: [

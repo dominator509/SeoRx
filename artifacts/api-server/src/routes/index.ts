@@ -10,6 +10,9 @@ import dashboardRouter from "./dashboard";
 import aiProvidersRouter from "./ai-providers";
 import pagespeedRouter from "./pagespeed";
 import stripeRouter from "./stripe";
+import apiKeysRouter from "./api-keys";
+import integrationsRouter from "./integrations";
+import docsRouter from "./docs";
 
 const router: IRouter = Router();
 
@@ -24,5 +27,8 @@ router.use(dashboardRouter);
 router.use(aiProvidersRouter);
 router.use(pagespeedRouter);
 router.use(stripeRouter);
+router.use(apiKeysRouter);
+router.use(integrationsRouter);
+router.use(docsRouter);
 
 export default router;

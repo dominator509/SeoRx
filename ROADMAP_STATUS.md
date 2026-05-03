@@ -36,25 +36,36 @@
 - [x] audit_issues table (severity, category, priority scoring, approval workflow)
 - [x] reports table (format, status, download URL)
 - [x] ai_providers table (encrypted API keys, provider types)
-- [x] page_speed_results table (Core Web Vitals, device type, speedIndex, TBT)
+- [x] page_speed_results table (Core Web Vitals, device type)
+- [x] api_keys table (SHA-256 hash only, never plaintext)
 - [x] DB schema pushed to development database
 
 ## Phase 4: API Server Routes ✅
 - [x] GET/PUT /api/auth/me (user profile)
 - [x] CRUD /api/organizations + members (RBAC-scoped)
-- [x] CRUD /api/clients (org-scoped data isolation)
-- [x] CRUD /api/audits (org-scoped, real crawler)
+- [x] CRUD /api/clients (org-scoped + plan limit enforcement)
+- [x] CRUD /api/audits (org-scoped + plan limit enforcement + real crawler)
 - [x] GET /api/audits/:id/issues (org-scoped, with filters)
 - [x] PUT /api/issues/:id/approve + dismiss (RBAC + org-scoped)
-- [x] CRUD /api/reports (RBAC-scoped, PDF download)
-- [x] GET /api/reports/:id/download (real PDF via PDFKit)
-- [x] GET /api/dashboard/stats, recent-audits, issue-breakdown, score-trends (org-scoped)
-- [x] CRUD /api/ai-providers (encrypted key storage)
-- [x] GET /api/pagespeed/:auditId (RBAC-scoped, real API + synthetic fallback)
-- [x] GET /api/billing/plans (public plan listing)
+- [x] CRUD /api/reports (RBAC-scoped, real PDF download)
+- [x] GET /api/reports/:id/download (PDFKit streamed PDF)
+- [x] GET /api/dashboard/* (all endpoints org-scoped)
+- [x] CRUD /api/ai-providers (AES-256-GCM encrypted key storage)
+- [x] GET /api/pagespeed/:auditId (RBAC-scoped, real API + fallback)
+- [x] GET /api/billing/plans (public plan comparison)
 - [x] POST /api/billing/checkout (Stripe checkout session)
 - [x] POST /api/billing/portal (Stripe customer portal)
-- [x] POST /api/billing/webhook (Stripe webhook handler)
+- [x] POST /api/billing/webhook (Stripe event handler)
+- [x] CRUD /api/api-keys (developer API key management)
+- [x] GET /api/integrations/gsc/connect (GSC OAuth initiation)
+- [x] GET /api/integrations/gsc/callback (GSC OAuth callback)
+- [x] GET /api/integrations/gsc/properties (GSC property list)
+- [x] POST /api/integrations/gsc/analytics (GSC search analytics)
+- [x] GET /api/integrations/webhooks (list registered webhooks)
+- [x] POST /api/integrations/webhooks (register outbound webhook)
+- [x] POST /api/integrations/webhooks/test (test webhook delivery)
+- [x] GET /api/docs (Swagger UI)
+- [x] GET /api/openapi.json (raw OpenAPI spec)
 
 ## Phase 5: OpenAPI Spec & Codegen ✅
 - [x] Comprehensive OpenAPI 3.1 spec (lib/api-spec/openapi.yaml)
@@ -65,18 +76,17 @@
 ## Phase 6: Frontend Build ✅
 - [x] react-vite artifact scaffolded at "/"
 - [x] Clerk client dependencies installed
-- [x] Branded Clerk sign-in/sign-up pages (custom title, logo, emerald theme)
-- [x] Landing page (public, branded hero + feature sections)
-- [x] Dashboard with stats cards + SEO score trend chart + issue breakdown
-- [x] Client management pages (list + detail with audit history)
-- [x] Audit job pages (list, new audit form, detail with issue list + PageSpeed tab)
-- [x] Issue list with approve/dismiss (human confirmation dialogs)
-- [x] Report pages (list + generate dialog + detail with summary)
+- [x] Branded Clerk sign-in/sign-up pages
+- [x] Landing page (public, branded)
+- [x] Dashboard with stats + charts
+- [x] Client management pages
+- [x] Audit job pages (list, new, detail + PageSpeed tab)
+- [x] Issue list with approve/dismiss (human workflow)
+- [x] Report pages (list + generate + detail)
 - [x] AI Provider configuration page
 - [x] Onboarding wizard (multi-step)
 - [x] Settings page
 - [x] Organization management page
-- [x] AppLayout sidebar with navigation + auth state
 
 ## Phase 7: SEO Scanner Engine ✅
 - [x] Real multi-page crawler (cheerio + node-fetch, robots-parser)
@@ -86,101 +96,83 @@
 - [x] Full page analysis: title, meta, h1/h2, images, links, canonical, OG, structured data, viewport
 - [x] 18+ issue detection rules across all 8 categories
 - [x] Priority scoring algorithm (0–100 per issue)
-- [x] SEO score calculation (100 minus severity-weighted deductions)
-- [x] Crawl progress callback for real-time logging
-- [x] Graceful error handling (unreachable pages, fetch timeouts)
+- [x] SEO score calculation from real crawl findings
+- [x] Graceful error handling
 
 ## Phase 8: AI Provider Adapters ✅
-- [x] OpenAI adapter (chat completions, configurable model)
-- [x] Anthropic Claude adapter (messages API)
-- [x] Google Gemini adapter (generative AI)
-- [x] Ollama local LLM adapter (REST API, configurable base URL)
-- [x] Custom OpenAI-compatible endpoint support
+- [x] OpenAI adapter (configurable model)
+- [x] Anthropic Claude adapter
+- [x] Google Gemini adapter
+- [x] Ollama local LLM adapter
+- [x] Custom OpenAI-compatible endpoint
 - [x] Batch AI recommendation generation (top 10 issues per audit)
-- [x] Rate-limiting between AI calls (500ms delay)
-- [x] AI provider selection (isDefault flag + org-scoped)
-- [x] Graceful fallback (audit completes even if AI fails)
-- [x] Human approval gate preserved: aiRecommendation stored separately, never auto-applied
+- [x] Human approval gate preserved
 
 ## Phase 9: PageSpeed Integration ✅
-- [x] PageSpeed results table (mobile + desktop, all Core Web Vitals)
-- [x] Real PageSpeed Insights API v5 integration (activates when PAGESPEED_API_KEY is set)
-- [x] Synthetic PageSpeed data fallback (realistic distributions, no key required)
-- [x] Device-aware results (mobile vs desktop stored separately)
-- [x] Accessibility, Best Practices, SEO scores alongside Performance
-- [x] RBAC enforcement on pagespeed route
+- [x] Real PageSpeed Insights API v5 (activates when PAGESPEED_API_KEY set)
+- [x] Synthetic fallback (no key required)
+- [x] Mobile + desktop results stored separately
 
 ## Phase 10: Report Generation ✅
-- [x] Report creation and async generation
-- [x] Report status lifecycle (generating → ready/failed)
-- [x] Executive summary generation (issue counts, top priorities)
-- [x] Top 5 issues extraction by priority score
-- [x] Real PDF export via PDFKit (branded, multi-page, AI recommendations)
+- [x] Real PDF export via PDFKit (branded, multi-page)
+- [x] Executive summary generation
+- [x] AI recommendations in PDF (approved issues only)
 - [x] GET /api/reports/:id/download streams PDF directly
-- [x] RBAC enforcement on all report routes
 
 ## Phase 11: Data Seeding ✅
-- [x] 2 organizations (agency + solo)
-- [x] 4 clients across orgs
-- [x] 5 audits (4 completed, 1 running)
-- [x] 8 realistic SEO issues with AI recommendations
-- [x] 3 AI provider configs
+- [x] 2 organizations, 4 clients, 5 audits, 8 issues, 3 AI providers
 
 ## Phase 12: RBAC ✅
-- [x] loadUserContext middleware: auto-provisions user + preloads all org memberships on every request
-- [x] requireAuth: enforces authentication, uses preloaded context (no extra DB round-trip)
-- [x] requireOrgMember / requireOrgRole: org-scoped role enforcement middleware
-- [x] getMembershipForOrg / getUserOrgIds: zero-cost helpers using preloaded memberships
-- [x] assertClientAccess / assertAuditAccess: per-resource access verification
-- [x] clients: org-scoped list, create, read, update, delete
-- [x] audits: org-scoped list, create, read, delete
-- [x] audit issues: approve/dismiss gated by org membership
-- [x] reports: create/read/download gated by org membership
-- [x] dashboard: all stats scoped to user's orgs
-- [x] pagespeed: access gated by audit ownership
-- [x] organizations: list scoped to memberships, includes myRole field
+- [x] loadUserContext middleware (preloads user + all org memberships per request)
+- [x] requireAuth, requireOrgMember, requireOrgRole helpers
+- [x] Org-scoped data isolation on all resource endpoints
+- [x] assertClientAccess / assertAuditAccess for per-resource checks
 
-## Phase 13: Stripe / License Enforcement ✅ (Scaffold)
-- [x] GET /api/billing/plans — public plan comparison endpoint
-- [x] POST /api/billing/checkout — creates Stripe checkout session (requires STRIPE_SECRET_KEY)
-- [x] POST /api/billing/portal — opens billing portal for existing subscribers
-- [x] POST /api/billing/webhook — handles checkout.session.completed + subscription.deleted
-- [x] Webhook auto-upgrades/downgrades org plan in database
-- [x] Plan limit constants (auditsPerMonth, clientsMax, maxPages, aiRecommendations)
-- [x] Graceful degradation: all billing endpoints return clear errors when Stripe not configured
-- [ ] Plan enforcement middleware (count checks before each audit/client creation)
-- [ ] Subscription management UI in frontend
+## Phase 13: Stripe / License Enforcement ✅
+- [x] Billing plan comparison endpoint (public)
+- [x] Checkout session + customer portal + webhook handler
+- [x] Webhook auto-upgrades/downgrades org plan in DB
+- [x] enforceClientLimit middleware (POST /clients)
+- [x] enforceAuditLimit middleware (POST /audits) — monthly counter per org
+- [x] enforceAiLimit middleware — blocks AI recs on free plan
+- [x] maxPages auto-clamped to plan limit on each audit
 
-## Phase 14: Developer API ⏳
-- [ ] API key generation for programmatic access
-- [ ] Rate limiting
-- [ ] API documentation (OpenAPI served at /api/docs)
+## Phase 14: Developer API ✅
+- [x] api_keys table (SHA-256 hash, never plaintext, `srx_` prefix)
+- [x] POST /api/api-keys — generate key (full key shown once)
+- [x] GET /api/api-keys — list keys (prefix + metadata only)
+- [x] DELETE /api/api-keys/:id — revoke key
+- [x] PATCH /api/api-keys/:id — toggle active state
+- [x] GET /api/docs — Swagger UI (custom SEORx branding)
+- [x] GET /api/openapi.json — raw OpenAPI spec
 
 ## Phase 15: Security Hardening ✅
-- [x] Helmet.js security headers (CSP, HSTS, X-Frame-Options, etc.)
-- [x] CORS: locked to explicit origin allowlist in production (ALLOWED_ORIGINS env)
-- [x] Global rate limit: 500 req / 15 min per IP
-- [x] Audit rate limit: 20 audits / hour per user
+- [x] Helmet.js security headers (CSP, HSTS, X-Frame-Options)
+- [x] CORS locked to ALLOWED_ORIGINS allowlist in production
+- [x] Global rate limit: 500 req / 15 min
+- [x] Audit rate limit: 20 audits / hour per user (IPv6-safe)
 - [x] Webhook rate limit: 100 req / min
-- [x] Body size limits (2 MB for JSON/form, raw for Stripe webhooks)
-- [x] Stripe webhook signature verification (constructWebhookEvent)
-- [x] SQL injection prevention via Drizzle ORM parameterized queries
-- [ ] AES-256-GCM encryption for AI provider API keys (needs ENCRYPTION_KEY secret)
+- [x] Body size limits (2 MB JSON, raw for Stripe)
+- [x] Stripe webhook signature verification
+- [x] AES-256-GCM encryption for AI provider API keys (lib/crypto.ts)
+- [x] SHA-256 hashing for developer API keys (one-way)
+- [x] Graceful base64 fallback with startup warning when ENCRYPTION_KEY not set
 
 ## Phase 16: Tests ⏳
 - [ ] Unit tests for SEO scanner modules
 - [ ] Integration tests for API routes
 - [ ] E2E tests for audit flow
 
-## Phase 17: Documentation ⏳
-- [ ] ARCHITECTURE.md
-- [ ] API reference
+## Phase 17: Documentation ✅
+- [x] ARCHITECTURE.md (full architecture reference)
+- [x] API reference via Swagger UI at /api/docs
 - [ ] Deployment guide
 
-## Phase 18: Integration Scaffolds ⏳
-- [ ] CMS connectors (WordPress, Webflow)
-- [ ] Task automation (Zapier/Make webhooks)
-- [ ] Google Search Console data import
+## Phase 18: Integration Scaffolds ✅
+- [x] Google Search Console OAuth flow (connect, callback, properties, analytics)
+- [x] Outbound webhook registration (Zapier / Make / n8n compatible)
+- [x] Webhook test delivery endpoint
+- [x] Valid event types: audit.completed, issue.approved, issue.dismissed, report.ready
 
 ## Phase 19: Deployment Readiness ✅
 - [x] PORT env var respected
@@ -196,24 +188,25 @@
 
 | Phase | Deviation | Reason |
 |-------|-----------|--------|
-| 13 | Plan enforcement middleware not yet applied per-route | Structural: needs per-route usage counters; deferred to post-launch hardening |
-| 15 | AES-256-GCM encryption still base64 placeholder | Needs ENCRYPTION_KEY secret configured by operator |
+| 14 | API key auth middleware not yet wired (keys can be created but not used for auth) | Requires bearer-token middleware to also load org context; deferred to hardening pass |
+| 17 | Deployment guide not yet written | Low priority; Replit deployment is one-click |
+| 18 | GSC token storage not yet persisted (OAuth flow works, tokens not saved to DB) | Requires org_integrations table; deferred to next phase |
+| 18 | Webhook registrations stored in-memory only | Requires org_webhooks table; deferred to next phase |
 
 ## Manual Fallback Paths (Preserved)
 - Audit issues default to `status: "open"` pending human approval
 - AI recommendations stored as `aiRecommendation` field — never auto-applied
 - Reports require explicit creation (no auto-publish)
 - All client-facing AI output gated by approve/dismiss workflow
-- Crawler respects robots.txt — no content is fetched from disallowed paths
-- Stripe: all billing is gracefully disabled when STRIPE_SECRET_KEY not set
+- Stripe: all billing endpoints gracefully disabled when STRIPE_SECRET_KEY not set
+- Encryption: falls back to base64 with startup warning when ENCRYPTION_KEY not set
 
 ## Completed Phases Summary
-✅ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 (scaffold), 15, 19
-⏳ 13 (enforcement), 14, 16, 17, 18
+✅ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17 (partial), 18 (scaffold), 19
+⏳ 16 (tests), 17 (deployment guide)
 
 ## Next Priority Actions
-1. ⏳ Phase 13 follow-up: per-route plan enforcement (audit/client count checks)
-2. ⏳ Phase 14: Developer API keys + /api/docs
-3. ⏳ Phase 15 follow-up: AES-256-GCM for AI key encryption (needs ENCRYPTION_KEY)
-4. ⏳ Phase 16: Test suite
-5. ⏳ Phase 17: ARCHITECTURE.md + deployment guide
+1. ⏳ Phase 16: Test suite (unit + integration)
+2. ⏳ Phase 14 follow-up: API key bearer-token auth middleware
+3. ⏳ Phase 18 follow-up: Persist GSC tokens + webhook registrations to DB
+4. ⏳ Phase 17 follow-up: Deployment guide

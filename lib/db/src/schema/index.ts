@@ -5,3 +5,4 @@ export * from "./audits";
 export * from "./reports";
 export * from "./ai-providers";
 export * from "./pagespeed";
+export * from "./api-keys";

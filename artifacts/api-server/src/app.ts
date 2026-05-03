@@ -2,7 +2,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import pinoHttp from "pino-http";
-import { rateLimit } from "express-rate-limit";
+import { rateLimit, ipKeyGenerator } from "express-rate-limit";
 import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 import {
@@ -69,7 +69,7 @@ const auditRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many audits", message: "Audit rate limit exceeded — 20 per hour" },
-  keyGenerator: (req) => (req as any).clerkUserId ?? req.ip ?? "anon",
+  keyGenerator: (req) => (req as any).clerkUserId ?? ipKeyGenerator(req as any),
 });
 
 const webhookRateLimit = rateLimit({

@@ -8,6 +8,7 @@ import {
 } from "@workspace/db";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import { requireAuth, getUserOrgIds, assertClientAccess, assertAuditAccess } from "../lib/rbac";
+import { enforceAuditLimit, enforceAiLimit } from "../lib/plan-enforcement";
 import { crawlSite } from "../lib/crawler";
 import { analyzeCrawlResult } from "../lib/seo-analyzer";
 import { getActiveProvider, generateBatchRecommendations } from "../lib/ai-adapter";
@@ -64,7 +65,7 @@ router.get("/audits", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/audits", requireAuth, async (req, res) => {
+router.post("/audits", requireAuth, enforceAuditLimit(), enforceAiLimit(), async (req, res) => {
   try {
     const { clientId, url, maxPages = 50, includePageSpeed = false, aiProviderId } = req.body;
 

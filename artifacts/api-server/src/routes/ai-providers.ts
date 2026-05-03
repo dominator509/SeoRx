@@ -1,17 +1,18 @@
 import { Router } from "express";
 import { db, aiProvidersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
-import { requireAuth } from "../lib/rbac";
+import { eq, inArray } from "drizzle-orm";
+import { requireAuth, getUserOrgIds } from "../lib/rbac";
+import { encryptSecret, decryptSecret } from "../lib/crypto";
 
 const router = Router();
 
-function encryptKey(apiKey: string): string {
-  return Buffer.from(apiKey).toString("base64");
-}
-
 router.get("/ai-providers", requireAuth, async (req, res) => {
   try {
-    const providers = await db.query.aiProvidersTable.findMany();
+    const orgIds = getUserOrgIds(req);
+    if (orgIds.length === 0) { res.json([]); return; }
+    const providers = await db.query.aiProvidersTable.findMany({
+      where: inArray(aiProvidersTable.orgId, orgIds),
+    });
     const safe = providers.map(({ encryptedApiKey: _, ...p }) => p);
     res.json(safe);
   } catch (err) {
@@ -23,8 +24,13 @@ router.get("/ai-providers", requireAuth, async (req, res) => {
 router.post("/ai-providers", requireAuth, async (req, res) => {
   try {
     const { orgId, name, provider, model, apiKey, baseUrl, isDefault = false } = req.body;
+    const allowedOrgIds = getUserOrgIds(req);
+    if (!allowedOrgIds.includes(orgId)) {
+      res.status(403).json({ error: "Not a member of the specified organization" });
+      return;
+    }
     const id = crypto.randomUUID();
-    const encryptedApiKey = apiKey ? encryptKey(apiKey as string) : null;
+    const encryptedApiKey = apiKey ? encryptSecret(apiKey as string) : null;
     await db.insert(aiProvidersTable).values({ id, orgId, name, provider, model, encryptedApiKey, baseUrl, isDefault });
     const p = await db.query.aiProvidersTable.findFirst({ where: eq(aiProvidersTable.id, id) });
     if (!p) { res.status(500).json({ error: "Failed to create provider" }); return; }
@@ -39,9 +45,16 @@ router.post("/ai-providers", requireAuth, async (req, res) => {
 router.put("/ai-providers/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
+    const existing = await db.query.aiProvidersTable.findFirst({ where: eq(aiProvidersTable.id, id) });
+    if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+    const allowedOrgIds = getUserOrgIds(req);
+    if (!allowedOrgIds.includes(existing.orgId)) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
     const { name, model, apiKey, baseUrl, isActive, isDefault } = req.body;
     const updateData: Record<string, unknown> = { name, model, baseUrl, isActive, isDefault, updatedAt: new Date() };
-    if (apiKey) updateData.encryptedApiKey = encryptKey(apiKey as string);
+    if (apiKey) updateData.encryptedApiKey = encryptSecret(apiKey as string);
     await db.update(aiProvidersTable).set(updateData).where(eq(aiProvidersTable.id, id));
     const p = await db.query.aiProvidersTable.findFirst({ where: eq(aiProvidersTable.id, id) });
     if (!p) { res.status(404).json({ error: "Not found" }); return; }
@@ -56,6 +69,13 @@ router.put("/ai-providers/:id", requireAuth, async (req, res) => {
 router.delete("/ai-providers/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
+    const existing = await db.query.aiProvidersTable.findFirst({ where: eq(aiProvidersTable.id, id) });
+    if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+    const allowedOrgIds = getUserOrgIds(req);
+    if (!allowedOrgIds.includes(existing.orgId)) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
     await db.delete(aiProvidersTable).where(eq(aiProvidersTable.id, id));
     res.status(204).send();
   } catch (err) {

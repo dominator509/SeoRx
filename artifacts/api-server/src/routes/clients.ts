@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, clientsTable, auditsTable, auditIssuesTable } from "@workspace/db";
 import { eq, and, like, or, sql, inArray } from "drizzle-orm";
 import { requireAuth, getUserOrgIds, assertClientAccess } from "../lib/rbac";
+import { enforceClientLimit } from "../lib/plan-enforcement";
 
 const router = Router();
 
@@ -43,7 +44,7 @@ router.get("/clients", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/clients", requireAuth, async (req, res) => {
+router.post("/clients", requireAuth, enforceClientLimit(), async (req, res) => {
   try {
     const { orgId, name, domain, industry, contactEmail, logoUrl } = req.body;
 
