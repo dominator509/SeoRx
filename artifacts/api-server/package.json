@@ -10,17 +10,23 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.92.0",
     "@clerk/express": "^2.1.12",
     "@clerk/shared": "^4.9.0",
+    "@google/generative-ai": "^0.24.1",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
+    "cheerio": "^1.2.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2",
     "drizzle-orm": "catalog:",
     "express": "^5",
+    "got": "^15.0.3",
     "http-proxy-middleware": "^3.0.5",
+    "openai": "^6.35.0",
     "pino": "^9",
-    "pino-http": "^10"
+    "pino-http": "^10",
+    "robots-parser": "^3.0.1"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

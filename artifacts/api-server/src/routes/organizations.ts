@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, organizationsTable, orgMembersTable } from "@workspace/db";
-import { eq, and, sql } from "drizzle-orm";
+import { db, organizationsTable, orgMembersTable, clientsTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth";
 
 const router = Router();
@@ -17,16 +17,13 @@ router.get("/organizations", requireAuth, async (req, res) => {
       return;
     }
     const orgs = await db.query.organizationsTable.findMany({
-      where: sql`${organizationsTable.id} = ANY(${orgIds})`,
+      where: sql`${organizationsTable.id} = ANY(ARRAY[${sql.join(orgIds.map((id) => sql`${id}`), sql`, `)}]::text[])`,
     });
     const enriched = await Promise.all(
       orgs.map(async (org) => {
         const [memberCount, clientCount] = await Promise.all([
           db.$count(orgMembersTable, eq(orgMembersTable.orgId, org.id)),
-          db.$count(
-            (await import("@workspace/db")).clientsTable,
-            eq((await import("@workspace/db")).clientsTable.orgId, org.id),
-          ),
+          db.$count(clientsTable, eq(clientsTable.orgId, org.id)),
         ]);
         return { ...org, memberCount, clientCount, auditCount: 0 };
       }),
@@ -64,8 +61,9 @@ router.post("/organizations", requireAuth, async (req, res) => {
 
 router.get("/organizations/:id", requireAuth, async (req, res) => {
   try {
+    const id = req.params.id as string;
     const org = await db.query.organizationsTable.findFirst({
-      where: eq(organizationsTable.id, req.params.id),
+      where: eq(organizationsTable.id, id),
     });
     if (!org) {
       res.status(404).json({ error: "Not found" });
@@ -73,10 +71,7 @@ router.get("/organizations/:id", requireAuth, async (req, res) => {
     }
     const [memberCount, clientCount] = await Promise.all([
       db.$count(orgMembersTable, eq(orgMembersTable.orgId, org.id)),
-      db.$count(
-        (await import("@workspace/db")).clientsTable,
-        eq((await import("@workspace/db")).clientsTable.orgId, org.id),
-      ),
+      db.$count(clientsTable, eq(clientsTable.orgId, org.id)),
     ]);
     res.json({ ...org, memberCount, clientCount, auditCount: 0 });
   } catch (err) {
@@ -87,13 +82,14 @@ router.get("/organizations/:id", requireAuth, async (req, res) => {
 
 router.put("/organizations/:id", requireAuth, async (req, res) => {
   try {
+    const id = req.params.id as string;
     const { name, logoUrl, plan } = req.body;
     await db
       .update(organizationsTable)
       .set({ name, logoUrl, plan, updatedAt: new Date() })
-      .where(eq(organizationsTable.id, req.params.id));
+      .where(eq(organizationsTable.id, id));
     const org = await db.query.organizationsTable.findFirst({
-      where: eq(organizationsTable.id, req.params.id),
+      where: eq(organizationsTable.id, id),
     });
     if (!org) {
       res.status(404).json({ error: "Not found" });
@@ -108,7 +104,8 @@ router.put("/organizations/:id", requireAuth, async (req, res) => {
 
 router.delete("/organizations/:id", requireAuth, async (req, res) => {
   try {
-    await db.delete(organizationsTable).where(eq(organizationsTable.id, req.params.id));
+    const id = req.params.id as string;
+    await db.delete(organizationsTable).where(eq(organizationsTable.id, id));
     res.status(204).send();
   } catch (err) {
     req.log.error({ err }, "Failed to delete organization");
@@ -118,8 +115,9 @@ router.delete("/organizations/:id", requireAuth, async (req, res) => {
 
 router.get("/organizations/:orgId/members", requireAuth, async (req, res) => {
   try {
+    const orgId = req.params.orgId as string;
     const members = await db.query.orgMembersTable.findMany({
-      where: eq(orgMembersTable.orgId, req.params.orgId),
+      where: eq(orgMembersTable.orgId, orgId),
     });
     res.json(members);
   } catch (err) {
@@ -130,11 +128,12 @@ router.get("/organizations/:orgId/members", requireAuth, async (req, res) => {
 
 router.post("/organizations/:orgId/members", requireAuth, async (req, res) => {
   try {
+    const orgId = req.params.orgId as string;
     const { email, role } = req.body;
     const id = crypto.randomUUID();
     await db.insert(orgMembersTable).values({
       id,
-      orgId: req.params.orgId,
+      orgId,
       userId: id,
       email,
       role,

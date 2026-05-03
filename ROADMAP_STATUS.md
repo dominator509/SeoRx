@@ -1,6 +1,6 @@
 # SEORx Build Roadmap Status
 
-> Auto-maintained by the build process. Last updated: 2026-05-02
+> Auto-maintained by the build process. Last updated: 2026-05-03
 
 ## Status Legend
 - ✅ Complete
@@ -36,20 +36,20 @@
 - [x] audit_issues table (severity, category, priority scoring, approval workflow)
 - [x] reports table (format, status, download URL)
 - [x] ai_providers table (encrypted API keys, provider types)
-- [x] page_speed_results table (Core Web Vitals)
+- [x] page_speed_results table (Core Web Vitals, device type, speedIndex, TBT)
 - [x] DB schema pushed to development database
 
 ## Phase 4: API Server Routes ✅
 - [x] GET/PUT /api/auth/me (user profile)
 - [x] CRUD /api/organizations + members
 - [x] CRUD /api/clients (with search/filter)
-- [x] CRUD /api/audits (with async simulation)
+- [x] CRUD /api/audits (now using real crawler)
 - [x] GET /api/audits/:id/issues (with filters)
 - [x] PUT /api/issues/:id/approve + dismiss (human approval workflow)
 - [x] CRUD /api/reports (with async generation)
 - [x] GET /api/dashboard/stats, recent-audits, issue-breakdown, score-trends
 - [x] CRUD /api/ai-providers (encrypted key storage)
-- [x] GET /api/pagespeed/:auditId
+- [x] GET /api/pagespeed/:auditId (real API when key present, synthetic fallback)
 
 ## Phase 5: OpenAPI Spec & Codegen ✅
 - [x] Comprehensive OpenAPI 3.1 spec (lib/api-spec/openapi.yaml)
@@ -57,49 +57,59 @@
 - [x] Orval codegen → Zod validation schemas (lib/api-zod)
 - [x] All schema names collision-free
 
-## Phase 6: Frontend Build 🔄
+## Phase 6: Frontend Build ✅
 - [x] react-vite artifact scaffolded at "/"
 - [x] Clerk client dependencies installed
-- [ ] Branded Clerk sign-in/sign-up pages
-- [ ] Landing page (public)
-- [ ] Dashboard with stats/charts
-- [ ] Client management pages
-- [ ] Audit job pages (list, new, detail)
-- [ ] Issue list with approve/dismiss
-- [ ] Report pages
-- [ ] AI Provider configuration
-- [ ] Onboarding wizard
-- [ ] Settings page
+- [x] Branded Clerk sign-in/sign-up pages (custom title, logo, emerald theme)
+- [x] Landing page (public, branded hero + feature sections)
+- [x] Dashboard with stats cards + SEO score trend chart + issue breakdown
+- [x] Client management pages (list + detail with audit history)
+- [x] Audit job pages (list, new audit form, detail with issue list + PageSpeed tab)
+- [x] Issue list with approve/dismiss (human confirmation dialogs)
+- [x] Report pages (list + generate dialog + detail with summary)
+- [x] AI Provider configuration page
+- [x] Onboarding wizard (multi-step)
+- [x] Settings page
+- [x] Organization management page
+- [x] AppLayout sidebar with navigation + auth state
 
-## Phase 7: SEO Scanner Engine ✅ (Simulated)
-- [x] Async audit simulation with 10 issue categories
-- [x] Priority scoring algorithm (0-100)
-- [x] Category coverage: meta, content, performance, links, structured_data, mobile, security, crawlability
-- [x] SEO score generation
-- [ ] Real crawler implementation (planned: cheerio + got)
-- [ ] robots.txt / sitemap respect
-- [ ] Rate limiting safeguards
+## Phase 7: SEO Scanner Engine ✅
+- [x] Real multi-page crawler (cheerio + node-fetch, robots-parser)
+- [x] robots.txt fetching and enforcement per-URL
+- [x] Rate limiting safeguards (300ms between requests)
+- [x] Max depth (4) and max pages (up to 50/100) controls
+- [x] Full page analysis: title, meta, h1/h2, images, links, canonical, OG, structured data, viewport
+- [x] 18+ issue detection rules across all 8 categories
+- [x] Priority scoring algorithm (0–100 per issue)
+- [x] SEO score calculation (100 minus severity-weighted deductions)
+- [x] Crawl progress callback for real-time UI updates
+- [x] Graceful error handling (unreachable pages, fetch timeouts)
 
-## Phase 8: AI Provider Adapters ✅ (Scaffold)
-- [x] AI provider config storage (OpenAI, Anthropic, Gemini, Ollama, Custom)
-- [x] Encrypted API key storage (base64 placeholder — upgrade to AES-256-GCM)
-- [x] isDefault flag for active provider selection
-- [ ] OpenAI adapter implementation
-- [ ] Anthropic adapter implementation
-- [ ] Ollama local LLM adapter
-- [ ] AI recommendation generation pipeline
-- [ ] Human approval before client-facing output (REQUIRED — not yet wired)
+## Phase 8: AI Provider Adapters ✅
+- [x] OpenAI adapter (chat completions, configurable model)
+- [x] Anthropic Claude adapter (messages API)
+- [x] Google Gemini adapter (generative AI)
+- [x] Ollama local LLM adapter (REST API, configurable base URL)
+- [x] Custom OpenAI-compatible endpoint support
+- [x] Batch AI recommendation generation (top 10 issues per audit)
+- [x] Rate-limiting between AI calls (500ms delay)
+- [x] AI provider selection (isDefault flag + org-scoped)
+- [x] Graceful fallback (audit completes even if AI fails)
+- [x] Human approval gate preserved: aiRecommendation stored separately, never auto-applied
 
-## Phase 9: PageSpeed Integration ✅ (Simulated)
-- [x] PageSpeed results table and API
-- [x] Synthetic PageSpeed data for seeded audits
-- [ ] Real PageSpeed Insights API integration (requires PAGESPEED_API_KEY)
+## Phase 9: PageSpeed Integration ✅ (Real API ready, synthetic fallback)
+- [x] PageSpeed results table (mobile + desktop, all Core Web Vitals)
+- [x] Real PageSpeed Insights API v5 integration (activates when PAGESPEED_API_KEY is set)
+- [x] Synthetic PageSpeed data fallback (realistic distributions, no key required)
+- [x] Device-aware results (mobile vs desktop stored separately)
+- [x] Accessibility, Best Practices, SEO scores alongside Performance
 
-## Phase 10: Report Generation ✅ (Scaffold)
-- [x] Report creation and async generation simulation
+## Phase 10: Report Generation ✅ (Scaffold — PDF pending)
+- [x] Report creation and async generation
 - [x] Report status lifecycle (generating → ready/failed)
-- [x] Top issues extraction for report summary
-- [ ] PDF export via puppeteer or pdfkit
+- [x] Executive summary generation (issue counts, top priorities)
+- [x] Top 5 issues extraction by priority score
+- [ ] PDF export via pdfkit or puppeteer
 - [ ] HTML report template
 - [ ] Client-shareable report URLs
 
@@ -146,7 +156,6 @@
 - [ ] Deployment guide
 
 ## Phase 18: Integration Scaffolds ⏳
-- [ ] RankMap integration scaffold
 - [ ] CMS connectors (WordPress, Webflow)
 - [ ] Task automation (Zapier/Make webhooks)
 - [ ] Google Search Console data import
@@ -161,28 +170,23 @@
 
 ---
 
-## Deviations from BUILD_ROADMAP.md
+## Deviations from original plan
 
 | Phase | Deviation | Reason |
 |-------|-----------|--------|
-| 7 | Real crawler replaced with simulation | Safe crawling requires careful rate-limiting; simulation preserves manual fallback path |
-| 8 | AI adapters scaffolded but not connected | Human approval requirement; API keys not yet provided |
-| 9 | PageSpeed uses synthetic data | Requires PAGESPEED_API_KEY from user |
-| 10 | PDF export uses placeholder | puppeteer/pdfkit not yet installed |
-| 15 | AES encryption placeholder | Needs ENCRYPTION_KEY secret from user |
+| 10 | PDF export not yet implemented | Deferred to Phase 10 follow-up; pdfkit/puppeteer installation pending |
+| 15 | AES encryption still base64 placeholder | Needs ENCRYPTION_KEY secret; intentional deferral |
 
 ## Manual Fallback Paths (Preserved)
 - Audit issues default to `status: "open"` pending human approval
 - AI recommendations stored as `aiRecommendation` field — never auto-applied
 - Reports require explicit creation (no auto-publish)
 - All client-facing AI output gated by approve/dismiss workflow
+- Crawler respects robots.txt — no content is fetched from disallowed paths
 
-## Next Priority Actions
-1. Complete frontend build (design subagent running)
-2. Wire real SEO crawler (cheerio + got, rate-limited)
-3. Connect AI adapters to stored provider configs
-4. Add Stripe billing integration
-5. Implement real PDF report export
-6. Add PageSpeed API key and real integration
-7. Security hardening pass (helmet, rate-limit)
-8. RBAC enforcement in route middleware
+## Next Priority Actions (in order)
+1. ⏳ Phase 12: RBAC enforcement in route middleware
+2. ⏳ Phase 10 follow-up: PDF report export (pdfkit)
+3. ⏳ Phase 13: Stripe billing scaffold
+4. ⏳ Phase 15: Security hardening (helmet, rate-limit, AES-256)
+5. ⏳ Phase 14: Developer API keys

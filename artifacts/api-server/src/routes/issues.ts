@@ -8,14 +8,14 @@ const router = Router();
 router.put("/issues/:id/approve", requireAuth, async (req, res) => {
   const clerkId = (req as any).clerkUserId as string;
   try {
-    const { notes } = req.body;
+    const id = req.params.id as string;
     await db.update(auditIssuesTable).set({
       status: "approved",
       approvedBy: clerkId,
       approvedAt: new Date(),
-    }).where(eq(auditIssuesTable.id, req.params.id));
+    }).where(eq(auditIssuesTable.id, id));
     const issue = await db.query.auditIssuesTable.findFirst({
-      where: eq(auditIssuesTable.id, req.params.id),
+      where: eq(auditIssuesTable.id, id),
     });
     if (!issue) { res.status(404).json({ error: "Not found" }); return; }
     res.json(issue);
@@ -27,10 +27,10 @@ router.put("/issues/:id/approve", requireAuth, async (req, res) => {
 
 router.put("/issues/:id/dismiss", requireAuth, async (req, res) => {
   try {
-    const { reason } = req.body;
-    await db.update(auditIssuesTable).set({ status: "dismissed" }).where(eq(auditIssuesTable.id, req.params.id));
+    const id = req.params.id as string;
+    await db.update(auditIssuesTable).set({ status: "dismissed" }).where(eq(auditIssuesTable.id, id));
     const issue = await db.query.auditIssuesTable.findFirst({
-      where: eq(auditIssuesTable.id, req.params.id),
+      where: eq(auditIssuesTable.id, id),
     });
     if (!issue) { res.status(404).json({ error: "Not found" }); return; }
     res.json(issue);

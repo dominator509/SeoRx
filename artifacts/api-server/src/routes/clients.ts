@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, clientsTable, auditsTable, auditIssuesTable } from "@workspace/db";
-import { eq, and, like, or, count, sql } from "drizzle-orm";
+import { eq, and, like, or, sql } from "drizzle-orm";
 import { requireAuth } from "../lib/auth";
 
 const router = Router();
@@ -8,7 +8,6 @@ const router = Router();
 router.get("/clients", requireAuth, async (req, res) => {
   try {
     const { orgId, search } = req.query as { orgId?: string; search?: string };
-    let query = db.select().from(clientsTable);
     const conditions = [];
     if (orgId) conditions.push(eq(clientsTable.orgId, orgId));
     if (search) {
@@ -20,8 +19,8 @@ router.get("/clients", requireAuth, async (req, res) => {
       );
     }
     const clients = conditions.length
-      ? await query.where(and(...conditions))
-      : await query;
+      ? await db.select().from(clientsTable).where(and(...conditions))
+      : await db.select().from(clientsTable);
 
     const enriched = await Promise.all(
       clients.map(async (client) => {
@@ -54,8 +53,9 @@ router.post("/clients", requireAuth, async (req, res) => {
 
 router.get("/clients/:id", requireAuth, async (req, res) => {
   try {
+    const id = req.params.id as string;
     const client = await db.query.clientsTable.findFirst({
-      where: eq(clientsTable.id, req.params.id),
+      where: eq(clientsTable.id, id),
     });
     if (!client) {
       res.status(404).json({ error: "Not found" });
@@ -72,9 +72,10 @@ router.get("/clients/:id", requireAuth, async (req, res) => {
 
 router.put("/clients/:id", requireAuth, async (req, res) => {
   try {
+    const id = req.params.id as string;
     const { name, domain, industry, contactEmail, logoUrl } = req.body;
-    await db.update(clientsTable).set({ name, domain, industry, contactEmail, logoUrl, updatedAt: new Date() }).where(eq(clientsTable.id, req.params.id));
-    const client = await db.query.clientsTable.findFirst({ where: eq(clientsTable.id, req.params.id) });
+    await db.update(clientsTable).set({ name, domain, industry, contactEmail, logoUrl, updatedAt: new Date() }).where(eq(clientsTable.id, id));
+    const client = await db.query.clientsTable.findFirst({ where: eq(clientsTable.id, id) });
     if (!client) { res.status(404).json({ error: "Not found" }); return; }
     const auditCount = await db.$count(auditsTable, eq(auditsTable.clientId, client.id));
     res.json({ ...client, auditCount, issueCount: 0 });
@@ -86,7 +87,8 @@ router.put("/clients/:id", requireAuth, async (req, res) => {
 
 router.delete("/clients/:id", requireAuth, async (req, res) => {
   try {
-    await db.delete(clientsTable).where(eq(clientsTable.id, req.params.id));
+    const id = req.params.id as string;
+    await db.delete(clientsTable).where(eq(clientsTable.id, id));
     res.status(204).send();
   } catch (err) {
     req.log.error({ err }, "Failed to delete client");
