@@ -5,8 +5,6 @@ import {
   useCreateClient,
   useDeleteClient,
   getListClientsQueryKey,
-  useListOrganizations,
-  getListOrganizationsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,7 +53,6 @@ export default function Clients() {
     { search: search || undefined },
     { query: { queryKey: getListClientsQueryKey({ search: search || undefined }) } },
   );
-  const { data: orgs } = useListOrganizations({ query: { queryKey: getListOrganizationsQueryKey() } });
 
   const createClient = useCreateClient({
     mutation: {
@@ -84,8 +81,6 @@ export default function Clients() {
     defaultValues: { name: "", domain: "", industry: "", contactEmail: "" },
   });
 
-  const activeOrgId = orgs?.[0]?.id as string | undefined;
-
   return (
     <div className="p-4 sm:p-6 space-y-5 max-w-6xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -102,22 +97,7 @@ export default function Clients() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Add Client</DialogTitle></DialogHeader>
             <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit((v) => {
-                  const orgId = activeOrgId || orgs?.[0]?.id;
-                  if (!orgId) {
-                    toast({ title: "No organization", description: "Create or join an organization first.", variant: "destructive" });
-                    return;
-                  }
-                  createClient.mutate({ data: { ...v, orgId } as any });
-                })}
-                className="space-y-4"
-              >
-                {!activeOrgId && (
-                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                    No organization available yet.
-                  </div>
-                )}
+              <form onSubmit={form.handleSubmit((v) => createClient.mutate({ data: v as any }))} className="space-y-4">
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem><FormLabel>Client Name</FormLabel><FormControl><Input placeholder="Acme Corp" {...field} data-testid="input-client-name" /></FormControl><FormMessage /></FormItem>
                 )} />
