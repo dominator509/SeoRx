@@ -83,15 +83,15 @@ export default function Clients() {
   });
 
   return (
-    <div className="p-6 space-y-5 max-w-6xl">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-5 max-w-6xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Clients</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{clients?.length ?? 0} clients across all organizations</p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="gap-1.5" data-testid="add-client-button">
+            <Button size="sm" className="gap-1.5 w-full sm:w-auto" data-testid="add-client-button">
               <Plus className="w-4 h-4" />Add Client
             </Button>
           </DialogTrigger>
@@ -120,8 +120,7 @@ export default function Clients() {
         </Dialog>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-xs">
+      <div className="relative max-w-full sm:max-w-xs">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           placeholder="Search clients..."
@@ -132,10 +131,9 @@ export default function Clients() {
         />
       </div>
 
-      {/* Client list */}
       {isLoading ? (
         <div className="space-y-2">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
         </div>
       ) : !clients?.length ? (
         <Card><CardContent className="py-16 text-center text-muted-foreground text-sm">
@@ -144,42 +142,31 @@ export default function Clients() {
       ) : (
         <div className="space-y-2">
           {clients.map((client) => (
-            <Link
-              key={client.id}
-              href={`/clients/${client.id}`}
-              className="block"
-              data-testid={`client-row-${client.id}`}
-            >
+            <Link key={client.id} href={`/clients/${client.id}`} className="block" data-testid={`client-row-${client.id}`}>
               <Card className="hover:border-primary/30 transition-colors group">
-                <CardContent className="p-4 flex items-center gap-4">
+                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                     <Globe className="w-5 h-5 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-foreground">{client.name}</span>
                       {client.industry && <Badge variant="secondary" className="text-xs">{client.industry}</Badge>}
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5 flex-wrap">
                       <ExternalLink className="w-3 h-3" />
                       {client.domain}
-                      {client.lastAuditAt && (
-                        <span className="ml-2">Last audit: {format(new Date(client.lastAuditAt), "MMM d, yyyy")}</span>
-                      )}
+                      {client.lastAuditAt && <span className="sm:ml-2">Last audit: {format(new Date(client.lastAuditAt), "MMM d, yyyy")}</span>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 flex-shrink-0">
+                  <div className="flex items-center gap-3 sm:gap-4 flex-wrap sm:flex-nowrap sm:flex-shrink-0">
                     <div className="text-xs text-muted-foreground">{client.auditCount ?? 0} audits</div>
                     <div className="text-xs text-muted-foreground">{client.issueCount ?? 0} issues</div>
                     {seoScoreBadge(client.seoScore)}
-                    <button
-                      className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-                      onClick={(e) => { e.preventDefault(); setDeleteId(client.id); }}
-                      data-testid={`delete-client-${client.id}`}
-                    >
+                    <button className="p-2 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors sm:opacity-0 sm:group-hover:opacity-100" onClick={(e) => { e.preventDefault(); setDeleteId(client.id); }} data-testid={`delete-client-${client.id}`}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ArrowRight className="hidden sm:block w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </CardContent>
               </Card>
@@ -196,11 +183,7 @@ export default function Clients() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive hover:bg-destructive/90"
-              onClick={() => deleteId && deleteClient.mutate({ id: deleteId })}
-              data-testid="confirm-delete-client"
-            >
+            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={() => deleteId && deleteClient.mutate({ id: deleteId })} data-testid="confirm-delete-client">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -24,11 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, FileText, ArrowRight, Trash2, Download } from "lucide-react";
 import { format } from "date-fns";
 
-const createSchema = z.object({
-  auditId: z.string().min(1, "Select an audit"),
-  title: z.string().min(3, "Title required"),
-  format: z.enum(["pdf", "html", "csv"]),
-});
+const createSchema = z.object({ auditId: z.string().min(1, "Select an audit"), title: z.string().min(3, "Title required"), format: z.enum(["pdf", "html", "csv"]), });
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
@@ -46,47 +42,31 @@ export default function Reports() {
   const qc = useQueryClient();
 
   const { data: reports, isLoading } = useListReports({}, { query: { queryKey: getListReportsQueryKey() } });
-  const { data: auditsData } = useListAudits({ status: "completed" } as any, {
-    query: { queryKey: getListAuditsQueryKey({ status: "completed" }) },
-  });
+  const { data: auditsData } = useListAudits({ status: "completed" } as any, { query: { queryKey: getListAuditsQueryKey({ status: "completed" }) } });
   const completedAudits = (auditsData as any)?.items ?? auditsData ?? [];
 
   const createReport = useCreateReport({
     mutation: {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getListReportsQueryKey() });
-        setCreateOpen(false);
-        form.reset();
-        toast({ title: "Report generating", description: "Your report will be ready shortly." });
-      },
+      onSuccess: () => { qc.invalidateQueries({ queryKey: getListReportsQueryKey() }); setCreateOpen(false); form.reset(); toast({ title: "Report generating", description: "Your report will be ready shortly." }); },
       onError: () => toast({ title: "Error", description: "Failed to create report.", variant: "destructive" }),
     },
   });
   const deleteReport = useDeleteReport({
-    mutation: {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getListReportsQueryKey() });
-        setDeleteId(null);
-        toast({ title: "Deleted", description: "Report removed." });
-      },
-    },
+    mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: getListReportsQueryKey() }); setDeleteId(null); toast({ title: "Deleted", description: "Report removed." }); } },
   });
 
-  const form = useForm<z.infer<typeof createSchema>>({
-    resolver: zodResolver(createSchema),
-    defaultValues: { auditId: "", title: "", format: "pdf" },
-  });
+  const form = useForm<z.infer<typeof createSchema>>({ resolver: zodResolver(createSchema), defaultValues: { auditId: "", title: "", format: "pdf" } });
 
   return (
-    <div className="p-6 space-y-5 max-w-5xl">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-5 max-w-5xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Reports</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{(reports as any[])?.length ?? 0} reports</p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="gap-1.5" data-testid="generate-report-button">
+            <Button size="sm" className="gap-1.5 w-full sm:w-auto" data-testid="generate-report-button">
               <Plus className="w-4 h-4" />Generate Report
             </Button>
           </DialogTrigger>
@@ -99,11 +79,7 @@ export default function Reports() {
                     <FormLabel>Audit</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl><SelectTrigger data-testid="select-audit"><SelectValue placeholder="Select audit" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        {completedAudits.map((a: any) => (
-                          <SelectItem key={a.id} value={a.id}>{a.clientName} — {a.url}</SelectItem>
-                        ))}
-                      </SelectContent>
+                      <SelectContent>{completedAudits.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.clientName} — {a.url}</SelectItem>)}</SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
@@ -129,9 +105,7 @@ export default function Reports() {
                     <FormMessage />
                   </FormItem>
                 )} />
-                <Button type="submit" className="w-full" disabled={createReport.isPending} data-testid="submit-report">
-                  {createReport.isPending ? "Generating..." : "Generate Report"}
-                </Button>
+                <Button type="submit" className="w-full" disabled={createReport.isPending} data-testid="submit-report">{createReport.isPending ? "Generating..." : "Generate Report"}</Button>
               </form>
             </Form>
           </DialogContent>
@@ -139,22 +113,20 @@ export default function Reports() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+        <div className="space-y-2">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
       ) : !(reports as any[])?.length ? (
-        <Card><CardContent className="py-16 text-center text-muted-foreground text-sm">
-          No reports yet. <button onClick={() => setCreateOpen(true)} className="text-primary underline">Generate your first</button>
-        </CardContent></Card>
+        <Card><CardContent className="py-16 text-center text-muted-foreground text-sm">No reports yet. <button onClick={() => setCreateOpen(true)} className="text-primary underline">Generate your first</button></CardContent></Card>
       ) : (
         <div className="space-y-2">
           {(reports as any[]).map((report: any) => (
             <Link key={report.id} href={`/reports/${report.id}`} className="block" data-testid={`report-row-${report.id}`}>
               <Card className="hover:border-primary/30 transition-colors group">
-                <CardContent className="p-4 flex items-center gap-4">
+                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                     <FileText className="w-5 h-5 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm text-foreground">{report.title}</span>
                       {statusBadge(report.status)}
                       <Badge variant="outline" className="text-[10px] uppercase">{report.format}</Badge>
@@ -163,24 +135,16 @@ export default function Reports() {
                       {report.clientName} · Created {format(new Date(report.createdAt), "MMM d, yyyy")}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0">
                     {report.status === "ready" && report.downloadUrl && (
-                      <a
-                        href={report.downloadUrl}
-                        className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                        data-testid={`download-report-${report.id}`}
-                      >
+                      <a href={report.downloadUrl} className="p-2 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" onClick={(e) => e.stopPropagation()} data-testid={`download-report-${report.id}`}>
                         <Download className="w-4 h-4" />
                       </a>
                     )}
-                    <button
-                      className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-                      onClick={(e) => { e.preventDefault(); setDeleteId(report.id); }}
-                    >
+                    <button className="p-2 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors sm:opacity-0 sm:group-hover:opacity-100" onClick={(e) => { e.preventDefault(); setDeleteId(report.id); }}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ArrowRight className="hidden sm:block w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </CardContent>
               </Card>

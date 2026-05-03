@@ -67,15 +67,15 @@ export default function Organizations() {
   });
 
   return (
-    <div className="p-6 space-y-5 max-w-4xl">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-5 max-w-4xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Organizations</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{(orgs as any[])?.length ?? 0} organizations</p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="gap-1.5" data-testid="add-org-button">
+            <Button size="sm" className="gap-1.5 w-full sm:w-auto" data-testid="add-org-button">
               <Plus className="w-4 h-4" />New Organization
             </Button>
           </DialogTrigger>
@@ -105,8 +105,8 @@ export default function Organizations() {
       ) : (
         <div className="space-y-2">
           {(orgs as any[]).map((org: any) => (
-            <Card key={org.id} data-testid={`org-card-${org.id}`}>
-              <CardContent className="p-4 flex items-center gap-4">
+              <Card key={org.id} data-testid={`org-card-${org.id}`}>
+              <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-4">
                 <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                   <Building2 className="w-5 h-5 text-muted-foreground" />
                 </div>
@@ -115,7 +115,7 @@ export default function Organizations() {
                     <span className="font-semibold text-sm">{org.name}</span>
                     <Badge variant="secondary" className={`text-[10px] capitalize ${planBadge[org.plan ?? "free"] ?? ""}`}>{org.plan ?? "free"}</Badge>
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground mt-0.5">
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground mt-0.5 flex-wrap">
                     <span className="flex items-center gap-1"><Users className="w-3 h-3" />{org.memberCount ?? 0} members</span>
                     <span className="flex items-center gap-1"><Search className="w-3 h-3" />{org.clientCount ?? 0} clients</span>
                     <span className="font-mono text-[10px]">{org.slug}</span>

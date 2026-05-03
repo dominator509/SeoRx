@@ -6,16 +6,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, ArrowRight, Trash2, Globe, Clock } from "lucide-react";
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 
 function auditStatusBadge(status: string) {
   const map: Record<string, { label: string; cls: string }> = {
@@ -40,9 +38,7 @@ export default function Audits() {
   const qc = useQueryClient();
 
   const params = status !== "all" ? { status } : {};
-  const { data, isLoading } = useListAudits(params as any, {
-    query: { queryKey: getListAuditsQueryKey(params as any) },
-  });
+  const { data, isLoading } = useListAudits(params as any, { query: { queryKey: getListAuditsQueryKey(params as any) } });
 
   const deleteAudit = useDeleteAudit({
     mutation: {
@@ -58,23 +54,22 @@ export default function Audits() {
   const total = (data as any)?.total ?? audits.length;
 
   return (
-    <div className="p-6 space-y-5 max-w-6xl">
-      <div className="flex items-center justify-between">
+    <div className="p-4 sm:p-6 space-y-5 max-w-6xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Audits</h1>
           <p className="text-sm text-muted-foreground mt-0.5">{total} audit jobs</p>
         </div>
-        <Link href="/audits/new">
-          <Button size="sm" className="gap-1.5" data-testid="new-audit-button">
+        <Link href="/audits/new" className="w-full sm:w-auto">
+          <Button size="sm" className="gap-1.5 w-full sm:w-auto" data-testid="new-audit-button">
             <Plus className="w-4 h-4" />New Audit
           </Button>
         </Link>
       </div>
 
-      {/* Filter */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-40" data-testid="filter-status">
+          <SelectTrigger className="w-full sm:w-40" data-testid="filter-status">
             <SelectValue placeholder="All statuses" />
           </SelectTrigger>
           <SelectContent>
@@ -88,7 +83,7 @@ export default function Audits() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
+        <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
       ) : !audits.length ? (
         <Card><CardContent className="py-16 text-center text-muted-foreground text-sm">
           No audits found. <Link href="/audits/new" className="text-primary underline">Run your first audit</Link>
@@ -98,19 +93,18 @@ export default function Audits() {
           {audits.map((audit: any) => (
             <Link key={audit.id} href={`/audits/${audit.id}`} className="block" data-testid={`audit-row-${audit.id}`}>
               <Card className="hover:border-primary/30 transition-colors group">
-                <CardContent className="p-4 flex items-center gap-4">
+                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
                     <Globe className="w-5 h-5 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
                       <span className="font-semibold text-sm text-foreground">{audit.clientName}</span>
                       {auditStatusBadge(audit.status)}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5 truncate">{audit.url}</div>
                   </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    {/* Severity pills */}
+                  <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap sm:flex-shrink-0">
                     <div className="flex gap-1">
                       <SeverityPill count={audit.criticalCount} color="bg-red-100 text-red-700" />
                       <SeverityPill count={audit.highCount} color="bg-orange-100 text-orange-700" />
@@ -128,14 +122,10 @@ export default function Audits() {
                         {formatDistanceToNow(new Date(audit.completedAt), { addSuffix: true })}
                       </div>
                     )}
-                    <button
-                      className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover:opacity-100"
-                      onClick={(e) => { e.preventDefault(); setDeleteId(audit.id); }}
-                      data-testid={`delete-audit-${audit.id}`}
-                    >
+                    <button className="p-2 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors sm:opacity-0 sm:group-hover:opacity-100" onClick={(e) => { e.preventDefault(); setDeleteId(audit.id); }} data-testid={`delete-audit-${audit.id}`}>
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ArrowRight className="hidden sm:block w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </CardContent>
               </Card>
