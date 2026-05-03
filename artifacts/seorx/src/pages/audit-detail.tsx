@@ -61,7 +61,8 @@ function statusBadge(status: string) {
 
 function metricValue(value: any, kind: "ms" | "seconds" | "ratio") {
   const num = Number(value);
-  if (value == null || Number.isNaN(num) || num <= 0) return "—";
+  if (value == null || Number.isNaN(num) || num < 0) return "—";
+  if (num === 0) return "—";
   if (kind === "seconds") return `${(num / 1000).toFixed(2)}s`;
   if (kind === "ratio") return num.toFixed(3);
   return `${num.toFixed(0)}ms`;
@@ -136,6 +137,15 @@ export default function AuditDetail() {
   if (!audit) return <div className="p-4 sm:p-6 text-muted-foreground">Audit not found.</div>;
 
   const auditData = audit as any;
+  const ps = pagespeed as any;
+  const coreVitals = [
+    { label: "FCP", value: metricValue(ps?.fcp, "seconds"), desc: "First Contentful Paint" },
+    { label: "LCP", value: metricValue(ps?.lcp, "seconds"), desc: "Largest Contentful Paint" },
+    { label: "CLS", value: metricValue(ps?.cls, "ratio"), desc: "Cumulative Layout Shift" },
+    { label: "TBT", value: metricValue(ps?.tbt, "ms"), desc: "Total Blocking Time" },
+    { label: "TTFB", value: metricValue(ps?.ttfb, "ms"), desc: "Time to First Byte" },
+  ];
+  const isEstimated = !!ps && !ps.isReal;
 
   return (
     <div className="p-4 sm:p-6 space-y-5 max-w-6xl mx-auto">
@@ -276,12 +286,19 @@ export default function AuditDetail() {
             </CardContent></Card>
           ) : (
             <div className="space-y-4">
+              {isEstimated && (
+                <Card>
+                  <CardContent className="p-4 text-sm text-muted-foreground">
+                    These metrics are estimated because live PageSpeed data wasn’t available for this run.
+                  </CardContent>
+                </Card>
+              )}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
-                  { label: "Performance", score: (pagespeed as any).performanceScore },
-                  { label: "Accessibility", score: (pagespeed as any).accessibilityScore },
-                  { label: "Best Practices", score: (pagespeed as any).bestPracticesScore },
-                  { label: "SEO", score: (pagespeed as any).seoScore },
+                  { label: "Performance", score: ps?.performanceScore },
+                  { label: "Accessibility", score: ps?.accessibilityScore },
+                  { label: "Best Practices", score: ps?.bestPracticesScore },
+                  { label: "SEO", score: ps?.seoScore },
                 ].map(({ label, score }) => (
                   <Card key={label}><CardContent className="p-4 flex flex-col items-center gap-2">{seoRing(score)}<span className="text-xs text-muted-foreground font-medium text-center">{label}</span></CardContent></Card>
                 ))}
@@ -290,19 +307,7 @@ export default function AuditDetail() {
                 <CardHeader><CardTitle className="text-sm font-semibold">Core Web Vitals</CardTitle></CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {[
-                      { label: "FCP", value: metricValue((pagespeed as any).fcp, "seconds"), desc: "First Contentful Paint" },
-                      { label: "LCP", value: metricValue((pagespeed as any).lcp, "seconds"), desc: "Largest Contentful Paint" },
-                      { label: "CLS", value: metricValue((pagespeed as any).cls, "ratio"), desc: "Cumulative Layout Shift" },
-                      { label: "TBT", value: metricValue((pagespeed as any).tbt, "ms"), desc: "Total Blocking Time" },
-                      { label: "TTFB", value: metricValue((pagespeed as any).ttfb, "ms"), desc: "Time to First Byte" },
-                    ].map(({ label, value, desc }) => (
-                      <div key={label} className="bg-muted/50 rounded-lg p-3">
-                        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</div>
-                        <div className="text-xl font-bold text-foreground mt-1">{value}</div>
-                        <div className="text-[10px] text-muted-foreground">{desc}</div>
-                      </div>
-                    ))}
+                    {coreVitals.map(({ label, value, desc }) => metricCard(label, value, desc))}
                   </div>
                 </CardContent>
               </Card>
