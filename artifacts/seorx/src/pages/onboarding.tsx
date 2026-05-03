@@ -35,7 +35,6 @@ const steps = [
 
 export default function Onboarding() {
   const [step, setStep] = useState(0);
-  const [orgId, setOrgId] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
   const [auditId, setAuditId] = useState<string | null>(null);
   const [, setLocation] = useLocation();
@@ -48,8 +47,7 @@ export default function Onboarding() {
 
   const createOrg = useCreateOrganization({
     mutation: {
-      onSuccess: (org) => {
-        setOrgId(org.id);
+      onSuccess: () => {
         qc.invalidateQueries({ queryKey: getListOrganizationsQueryKey() });
         setStep(1);
       },
@@ -72,7 +70,6 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-lg">
-        {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-10">
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
             <Activity className="w-5 h-5 text-primary-foreground" strokeWidth={2.5} />
@@ -80,7 +77,6 @@ export default function Onboarding() {
           <span className="text-xl font-bold text-foreground">SEORx</span>
         </div>
 
-        {/* Step indicators */}
         <div className="flex items-center justify-center gap-2 mb-8">
           {steps.map((s, i) => {
             const Icon = s.icon;
@@ -99,13 +95,12 @@ export default function Onboarding() {
           })}
         </div>
 
-        {/* Step 0: Create org */}
         {step === 0 && (
           <Card>
             <CardHeader><CardTitle>Create your organization</CardTitle></CardHeader>
             <CardContent>
               <Form {...orgForm}>
-                <form onSubmit={orgForm.handleSubmit((v) => createOrg.mutate({ data: v as any }))} className="space-y-4">
+                <form onSubmit={orgForm.handleSubmit((v) => createOrg.mutate({ data: v }))} className="space-y-4">
                   <FormField control={orgForm.control} name="name" render={({ field }) => (
                     <FormItem><FormLabel>Organization Name</FormLabel><FormControl><Input placeholder="Apex Digital Agency" {...field} data-testid="input-org-name" /></FormControl><FormMessage /></FormItem>
                   )} />
@@ -121,20 +116,13 @@ export default function Onboarding() {
           </Card>
         )}
 
-        {/* Step 1: Add client */}
         {step === 1 && (
           <Card>
             <CardHeader><CardTitle>Add your first client</CardTitle></CardHeader>
             <CardContent>
               <Form {...clientForm}>
                 <form
-                  onSubmit={clientForm.handleSubmit((v) => {
-                    if (!orgId) {
-                      toast({ title: "No organization", description: "Create an organization first.", variant: "destructive" });
-                      return;
-                    }
-                    createClient.mutate({ data: { ...v, orgId } as any });
-                  })}
+                  onSubmit={clientForm.handleSubmit((v) => createClient.mutate({ data: v }))}
                   className="space-y-4"
                 >
                   <FormField control={clientForm.control} name="name" render={({ field }) => (
@@ -152,13 +140,12 @@ export default function Onboarding() {
           </Card>
         )}
 
-        {/* Step 2: Start audit */}
         {step === 2 && (
           <Card>
             <CardHeader><CardTitle>Run your first audit</CardTitle></CardHeader>
             <CardContent>
               <Form {...auditForm}>
-                <form onSubmit={auditForm.handleSubmit((v) => createAudit.mutate({ data: { clientId: clientId!, url: v.url, maxPages: 50, includePageSpeed: false } as any }))} className="space-y-4">
+                <form onSubmit={auditForm.handleSubmit((v) => createAudit.mutate({ data: { clientId: clientId!, url: v.url, maxPages: 50, includePageSpeed: false } }))} className="space-y-4">
                   <FormField control={auditForm.control} name="url" render={({ field }) => (
                     <FormItem><FormLabel>Website URL</FormLabel><FormControl><Input placeholder="https://acmecorp.com" {...field} data-testid="input-audit-url" /></FormControl><FormMessage /></FormItem>
                   )} />
@@ -171,7 +158,6 @@ export default function Onboarding() {
           </Card>
         )}
 
-        {/* Step 3: Done */}
         {step === 3 && (
           <Card>
             <CardContent className="p-8 text-center">

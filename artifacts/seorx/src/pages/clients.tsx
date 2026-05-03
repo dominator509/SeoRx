@@ -92,7 +92,7 @@ export default function Clients() {
             <DialogHeader><DialogTitle>Add Client</DialogTitle></DialogHeader>
             <Form {...form}>
               <form
-                onSubmit={form.handleSubmit((v) => createClient.mutate({ data: v as any }))}
+                onSubmit={form.handleSubmit((v) => createClient.mutate({ data: v }))}
                 className="space-y-4"
               >
                 <FormField control={form.control} name="name" render={({ field }) => (
