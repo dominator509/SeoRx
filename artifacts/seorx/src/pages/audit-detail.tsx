@@ -61,11 +61,11 @@ function statusBadge(status: string) {
 
 function metricValue(value: any, kind: "ms" | "seconds" | "ratio") {
   const num = Number(value);
-  if (value == null || Number.isNaN(num) || num < 0) return "—";
-  if (num === 0) return "—";
-  if (kind === "seconds") return `${(num / 1000).toFixed(2)}s`;
+  if (value == null || Number.isNaN(num) || num <= 0) return "—";
+  // fcp / lcp / ttfb / speedIndex are stored in seconds already (not ms)
+  if (kind === "seconds") return `${num.toFixed(2)}s`;
   if (kind === "ratio") return num.toFixed(3);
-  return `${num.toFixed(0)}ms`;
+  return `${Math.round(num)}ms`;
 }
 
 function metricCard(label: string, value: string, desc: string) {
@@ -142,8 +142,8 @@ export default function AuditDetail() {
     { label: "FCP", value: metricValue(ps?.fcp, "seconds"), desc: "First Contentful Paint" },
     { label: "LCP", value: metricValue(ps?.lcp, "seconds"), desc: "Largest Contentful Paint" },
     { label: "CLS", value: metricValue(ps?.cls, "ratio"), desc: "Cumulative Layout Shift" },
-    { label: "TBT", value: metricValue(ps?.tbt, "ms"), desc: "Total Blocking Time" },
-    { label: "TTFB", value: metricValue(ps?.ttfb, "ms"), desc: "Time to First Byte" },
+    { label: "TBT", value: metricValue((ps as any)?.totalBlockingTime ?? ps?.tbt, "ms"), desc: "Total Blocking Time" },
+    { label: "TTFB", value: metricValue(ps?.ttfb, "seconds"), desc: "Time to First Byte" },
   ];
   const isEstimated = !!ps && !ps.isReal;
 

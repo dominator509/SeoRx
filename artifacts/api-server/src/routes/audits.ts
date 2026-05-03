@@ -235,6 +235,7 @@ async function seedPageSpeedData(auditId: string, url: string) {
   const ttfb = parseFloat(((200 + Math.random() * 800) / 1000).toFixed(3));
   const score = Math.round(Math.max(30, 100 - lcp * 10 - cls * 100 - ttfb * 20));
 
+  const tbtMobile = Math.round(fid * 0.8);
   await db.insert(pageSpeedResultsTable).values({
     id: crypto.randomUUID(), auditId, url, device: "mobile",
     performanceScore: score,
@@ -243,13 +244,15 @@ async function seedPageSpeedData(auditId: string, url: string) {
     seoScore: Math.round(55 + Math.random() * 40),
     lcp, fid, cls, fcp, ttfb,
     speedIndex: parseFloat((lcp * 1.2).toFixed(2)),
-    totalBlockingTime: Math.round(fid * 0.8),
+    totalBlockingTime: tbtMobile,
+    tbt: tbtMobile,
   });
 
-  const db2 = 1.3;
+  const desktopMult = 1.3;
+  const tbtDesktop = Math.round(fid * 0.4);
   await db.insert(pageSpeedResultsTable).values({
     id: crypto.randomUUID(), auditId, url, device: "desktop",
-    performanceScore: Math.min(100, Math.round(score * db2)),
+    performanceScore: Math.min(100, Math.round(score * desktopMult)),
     accessibilityScore: Math.round(70 + Math.random() * 28),
     bestPracticesScore: Math.round(65 + Math.random() * 30),
     seoScore: Math.round(60 + Math.random() * 38),
@@ -259,7 +262,8 @@ async function seedPageSpeedData(auditId: string, url: string) {
     fcp: parseFloat((fcp * 0.7).toFixed(2)),
     ttfb: parseFloat((ttfb * 0.6).toFixed(3)),
     speedIndex: parseFloat((lcp * 0.8).toFixed(2)),
-    totalBlockingTime: Math.round(fid * 0.4),
+    totalBlockingTime: tbtDesktop,
+    tbt: tbtDesktop,
   });
 }
 
