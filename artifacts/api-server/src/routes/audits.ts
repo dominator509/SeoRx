@@ -7,7 +7,7 @@ import {
   pageSpeedResultsTable,
 } from "@workspace/db";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
-import { requireAuth, getUserOrgIds, assertClientAccess, assertAuditAccess } from "../lib/rbac";
+import { requireAuth, assertClientAccess, assertAuditAccess } from "../lib/rbac";
 import { enforceAuditLimit, enforceAiLimit } from "../lib/plan-enforcement";
 import { crawlSite } from "../lib/crawler";
 import { analyzeCrawlResult } from "../lib/seo-analyzer";
@@ -22,16 +22,8 @@ router.get("/audits", requireAuth, async (req, res) => {
       clientId?: string; status?: string; limit?: string; offset?: string;
     };
 
-    // Scope to user's orgs
-    const orgIds = getUserOrgIds(req);
-    if (orgIds.length === 0) { res.json({ items: [], total: 0, limit: Number(limit), offset: Number(offset) }); return; }
-
-    const allowedClients = await db.select({ id: clientsTable.id }).from(clientsTable).where(inArray(clientsTable.orgId, orgIds));
-    const allowedClientIds = allowedClients.map((c) => c.id);
-    if (allowedClientIds.length === 0) { res.json({ items: [], total: 0, limit: Number(limit), offset: Number(offset) }); return; }
-
-    const conditions: any[] = [inArray(auditsTable.clientId, allowedClientIds)];
-    if (clientId && allowedClientIds.includes(clientId)) conditions.push(eq(auditsTable.clientId, clientId));
+    const conditions: any[] = [];
+    if (clientId) conditions.push(eq(auditsTable.clientId, clientId));
     if (status) conditions.push(eq(auditsTable.status as any, status));
 
     const audits = await db.select().from(auditsTable).where(and(...conditions)).orderBy(desc(auditsTable.createdAt)).limit(Number(limit)).offset(Number(offset));

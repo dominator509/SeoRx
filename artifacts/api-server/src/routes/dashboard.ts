@@ -1,26 +1,18 @@
 import { Router } from "express";
 import { db, clientsTable, auditsTable, auditIssuesTable } from "@workspace/db";
 import { eq, and, gte, sql, desc, inArray } from "drizzle-orm";
-import { requireAuth, getUserOrgIds } from "../lib/rbac";
+import { requireAuth } from "../lib/rbac";
 
 const router = Router();
 
 router.get("/dashboard/stats", requireAuth, async (req, res) => {
   try {
-    const orgIds = getUserOrgIds(req);
-    if (orgIds.length === 0) {
-      res.json({ totalClients: 0, totalAudits: 0, totalIssues: 0, criticalIssues: 0, resolvedIssues: 0, avgSeoScore: 0, auditsThisMonth: 0, pendingApprovals: 0 });
-      return;
-    }
-
-    // Get clients scoped to user's orgs
-    const clients = await db.select({ id: clientsTable.id }).from(clientsTable).where(inArray(clientsTable.orgId, orgIds));
+    const clients = await db.select({ id: clientsTable.id }).from(clientsTable);
     const clientIds = clients.map((c) => c.id);
-
     const totalClients = clients.length;
 
     if (clientIds.length === 0) {
-      res.json({ totalClients, totalAudits: 0, totalIssues: 0, criticalIssues: 0, resolvedIssues: 0, avgSeoScore: 0, auditsThisMonth: 0, pendingApprovals: 0 });
+      res.json({ totalClients: 0, totalAudits: 0, totalIssues: 0, criticalIssues: 0, resolvedIssues: 0, avgSeoScore: 0, auditsThisMonth: 0, pendingApprovals: 0 });
       return;
     }
 
@@ -29,7 +21,6 @@ router.get("/dashboard/stats", requireAuth, async (req, res) => {
       db.$count(auditsTable, and(inArray(auditsTable.clientId, clientIds), gte(auditsTable.createdAt, new Date(Date.now() - 30 * 86400_000)))),
     ]);
 
-    // Get audit IDs for this user's clients
     const audits = await db.select({ id: auditsTable.id }).from(auditsTable).where(inArray(auditsTable.clientId, clientIds));
     const auditIds = audits.map((a) => a.id);
 
@@ -45,7 +36,7 @@ router.get("/dashboard/stats", requireAuth, async (req, res) => {
     const avgScoreResult = await db
       .select({ avg: sql<number>`AVG(seo_score)` })
       .from(clientsTable)
-      .where(and(inArray(clientsTable.id, clientIds), sql`seo_score IS NOT NULL`));
+      .where(sql`seo_score IS NOT NULL`);
     const avgSeoScore = Math.round(avgScoreResult[0]?.avg ?? 0);
 
     res.json({ totalClients, totalAudits, totalIssues, criticalIssues, resolvedIssues, avgSeoScore, auditsThisMonth: oneMonthAgoAudits, pendingApprovals });
@@ -57,17 +48,10 @@ router.get("/dashboard/stats", requireAuth, async (req, res) => {
 
 router.get("/dashboard/recent-audits", requireAuth, async (req, res) => {
   try {
-    const orgIds = getUserOrgIds(req);
     const limit = Number(req.query.limit ?? 10);
-    if (orgIds.length === 0) { res.json([]); return; }
-
-    const clients = await db.select({ id: clientsTable.id }).from(clientsTable).where(inArray(clientsTable.orgId, orgIds));
-    const clientIds = clients.map((c) => c.id);
-    if (clientIds.length === 0) { res.json([]); return; }
 
     const audits = await db
       .select().from(auditsTable)
-      .where(inArray(auditsTable.clientId, clientIds))
       .orderBy(desc(auditsTable.createdAt))
       .limit(limit);
 
@@ -99,14 +83,7 @@ router.get("/dashboard/recent-audits", requireAuth, async (req, res) => {
 
 router.get("/dashboard/issue-breakdown", requireAuth, async (req, res) => {
   try {
-    const orgIds = getUserOrgIds(req);
-    if (orgIds.length === 0) { res.json({ bySeverity: [], byCategory: [] }); return; }
-
-    const clients = await db.select({ id: clientsTable.id }).from(clientsTable).where(inArray(clientsTable.orgId, orgIds));
-    const clientIds = clients.map((c) => c.id);
-    if (clientIds.length === 0) { res.json({ bySeverity: [], byCategory: [] }); return; }
-
-    const audits = await db.select({ id: auditsTable.id }).from(auditsTable).where(inArray(auditsTable.clientId, clientIds));
+    const audits = await db.select({ id: auditsTable.id }).from(auditsTable);
     const auditIds = audits.map((a) => a.id);
     if (auditIds.length === 0) { res.json({ bySeverity: [], byCategory: [] }); return; }
 
@@ -125,14 +102,7 @@ router.get("/dashboard/issue-breakdown", requireAuth, async (req, res) => {
 
 router.get("/dashboard/score-trends", requireAuth, async (req, res) => {
   try {
-    const orgIds = getUserOrgIds(req);
     const days = Number(req.query.days ?? 30);
-    if (orgIds.length === 0) { res.json([]); return; }
-
-    const clients = await db.select({ id: clientsTable.id }).from(clientsTable).where(inArray(clientsTable.orgId, orgIds));
-    const clientIds = clients.map((c) => c.id);
-    if (clientIds.length === 0) { res.json([]); return; }
-
     const since = new Date(Date.now() - days * 86400_000);
     const trends = await db
       .select({
@@ -141,7 +111,7 @@ router.get("/dashboard/score-trends", requireAuth, async (req, res) => {
         auditCount: sql<number>`count(*)::int`,
       })
       .from(auditsTable)
-      .where(and(inArray(auditsTable.clientId, clientIds), gte(auditsTable.completedAt, since), sql`seo_score IS NOT NULL`))
+      .where(and(gte(auditsTable.completedAt, since), sql`seo_score IS NOT NULL`))
       .groupBy(sql`DATE(${auditsTable.completedAt})`);
     res.json(trends);
   } catch (err) {
