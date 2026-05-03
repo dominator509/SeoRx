@@ -1,18 +1,19 @@
 import { Router } from "express";
 import { db, organizationsTable, orgMembersTable, clientsTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
-import { requireAuth, getMembershipForOrg, getUserOrgIds } from "../lib/rbac";
+import { eq, inArray } from "drizzle-orm";
+import { requireAuth, getMembershipForOrg, getUserOrgIds, requireOrgRole } from "../lib/rbac";
 
 const router = Router();
 
 router.get("/organizations", requireAuth, async (req, res) => {
   try {
-    // Use preloaded org memberships from RBAC context
     const orgIds = getUserOrgIds(req);
-    if (orgIds.length === 0) { res.json([]); return; }
-
+    if (orgIds.length === 0) {
+      res.json([]);
+      return;
+    }
     const orgs = await db.query.organizationsTable.findMany({
-      where: sql`${organizationsTable.id} = ANY(ARRAY[${sql.join(orgIds.map((id) => sql`${id}`), sql`, `)}]::text[])`,
+      where: inArray(organizationsTable.id, orgIds),
     });
     const enriched = await Promise.all(
       orgs.map(async (org) => {
@@ -33,7 +34,6 @@ router.get("/organizations", requireAuth, async (req, res) => {
 
 router.post("/organizations", requireAuth, async (req, res) => {
   const clerkId = (req as any).clerkUserId as string;
-  const userEmail = req.seorxUser?.email ?? "";
   try {
     const { name, slug, logoUrl } = req.body;
     const id = crypto.randomUUID();
@@ -43,7 +43,7 @@ router.post("/organizations", requireAuth, async (req, res) => {
       id: memberId,
       orgId: id,
       userId: clerkId,
-      email: "",
+      email: req.seorxUser?.email ?? "",
       role: "admin",
     });
     const org = await db.query.organizationsTable.findFirst({
@@ -59,6 +59,11 @@ router.post("/organizations", requireAuth, async (req, res) => {
 router.get("/organizations/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
+    const membership = getMembershipForOrg(req, id);
+    if (!membership) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
     const org = await db.query.organizationsTable.findFirst({
       where: eq(organizationsTable.id, id),
     });
@@ -70,21 +75,18 @@ router.get("/organizations/:id", requireAuth, async (req, res) => {
       db.$count(orgMembersTable, eq(orgMembersTable.orgId, org.id)),
       db.$count(clientsTable, eq(clientsTable.orgId, org.id)),
     ]);
-    res.json({ ...org, memberCount, clientCount, auditCount: 0 });
+    res.json({ ...org, memberCount, clientCount, auditCount: 0, myRole: membership.role });
   } catch (err) {
     req.log.error({ err }, "Failed to get organization");
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.put("/organizations/:id", requireAuth, async (req, res) => {
+router.put("/organizations/:id", requireAuth, requireOrgRole("admin", "id"), async (req, res) => {
   try {
     const id = req.params.id as string;
     const { name, logoUrl, plan } = req.body;
-    await db
-      .update(organizationsTable)
-      .set({ name, logoUrl, plan, updatedAt: new Date() })
-      .where(eq(organizationsTable.id, id));
+    await db.update(organizationsTable).set({ name, logoUrl, plan, updatedAt: new Date() }).where(eq(organizationsTable.id, id));
     const org = await db.query.organizationsTable.findFirst({
       where: eq(organizationsTable.id, id),
     });
@@ -99,7 +101,7 @@ router.put("/organizations/:id", requireAuth, async (req, res) => {
   }
 });
 
-router.delete("/organizations/:id", requireAuth, async (req, res) => {
+router.delete("/organizations/:id", requireAuth, requireOrgRole("admin", "id"), async (req, res) => {
   try {
     const id = req.params.id as string;
     await db.delete(organizationsTable).where(eq(organizationsTable.id, id));
@@ -113,6 +115,10 @@ router.delete("/organizations/:id", requireAuth, async (req, res) => {
 router.get("/organizations/:orgId/members", requireAuth, async (req, res) => {
   try {
     const orgId = req.params.orgId as string;
+    if (!getMembershipForOrg(req, orgId)) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
     const members = await db.query.orgMembersTable.findMany({
       where: eq(orgMembersTable.orgId, orgId),
     });
@@ -123,7 +129,7 @@ router.get("/organizations/:orgId/members", requireAuth, async (req, res) => {
   }
 });
 
-router.post("/organizations/:orgId/members", requireAuth, async (req, res) => {
+router.post("/organizations/:orgId/members", requireAuth, requireOrgRole("admin", "orgId"), async (req, res) => {
   try {
     const orgId = req.params.orgId as string;
     const { email, role } = req.body;

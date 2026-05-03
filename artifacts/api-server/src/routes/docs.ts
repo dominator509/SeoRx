@@ -6,20 +6,18 @@ import yaml from "js-yaml";
 
 const router = Router();
 
-// Resolve the OpenAPI spec from the monorepo lib
 function loadSpec() {
-  // Try several candidate paths — works both in src (dev) and dist (prod)
   const candidates = [
     resolve(process.cwd(), "lib/api-spec/openapi.yaml"),
+    resolve(process.cwd(), "../lib/api-spec/openapi.yaml"),
     resolve(process.cwd(), "../../lib/api-spec/openapi.yaml"),
-    resolve(process.cwd(), "../../../lib/api-spec/openapi.yaml"),
+    resolve(__dirname, "../../../../lib/api-spec/openapi.yaml"),
   ];
   for (const p of candidates) {
     try {
       const raw = readFileSync(p, "utf8");
       return yaml.load(raw) as Record<string, unknown>;
     } catch {
-      // try next
     }
   }
   return { openapi: "3.1.0", info: { title: "SEORx API", version: "0.1.0" }, paths: {} };
@@ -27,12 +25,10 @@ function loadSpec() {
 
 const spec = loadSpec();
 
-// Serve raw OpenAPI JSON
 router.get("/openapi.json", (_req, res) => {
   res.json(spec);
 });
 
-// Serve Swagger UI
 router.use(
   "/docs",
   swaggerUi.serve,
