@@ -33,6 +33,10 @@ interface PageSpeedApiResponse {
   };
 }
 
+function toMetric(ms?: number) {
+  return ms == null || Number.isNaN(ms) || ms <= 0 ? null : ms;
+}
+
 async function fetchRealPageSpeed(url: string, strategy: "mobile" | "desktop"): Promise<{
   performanceScore: number;
   accessibilityScore: number;
@@ -68,21 +72,22 @@ async function fetchRealPageSpeed(url: string, strategy: "mobile" | "desktop"): 
     const audits = data.lighthouseResult?.audits;
     const crux = data.loadingExperience?.metrics;
 
-    const score = (v?: number) => Math.round((v ?? 0) * 100);
-    const sec = (ms?: number) => parseFloat(((ms ?? 0) / 1000).toFixed(2));
+    const score = (v?: number) => (v == null || Number.isNaN(v) || v <= 0 ? null : Math.round(v * 100));
+    const sec = (ms?: number) => (ms == null || Number.isNaN(ms) || ms <= 0 ? null : parseFloat((ms / 1000).toFixed(2)));
+    const ratio = (value?: number) => (value == null || Number.isNaN(value) || value <= 0 ? null : parseFloat(value.toFixed(3)));
 
     return {
-      performanceScore: score(cats?.performance?.score),
-      accessibilityScore: score(cats?.accessibility?.score),
-      bestPracticesScore: score(cats?.["best-practices"]?.score),
-      seoScore: score(cats?.seo?.score),
+      performanceScore: score(cats?.performance?.score) ?? 0,
+      accessibilityScore: score(cats?.accessibility?.score) ?? 0,
+      bestPracticesScore: score(cats?.["best-practices"]?.score) ?? 0,
+      seoScore: score(cats?.seo?.score) ?? 0,
       lcp: sec(crux?.LARGEST_CONTENTFUL_PAINT_MS?.percentile ?? audits?.["largest-contentful-paint"]?.numericValue),
-      fid: crux?.FIRST_INPUT_DELAY_MS?.percentile ?? 0,
-      cls: parseFloat(((crux?.CUMULATIVE_LAYOUT_SHIFT_SCORE?.percentile ?? audits?.["cumulative-layout-shift"]?.numericValue ?? 0) / 100).toFixed(3)),
+      fid: toMetric(crux?.FIRST_INPUT_DELAY_MS?.percentile),
+      cls: ratio((crux?.CUMULATIVE_LAYOUT_SHIFT_SCORE?.percentile ?? audits?.["cumulative-layout-shift"]?.numericValue ?? undefined) ? ((crux?.CUMULATIVE_LAYOUT_SHIFT_SCORE?.percentile ?? audits?.["cumulative-layout-shift"]?.numericValue ?? 0) / 100) : undefined),
       fcp: sec(crux?.FIRST_CONTENTFUL_PAINT_MS?.percentile ?? audits?.["first-contentful-paint"]?.numericValue),
-      ttfb: parseFloat(((crux?.EXPERIMENTAL_TIME_TO_FIRST_BYTE?.percentile ?? 400) / 1000).toFixed(3)),
+      ttfb: sec(crux?.EXPERIMENTAL_TIME_TO_FIRST_BYTE?.percentile),
       speedIndex: sec(audits?.["speed-index"]?.numericValue),
-      totalBlockingTime: Math.round(audits?.["total-blocking-time"]?.numericValue ?? 0),
+      totalBlockingTime: audits?.["total-blocking-time"]?.numericValue != null ? Math.round(audits["total-blocking-time"].numericValue) : null,
     };
   } catch (err) {
     logger.warn({ err, url }, "PageSpeed API request failed");
