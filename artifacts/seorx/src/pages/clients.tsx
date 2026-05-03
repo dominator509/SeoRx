@@ -5,6 +5,8 @@ import {
   useCreateClient,
   useDeleteClient,
   getListClientsQueryKey,
+  useListOrganizations,
+  getListOrganizationsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -53,6 +55,8 @@ export default function Clients() {
     { search: search || undefined },
     { query: { queryKey: getListClientsQueryKey({ search: search || undefined }) } },
   );
+  const { data: orgs } = useListOrganizations({ query: { queryKey: getListOrganizationsQueryKey() } });
+  const activeOrgId = orgs?.[0]?.id;
 
   const createClient = useCreateClient({
     mutation: {
@@ -97,7 +101,21 @@ export default function Clients() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Add Client</DialogTitle></DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit((v) => createClient.mutate({ data: v as any }))} className="space-y-4">
+              <form
+                onSubmit={form.handleSubmit((v) => {
+                  if (!activeOrgId) {
+                    toast({ title: "No organization", description: "Create or join an organization first.", variant: "destructive" });
+                    return;
+                  }
+                  createClient.mutate({ data: { ...v, orgId: activeOrgId } as any });
+                })}
+                className="space-y-4"
+              >
+                {!activeOrgId && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    No organization available yet.
+                  </div>
+                )}
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem><FormLabel>Client Name</FormLabel><FormControl><Input placeholder="Acme Corp" {...field} data-testid="input-client-name" /></FormControl><FormMessage /></FormItem>
                 )} />
