@@ -30,7 +30,6 @@ import { Plus, Search, Globe, ArrowRight, Trash2, ExternalLink } from "lucide-re
 import { format } from "date-fns";
 
 const createSchema = z.object({
-  orgId: z.string().optional(),
   name: z.string().min(2, "Name required"),
   domain: z.string().min(3, "Domain required").regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, "Enter a valid domain"),
   industry: z.string().optional(),
@@ -82,12 +81,10 @@ export default function Clients() {
 
   const form = useForm<z.infer<typeof createSchema>>({
     resolver: zodResolver(createSchema),
-    defaultValues: { orgId: "", name: "", domain: "", industry: "", contactEmail: "" },
+    defaultValues: { name: "", domain: "", industry: "", contactEmail: "" },
   });
 
   const activeOrgId = orgs?.[0]?.id as string | undefined;
-
-  const selectedOrgId = form.watch("orgId") || activeOrgId || "";
 
   return (
     <div className="p-4 sm:p-6 space-y-5 max-w-6xl mx-auto">
@@ -105,34 +102,22 @@ export default function Clients() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Add Client</DialogTitle></DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit((v) => createClient.mutate({ data: { ...v, orgId: v.orgId || activeOrgId } as any }))} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="orgId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Organization</FormLabel>
-                      <FormControl>
-                        <select
-                          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                          {...field}
-                          value={field.value || activeOrgId || ""}
-                          onChange={(e) => field.onChange(e.target.value)}
-                        >
-                          <option value="" disabled>
-                            {orgs?.length ? "Select an organization" : "No organizations available"}
-                          </option>
-                          {orgs?.map((org) => (
-                            <option key={org.id} value={org.id}>
-                              {org.name}
-                            </option>
-                          ))}
-                        </select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <form
+                onSubmit={form.handleSubmit((v) => {
+                  const orgId = activeOrgId || orgs?.[0]?.id;
+                  if (!orgId) {
+                    toast({ title: "No organization", description: "Create or join an organization first.", variant: "destructive" });
+                    return;
+                  }
+                  createClient.mutate({ data: { ...v, orgId } as any });
+                })}
+                className="space-y-4"
+              >
+                {!activeOrgId && (
+                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    No organization available yet.
+                  </div>
+                )}
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem><FormLabel>Client Name</FormLabel><FormControl><Input placeholder="Acme Corp" {...field} data-testid="input-client-name" /></FormControl><FormMessage /></FormItem>
                 )} />
@@ -145,7 +130,7 @@ export default function Clients() {
                 <FormField control={form.control} name="contactEmail" render={({ field }) => (
                   <FormItem><FormLabel>Contact Email (optional)</FormLabel><FormControl><Input placeholder="seo@acmecorp.com" type="email" {...field} /></FormControl><FormMessage /></FormItem>
                 )} />
-                <Button type="submit" className="w-full" disabled={createClient.isPending || !selectedOrgId} data-testid="submit-create-client">
+                <Button type="submit" className="w-full" disabled={createClient.isPending} data-testid="submit-create-client">
                   {createClient.isPending ? "Adding..." : "Add Client"}
                 </Button>
               </form>
