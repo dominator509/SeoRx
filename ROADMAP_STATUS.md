@@ -169,7 +169,7 @@
 ## Phase 17: Documentation ✅
 - [x] ARCHITECTURE.md (full architecture reference)
 - [x] API reference via Swagger UI at /api/docs
-- [ ] Deployment guide
+- [x] Deployment guide
 
 ## Phase 18: Integration Scaffolds ✅
 - [x] Google Search Console OAuth flow (connect, callback, properties, analytics)
@@ -191,7 +191,6 @@
 
 | Phase | Deviation | Reason |
 |-------|-----------|--------|
-| 17 | Deployment guide not yet written | Low priority; Replit deployment is one-click |
 | 18 | GSC token storage not yet persisted (OAuth flow works, tokens not saved to DB) | Requires org_integrations table; deferred to next phase |
 | 18 | Webhook registrations stored in-memory only | Requires org_webhooks table; deferred to next phase |
 
@@ -204,10 +203,9 @@
 - Encryption: falls back to base64 with startup warning when ENCRYPTION_KEY not set
 
 ## Completed Phases Summary
-✅ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 18, 19
-⏳ 16 (tests), 17 (deployment guide)
+✅ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19
+⏳ 16 (tests)
 
 ## Next Priority Actions
 1. ⏳ Phase 16: Test suite (unit + integration)
-2. ⏳ Phase 17: Deployment guide
-3. ⏳ Phase 18 follow-up: Persist GSC tokens + webhook registrations to DB
+2. ⏳ Phase 18 follow-up: Persist GSC tokens + webhook registrations to DB
