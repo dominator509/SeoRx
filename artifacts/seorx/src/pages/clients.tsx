@@ -24,6 +24,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@clerk/react";
 import { Plus, Search, Globe, ArrowRight, Trash2, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 
@@ -44,6 +45,7 @@ function seoScoreBadge(score?: number | null) {
 }
 
 export default function Clients() {
+  const { user } = useUser();
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -79,8 +81,10 @@ export default function Clients() {
 
   const form = useForm<z.infer<typeof createSchema>>({
     resolver: zodResolver(createSchema),
-    defaultValues: { orgId: "org-001", name: "", domain: "", industry: "", contactEmail: "" },
+    defaultValues: { orgId: "", name: "", domain: "", industry: "", contactEmail: "" },
   });
+
+  const activeOrgId = user?.unsafeMetadata?.orgId as string | undefined;
 
   return (
     <div className="p-4 sm:p-6 space-y-5 max-w-6xl mx-auto">
@@ -98,7 +102,12 @@ export default function Clients() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Add Client</DialogTitle></DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit((v) => createClient.mutate({ data: v as any }))} className="space-y-4">
+              <form onSubmit={form.handleSubmit((v) => createClient.mutate({ data: { ...v, orgId: activeOrgId ?? v.orgId } as any }))} className="space-y-4">
+                {!activeOrgId && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
+                    No active organization is selected.
+                  </div>
+                )}
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem><FormLabel>Client Name</FormLabel><FormControl><Input placeholder="Acme Corp" {...field} data-testid="input-client-name" /></FormControl><FormMessage /></FormItem>
                 )} />
