@@ -1,15 +1,25 @@
 import { Router } from "express";
 import { db, clientsTable, auditsTable, auditIssuesTable } from "@workspace/db";
 import { eq, and, like, or, sql, inArray } from "drizzle-orm";
-import { assertClientAccess } from "../lib/rbac";
+import { assertClientAccess, getUserOrgIds, requireAuth, requireOrgMember } from "../lib/rbac";
 
 const router = Router();
 
-router.get("/clients", async (req, res) => {
+router.get("/clients", requireAuth, async (req, res) => {
   try {
-    const { search } = req.query as { search?: string };
+    const { search, orgId } = req.query as { search?: string; orgId?: string };
+    const userOrgIds = getUserOrgIds(req);
+    const allowedOrgIds = req.seorxUser?.role === "superadmin"
+      ? orgId ? [orgId] : []
+      : orgId ? (userOrgIds.includes(orgId) ? [orgId] : []) : userOrgIds;
+
+    if (req.seorxUser?.role !== "superadmin" && allowedOrgIds.length === 0) {
+      res.json([]);
+      return;
+    }
 
     const conditions: any[] = [];
+    if (allowedOrgIds.length > 0) conditions.push(inArray(clientsTable.orgId, allowedOrgIds));
     if (search) {
       conditions.push(
         or(
@@ -38,12 +48,22 @@ router.get("/clients", async (req, res) => {
   }
 });
 
-router.post("/clients", async (req, res) => {
+router.post("/clients", requireAuth, async (req, res) => {
   try {
-    const { name, domain, industry, contactEmail, logoUrl } = req.body;
+    const { orgId, name, domain, industry, contactEmail, logoUrl } = req.body;
+    const userOrgIds = getUserOrgIds(req);
+    const targetOrgId = orgId ?? userOrgIds[0];
+    if (!targetOrgId) {
+      res.status(400).json({ error: "Missing orgId", message: "Create an organization before adding clients." });
+      return;
+    }
+    if (req.seorxUser?.role !== "superadmin" && !userOrgIds.includes(targetOrgId)) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
 
     const id = crypto.randomUUID();
-    await db.insert(clientsTable).values({ id, name, domain, industry, contactEmail, logoUrl });
+    await db.insert(clientsTable).values({ id, orgId: targetOrgId, name, domain, industry, contactEmail, logoUrl });
     const client = await db.query.clientsTable.findFirst({ where: eq(clientsTable.id, id) });
     res.status(201).json({ ...client, auditCount: 0, issueCount: 0 });
   } catch (err) {
@@ -52,7 +72,7 @@ router.post("/clients", async (req, res) => {
   }
 });
 
-router.get("/clients/:id", async (req, res) => {
+router.get("/clients/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
     const client = await assertClientAccess(req, id);
@@ -70,7 +90,7 @@ router.get("/clients/:id", async (req, res) => {
   }
 });
 
-router.put("/clients/:id", async (req, res) => {
+router.put("/clients/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
     const client = await assertClientAccess(req, id);
@@ -90,7 +110,7 @@ router.put("/clients/:id", async (req, res) => {
   }
 });
 
-router.delete("/clients/:id", async (req, res) => {
+router.delete("/clients/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
     const client = await assertClientAccess(req, id);

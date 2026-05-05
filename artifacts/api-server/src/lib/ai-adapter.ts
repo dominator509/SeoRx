@@ -5,10 +5,7 @@ import { db, aiProvidersTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { logger } from "./logger";
 import type { SeoIssue } from "./seo-analyzer";
-
-function decryptKey(encrypted: string): string {
-  return Buffer.from(encrypted, "base64").toString("utf-8");
-}
+import { decryptSecret } from "./crypto";
 
 export interface AiProviderConfig {
   id: string;
@@ -34,7 +31,7 @@ export async function getActiveProvider(orgId?: string): Promise<AiProviderConfi
     id: provider.id,
     provider: provider.provider,
     model: provider.model,
-    apiKey: provider.encryptedApiKey ? decryptKey(provider.encryptedApiKey) : undefined,
+    apiKey: provider.encryptedApiKey ? (decryptSecret(provider.encryptedApiKey) ?? undefined) : undefined,
     baseUrl: provider.baseUrl ?? undefined,
   };
 }

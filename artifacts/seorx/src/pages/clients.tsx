@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { useListClients, useCreateClient, useDeleteClient, getListClientsQueryKey } from "@workspace/api-client-react";
+import { useListClients, useCreateClient, useDeleteClient, useListOrganizations, getListClientsQueryKey, getListOrganizationsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -23,6 +24,7 @@ import { Plus, Search, Globe, ArrowRight, Trash2, ExternalLink } from "lucide-re
 import { format } from "date-fns";
 
 const createSchema = z.object({
+  orgId: z.string().min(1, "Organization required"),
   name: z.string().min(2, "Name required"),
   domain: z.string().min(3, "Domain required").regex(/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, "Enter a valid domain"),
   industry: z.string().optional(),
@@ -44,6 +46,7 @@ export default function Clients() {
   const { toast } = useToast();
   const qc = useQueryClient();
 
+  const { data: orgs } = useListOrganizations({ query: { queryKey: getListOrganizationsQueryKey() } });
   const { data: clients, isLoading } = useListClients(
     { search: search || undefined },
     { query: { queryKey: getListClientsQueryKey({ search: search || undefined }) } },
@@ -72,8 +75,14 @@ export default function Clients() {
 
   const form = useForm<z.infer<typeof createSchema>>({
     resolver: zodResolver(createSchema),
-    defaultValues: { name: "", domain: "", industry: "", contactEmail: "" },
+    defaultValues: { orgId: "", name: "", domain: "", industry: "", contactEmail: "" },
   });
+
+  useEffect(() => {
+    if (!form.getValues("orgId") && orgs?.[0]?.id) {
+      form.setValue("orgId", orgs[0].id);
+    }
+  }, [form, orgs]);
 
   return (
     <div className="p-4 sm:p-6 space-y-5 max-w-6xl mx-auto">
@@ -95,6 +104,24 @@ export default function Clients() {
                 onSubmit={form.handleSubmit((v) => createClient.mutate({ data: v }))}
                 className="space-y-4"
               >
+                <FormField control={form.control} name="orgId" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Organization</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-client-org">
+                          <SelectValue placeholder="Select organization" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {(orgs ?? []).map((org) => (
+                          <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem><FormLabel>Client Name</FormLabel><FormControl><Input placeholder="Acme Corp" {...field} data-testid="input-client-name" /></FormControl><FormMessage /></FormItem>
                 )} />

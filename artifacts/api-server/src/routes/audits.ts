@@ -7,12 +7,13 @@ import {
   pageSpeedResultsTable,
 } from "@workspace/db";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
-import { requireAuth, assertClientAccess, assertAuditAccess } from "../lib/rbac";
+import { requireAuth, assertClientAccess, assertAuditAccess, getAllowedClientIds } from "../lib/rbac";
 import { enforceAuditLimit, enforceAiLimit } from "../lib/plan-enforcement";
 import { crawlSite } from "../lib/crawler";
 import { analyzeCrawlResult } from "../lib/seo-analyzer";
 import { getActiveProvider, generateBatchRecommendations } from "../lib/ai-adapter";
 import { logger } from "../lib/logger";
+import { fetchRealPageSpeed, syntheticPageSpeed, type PageSpeedMetrics } from "../lib/pagespeed";
 
 const router = Router();
 
@@ -23,7 +24,19 @@ router.get("/audits", requireAuth, async (req, res) => {
     };
 
     const conditions: any[] = [];
-    if (clientId) conditions.push(eq(auditsTable.clientId, clientId));
+    const allowedClientIds = await getAllowedClientIds(req);
+    if (clientId) {
+      if (!allowedClientIds.includes(clientId) && req.seorxUser?.role !== "superadmin") {
+        res.json({ items: [], total: 0, limit: Number(limit), offset: Number(offset) });
+        return;
+      }
+      conditions.push(eq(auditsTable.clientId, clientId));
+    } else if (allowedClientIds.length > 0) {
+      conditions.push(inArray(auditsTable.clientId, allowedClientIds));
+    } else if (req.seorxUser?.role !== "superadmin") {
+      res.json({ items: [], total: 0, limit: Number(limit), offset: Number(offset) });
+      return;
+    }
     if (status) conditions.push(eq(auditsTable.status as any, status));
 
     const audits = await db.select().from(auditsTable).where(and(...conditions)).orderBy(desc(auditsTable.createdAt)).limit(Number(limit)).offset(Number(offset));
@@ -86,7 +99,7 @@ router.post("/audits", requireAuth, enforceAuditLimit(), enforceAiLimit(), async
       status: "pending",
     });
 
-    runRealAudit(id, clientId as string, normalizedUrl, maxPages as number, includePageSpeed as boolean).catch((err) => {
+    runRealAudit(id, clientId as string, client.orgId, normalizedUrl, maxPages as number, includePageSpeed as boolean).catch((err) => {
       logger.error({ err, auditId: id }, "Real audit failed");
     });
 
@@ -154,7 +167,7 @@ router.get("/audits/:id/issues", requireAuth, async (req, res) => {
 
 // ─── Real audit engine ────────────────────────────────────────────────────────
 
-async function runRealAudit(auditId: string, clientId: string, url: string, maxPages: number, includePageSpeed: boolean) {
+async function runRealAudit(auditId: string, clientId: string, orgId: string | null, url: string, maxPages: number, includePageSpeed: boolean) {
   const auditStart = Date.now();
   try {
     logger.info({ auditId, url }, "Starting real SEO crawl");
@@ -178,7 +191,7 @@ async function runRealAudit(auditId: string, clientId: string, url: string, maxP
     let aiProviderUsed: string | null = null;
     let aiRecommendationMap = new Map<number, string>();
     try {
-      const aiProvider = await getActiveProvider();
+      const aiProvider = await getActiveProvider(orgId ?? undefined);
       if (aiProvider) {
         logger.info({ auditId, provider: aiProvider.provider }, "Generating AI recommendations");
         aiRecommendationMap = await generateBatchRecommendations(issues, url, aiProvider, 10);
@@ -227,44 +240,37 @@ async function runRealAudit(auditId: string, clientId: string, url: string, maxP
   }
 }
 
+async function insertPageSpeedResult(
+  auditId: string,
+  url: string,
+  device: "mobile" | "desktop",
+  metrics: PageSpeedMetrics,
+) {
+  await db.insert(pageSpeedResultsTable).values({
+    id: crypto.randomUUID(),
+    auditId,
+    url,
+    device,
+    performanceScore: metrics.performanceScore,
+    accessibilityScore: metrics.accessibilityScore,
+    bestPracticesScore: metrics.bestPracticesScore,
+    seoScore: metrics.seoScore,
+    lcp: metrics.lcp,
+    fid: metrics.fid,
+    cls: metrics.cls,
+    fcp: metrics.fcp,
+    ttfb: metrics.ttfb,
+    speedIndex: metrics.speedIndex,
+    totalBlockingTime: metrics.totalBlockingTime,
+    tbt: metrics.tbt,
+  });
+}
+
 async function seedPageSpeedData(auditId: string, url: string) {
-  const lcp = parseFloat((1.5 + Math.random() * 3).toFixed(2));
-  const fid = Math.round(50 + Math.random() * 200);
-  const cls = parseFloat((Math.random() * 0.3).toFixed(3));
-  const fcp = parseFloat((0.8 + Math.random() * 2).toFixed(2));
-  const ttfb = parseFloat(((200 + Math.random() * 800) / 1000).toFixed(3));
-  const score = Math.round(Math.max(30, 100 - lcp * 10 - cls * 100 - ttfb * 20));
-
-  const tbtMobile = Math.round(fid * 0.8);
-  await db.insert(pageSpeedResultsTable).values({
-    id: crypto.randomUUID(), auditId, url, device: "mobile",
-    performanceScore: score,
-    accessibilityScore: Math.round(65 + Math.random() * 30),
-    bestPracticesScore: Math.round(60 + Math.random() * 35),
-    seoScore: Math.round(55 + Math.random() * 40),
-    lcp, fid, cls, fcp, ttfb,
-    speedIndex: parseFloat((lcp * 1.2).toFixed(2)),
-    totalBlockingTime: tbtMobile,
-    tbt: tbtMobile,
-  });
-
-  const desktopMult = 1.3;
-  const tbtDesktop = Math.round(fid * 0.4);
-  await db.insert(pageSpeedResultsTable).values({
-    id: crypto.randomUUID(), auditId, url, device: "desktop",
-    performanceScore: Math.min(100, Math.round(score * desktopMult)),
-    accessibilityScore: Math.round(70 + Math.random() * 28),
-    bestPracticesScore: Math.round(65 + Math.random() * 30),
-    seoScore: Math.round(60 + Math.random() * 38),
-    lcp: parseFloat((lcp * 0.7).toFixed(2)),
-    fid: Math.round(fid * 0.5),
-    cls: parseFloat((cls * 0.8).toFixed(3)),
-    fcp: parseFloat((fcp * 0.7).toFixed(2)),
-    ttfb: parseFloat((ttfb * 0.6).toFixed(3)),
-    speedIndex: parseFloat((lcp * 0.8).toFixed(2)),
-    totalBlockingTime: tbtDesktop,
-    tbt: tbtDesktop,
-  });
+  for (const device of ["mobile", "desktop"] as const) {
+    const metrics = (await fetchRealPageSpeed(url, device)) ?? syntheticPageSpeed(device);
+    await insertPageSpeedResult(auditId, url, device, metrics);
+  }
 }
 
 export default router;

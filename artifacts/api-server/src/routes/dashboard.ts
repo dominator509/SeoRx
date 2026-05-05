@@ -1,15 +1,14 @@
 import { Router } from "express";
 import { db, clientsTable, auditsTable, auditIssuesTable } from "@workspace/db";
 import { eq, and, gte, sql, desc, inArray } from "drizzle-orm";
-import { requireAuth } from "../lib/rbac";
+import { getAllowedClientIds, requireAuth } from "../lib/rbac";
 
 const router = Router();
 
 router.get("/dashboard/stats", requireAuth, async (req, res) => {
   try {
-    const clients = await db.select({ id: clientsTable.id }).from(clientsTable);
-    const clientIds = clients.map((c) => c.id);
-    const totalClients = clients.length;
+    const clientIds = await getAllowedClientIds(req);
+    const totalClients = clientIds.length;
 
     if (clientIds.length === 0) {
       res.json({ totalClients: 0, totalAudits: 0, totalIssues: 0, criticalIssues: 0, resolvedIssues: 0, avgSeoScore: 0, auditsThisMonth: 0, pendingApprovals: 0 });
@@ -36,7 +35,7 @@ router.get("/dashboard/stats", requireAuth, async (req, res) => {
     const avgScoreResult = await db
       .select({ avg: sql<number>`AVG(seo_score)` })
       .from(clientsTable)
-      .where(sql`seo_score IS NOT NULL`);
+      .where(and(inArray(clientsTable.id, clientIds), sql`seo_score IS NOT NULL`));
     const avgSeoScore = Math.round(avgScoreResult[0]?.avg ?? 0);
 
     res.json({ totalClients, totalAudits, totalIssues, criticalIssues, resolvedIssues, avgSeoScore, auditsThisMonth: oneMonthAgoAudits, pendingApprovals });
@@ -50,8 +49,15 @@ router.get("/dashboard/recent-audits", requireAuth, async (req, res) => {
   try {
     const limit = Number(req.query.limit ?? 10);
 
+    const clientIds = await getAllowedClientIds(req);
+    if (clientIds.length === 0) {
+      res.json([]);
+      return;
+    }
+
     const audits = await db
       .select().from(auditsTable)
+      .where(inArray(auditsTable.clientId, clientIds))
       .orderBy(desc(auditsTable.createdAt))
       .limit(limit);
 
@@ -83,7 +89,9 @@ router.get("/dashboard/recent-audits", requireAuth, async (req, res) => {
 
 router.get("/dashboard/issue-breakdown", requireAuth, async (req, res) => {
   try {
-    const audits = await db.select({ id: auditsTable.id }).from(auditsTable);
+    const clientIds = await getAllowedClientIds(req);
+    if (clientIds.length === 0) { res.json({ bySeverity: [], byCategory: [] }); return; }
+    const audits = await db.select({ id: auditsTable.id }).from(auditsTable).where(inArray(auditsTable.clientId, clientIds));
     const auditIds = audits.map((a) => a.id);
     if (auditIds.length === 0) { res.json({ bySeverity: [], byCategory: [] }); return; }
 
@@ -103,6 +111,11 @@ router.get("/dashboard/issue-breakdown", requireAuth, async (req, res) => {
 router.get("/dashboard/score-trends", requireAuth, async (req, res) => {
   try {
     const days = Number(req.query.days ?? 30);
+    const clientIds = await getAllowedClientIds(req);
+    if (clientIds.length === 0) {
+      res.json([]);
+      return;
+    }
     const since = new Date(Date.now() - days * 86400_000);
     const trends = await db
       .select({
@@ -111,7 +124,7 @@ router.get("/dashboard/score-trends", requireAuth, async (req, res) => {
         auditCount: sql<number>`count(*)::int`,
       })
       .from(auditsTable)
-      .where(and(gte(auditsTable.completedAt, since), sql`seo_score IS NOT NULL`))
+      .where(and(inArray(auditsTable.clientId, clientIds), gte(auditsTable.completedAt, since), sql`seo_score IS NOT NULL`))
       .groupBy(sql`DATE(${auditsTable.completedAt})`);
     res.json(trends);
   } catch (err) {

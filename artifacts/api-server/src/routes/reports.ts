@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, reportsTable, auditsTable, clientsTable, auditIssuesTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
-import { requireAuth, assertAuditAccess } from "../lib/rbac";
+import { eq, and, inArray } from "drizzle-orm";
+import { requireAuth, assertAuditAccess, getAllowedClientIds } from "../lib/rbac";
 import { logger } from "../lib/logger";
 import { generatePdfReport } from "../lib/pdf-report";
 
@@ -11,7 +11,19 @@ router.get("/reports", requireAuth, async (req, res) => {
   try {
     const { clientId, auditId } = req.query as { clientId?: string; auditId?: string };
     const conditions = [];
-    if (clientId) conditions.push(eq(reportsTable.clientId, clientId));
+    const allowedClientIds = await getAllowedClientIds(req);
+    if (clientId) {
+      if (!allowedClientIds.includes(clientId) && req.seorxUser?.role !== "superadmin") {
+        res.json([]);
+        return;
+      }
+      conditions.push(eq(reportsTable.clientId, clientId));
+    } else if (allowedClientIds.length > 0) {
+      conditions.push(inArray(reportsTable.clientId, allowedClientIds));
+    } else if (req.seorxUser?.role !== "superadmin") {
+      res.json([]);
+      return;
+    }
     if (auditId) conditions.push(eq(reportsTable.auditId, auditId));
     const reports = conditions.length
       ? await db.select().from(reportsTable).where(and(...conditions))

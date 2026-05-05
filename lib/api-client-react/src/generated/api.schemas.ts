@@ -124,7 +124,7 @@ export interface InviteOrgMemberBody {
 
 export interface Client {
   id: string;
-  orgId?: string | null;
+  orgId: string;
   name: string;
   domain: string;
   industry?: string | null;
@@ -139,6 +139,7 @@ export interface Client {
 }
 
 export interface CreateClientBody {
+  orgId: string;
   name: string;
   domain: string;
   industry?: string;
@@ -360,7 +361,7 @@ export const AiProviderProvider = {
 
 export interface AiProvider {
   id: string;
-  orgId?: string | null;
+  orgId: string;
   name: string;
   provider: AiProviderProvider;
   model: string;
@@ -383,6 +384,7 @@ export const CreateAiProviderBodyProvider = {
 } as const;
 
 export interface CreateAiProviderBody {
+  orgId: string;
   name: string;
   provider: CreateAiProviderBodyProvider;
   model: string;
@@ -431,6 +433,13 @@ export type UnauthorizedResponse = ErrorResponse;
 export type NotFoundResponse = ErrorResponse;
 
 export type ListClientsParams = {
+  /**
+   * Filter by organization ID
+   */
+  orgId?: string;
+  /**
+   * Search by name or domain
+   */
   search?: string;
 };
 
@@ -488,5 +497,6 @@ export type GetRecentAuditsParams = {
 };
 
 export type GetScoreTrendsParams = {
+  clientId?: string;
   days?: number;
 };

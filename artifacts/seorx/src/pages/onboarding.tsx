@@ -35,6 +35,7 @@ const steps = [
 
 export default function Onboarding() {
   const [step, setStep] = useState(0);
+  const [orgId, setOrgId] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
   const [auditId, setAuditId] = useState<string | null>(null);
   const [, setLocation] = useLocation();
@@ -47,7 +48,8 @@ export default function Onboarding() {
 
   const createOrg = useCreateOrganization({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (org) => {
+        setOrgId(org.id);
         qc.invalidateQueries({ queryKey: getListOrganizationsQueryKey() });
         setStep(1);
       },
@@ -121,7 +123,10 @@ export default function Onboarding() {
             <CardHeader><CardTitle>Add your first client</CardTitle></CardHeader>
             <CardContent>
               <Form {...clientForm}>
-                <form onSubmit={clientForm.handleSubmit((v) => createClient.mutate({ data: v }))} className="space-y-4">
+                <form onSubmit={clientForm.handleSubmit((v) => {
+                  if (!orgId) return;
+                  createClient.mutate({ data: { ...v, orgId } });
+                })} className="space-y-4">
                   <FormField control={clientForm.control} name="name" render={({ field }) => (
                     <FormItem><FormLabel>Client Name</FormLabel><FormControl><Input placeholder="Acme Corp" {...field} data-testid="input-client-name" /></FormControl><FormMessage /></FormItem>
                   )} />

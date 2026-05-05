@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useListAiProviders, useCreateAiProvider, useUpdateAiProvider, useDeleteAiProvider,
-  getListAiProvidersQueryKey,
+  useListOrganizations, getListAiProvidersQueryKey, getListOrganizationsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +32,7 @@ const PROVIDER_MODELS: Record<string, string[]> = {
 };
 
 const createSchema = z.object({
+  orgId: z.string().min(1, "Organization required"),
   name: z.string().min(2, "Name required"),
   provider: z.enum(["openai", "anthropic", "gemini", "ollama", "custom"]),
   model: z.string().min(1, "Model required"),
@@ -46,6 +47,7 @@ export default function AiProviders() {
   const { toast } = useToast();
   const qc = useQueryClient();
 
+  const { data: orgs } = useListOrganizations({ query: { queryKey: getListOrganizationsQueryKey() } });
   const { data: providers, isLoading } = useListAiProviders({ query: { queryKey: getListAiProvidersQueryKey() } });
 
   const createProvider = useCreateAiProvider({
@@ -71,8 +73,14 @@ export default function AiProviders() {
 
   const form = useForm<z.infer<typeof createSchema>>({
     resolver: zodResolver(createSchema),
-    defaultValues: { name: "", provider: "openai", model: "gpt-4o", apiKey: "", baseUrl: "", isDefault: false },
+    defaultValues: { orgId: "", name: "", provider: "openai", model: "gpt-4o", apiKey: "", baseUrl: "", isDefault: false },
   });
+
+  useEffect(() => {
+    if (!form.getValues("orgId") && orgs?.[0]?.id) {
+      form.setValue("orgId", orgs[0].id);
+    }
+  }, [form, orgs]);
 
   const selectedProvider = form.watch("provider");
   const models = PROVIDER_MODELS[selectedProvider] ?? [];
@@ -102,6 +110,16 @@ export default function AiProviders() {
             <DialogHeader><DialogTitle>Add AI Provider</DialogTitle></DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit((v) => createProvider.mutate({ data: v as any }))} className="space-y-4">
+                <FormField control={form.control} name="orgId" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Organization</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger data-testid="select-provider-org"><SelectValue placeholder="Select organization" /></SelectTrigger></FormControl>
+                      <SelectContent>{(orgs ?? []).map((org) => <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem><FormLabel>Display Name</FormLabel><FormControl><Input placeholder="My OpenAI Provider" {...field} data-testid="input-provider-name" /></FormControl><FormMessage /></FormItem>
                 )} />

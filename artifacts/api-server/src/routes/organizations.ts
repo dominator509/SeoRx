@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, organizationsTable, orgMembersTable, clientsTable } from "@workspace/db";
-import { eq, inArray } from "drizzle-orm";
+import { db, organizationsTable, orgMembersTable, clientsTable, auditsTable } from "@workspace/db";
+import { eq, inArray, sql } from "drizzle-orm";
 import { requireAuth, getMembershipForOrg, getUserOrgIds, requireOrgRole } from "../lib/rbac";
 
 const router = Router();
@@ -8,13 +8,13 @@ const router = Router();
 router.get("/organizations", requireAuth, async (req, res) => {
   try {
     const orgIds = getUserOrgIds(req);
-    if (orgIds.length === 0) {
+    if (req.seorxUser?.role !== "superadmin" && orgIds.length === 0) {
       res.json([]);
       return;
     }
-    const orgs = await db.query.organizationsTable.findMany({
-      where: inArray(organizationsTable.id, orgIds),
-    });
+    const orgs = req.seorxUser?.role === "superadmin"
+      ? await db.query.organizationsTable.findMany()
+      : await db.query.organizationsTable.findMany({ where: inArray(organizationsTable.id, orgIds) });
     const enriched = await Promise.all(
       orgs.map(async (org) => {
         const membership = getMembershipForOrg(req, org.id);
@@ -22,7 +22,11 @@ router.get("/organizations", requireAuth, async (req, res) => {
           db.$count(orgMembersTable, eq(orgMembersTable.orgId, org.id)),
           db.$count(clientsTable, eq(clientsTable.orgId, org.id)),
         ]);
-        return { ...org, memberCount, clientCount, auditCount: 0, myRole: membership?.role };
+        const auditCount = await db.$count(
+          auditsTable,
+          sql`${auditsTable.clientId} IN (SELECT id FROM clients WHERE org_id = ${org.id})`,
+        );
+        return { ...org, memberCount, clientCount, auditCount, myRole: membership?.role ?? (req.seorxUser?.role === "superadmin" ? "admin" : undefined) };
       }),
     );
     res.json(enriched);
@@ -60,7 +64,7 @@ router.get("/organizations/:id", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
     const membership = getMembershipForOrg(req, id);
-    if (!membership) {
+    if (!membership && req.seorxUser?.role !== "superadmin") {
       res.status(403).json({ error: "Access denied" });
       return;
     }
@@ -75,7 +79,11 @@ router.get("/organizations/:id", requireAuth, async (req, res) => {
       db.$count(orgMembersTable, eq(orgMembersTable.orgId, org.id)),
       db.$count(clientsTable, eq(clientsTable.orgId, org.id)),
     ]);
-    res.json({ ...org, memberCount, clientCount, auditCount: 0, myRole: membership.role });
+    const auditCount = await db.$count(
+      auditsTable,
+      sql`${auditsTable.clientId} IN (SELECT id FROM clients WHERE org_id = ${org.id})`,
+    );
+    res.json({ ...org, memberCount, clientCount, auditCount, myRole: membership?.role ?? "admin" });
   } catch (err) {
     req.log.error({ err }, "Failed to get organization");
     res.status(500).json({ error: "Internal server error" });
@@ -115,7 +123,7 @@ router.delete("/organizations/:id", requireAuth, requireOrgRole("admin", "id"), 
 router.get("/organizations/:orgId/members", requireAuth, async (req, res) => {
   try {
     const orgId = req.params.orgId as string;
-    if (!getMembershipForOrg(req, orgId)) {
+    if (!getMembershipForOrg(req, orgId) && req.seorxUser?.role !== "superadmin") {
       res.status(403).json({ error: "Access denied" });
       return;
     }
