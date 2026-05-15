@@ -143,7 +143,7 @@ Webhooks:
 
 Track completion in `ROADMAP_STATUS.md`.
 
-- Audit detail needs the next browser-level hardening pass.
+- Organizations and onboarding need the next browser-level hardening pass.
 - Optional integrations need stronger mocked-contract and live-key smoke tests.
 - Final target hosting model needs confirmation.
 - Vite sourcemap warnings are non-failing but still noisy.

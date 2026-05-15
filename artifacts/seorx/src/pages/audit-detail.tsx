@@ -61,7 +61,7 @@ function statusBadge(status: string) {
 
 function metricValue(value: any, kind: "ms" | "seconds" | "ratio") {
   const num = Number(value);
-  if (value == null || Number.isNaN(num) || num <= 0) return "—";
+  if (value == null || Number.isNaN(num) || num <= 0) return "-";
   // fcp / lcp / ttfb / speedIndex are stored in seconds already (not ms)
   if (kind === "seconds") return `${num.toFixed(2)}s`;
   if (kind === "ratio") return num.toFixed(3);
@@ -72,7 +72,7 @@ function metricCard(label: string, value: string, desc: string) {
   return (
     <div className="bg-muted/50 rounded-lg p-3 min-w-0">
       <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</div>
-      <div className={`text-xl font-bold text-foreground mt-1 ${value === "—" ? "tracking-widest" : ""}`}>{value}</div>
+      <div className={`text-xl font-bold text-foreground mt-1 ${value === "-" ? "tracking-widest" : ""}`}>{value}</div>
       <div className="text-[10px] text-muted-foreground">{desc}</div>
     </div>
   );
@@ -199,13 +199,13 @@ export default function AuditDetail() {
       <Tabs defaultValue="issues">
         <TabsList className="w-full sm:w-auto grid grid-cols-2">
           <TabsTrigger value="issues">Issues ({auditData.issueCount ?? 0})</TabsTrigger>
-          <TabsTrigger value="pagespeed">PageSpeed</TabsTrigger>
+          <TabsTrigger value="pagespeed" data-testid="pagespeed-tab">PageSpeed</TabsTrigger>
         </TabsList>
 
         <TabsContent value="issues" className="space-y-4 mt-4">
           <div className="flex flex-col sm:flex-row gap-2">
             <Select value={severityFilter} onValueChange={setSeverityFilter}>
-              <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="All severities" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-36" data-testid="audit-severity-filter"><SelectValue placeholder="All severities" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All severities</SelectItem>
                 <SelectItem value="critical">Critical</SelectItem>
@@ -215,7 +215,7 @@ export default function AuditDetail() {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="All statuses" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-36" data-testid="audit-status-filter"><SelectValue placeholder="All statuses" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 <SelectItem value="open">Open</SelectItem>
@@ -289,7 +289,7 @@ export default function AuditDetail() {
               {isEstimated && (
                 <Card>
                   <CardContent className="p-4 text-sm text-muted-foreground">
-                    These metrics are estimated because live PageSpeed data wasn’t available for this run.
+                    These metrics are estimated because live PageSpeed data wasn't available for this run.
                   </CardContent>
                 </Card>
               )}

@@ -319,6 +319,143 @@ test("@signed-in new audit submits and redirects to the audit detail route", asy
   expect(browserErrors).toEqual([]);
 });
 
+test("@signed-in AI providers page creates, updates, and deletes providers", async ({ page }) => {
+  const browserErrors: string[] = [];
+  const providers = [
+    {
+      id: "provider-existing",
+      orgId: "org-1",
+      name: "Existing Gemini",
+      provider: "gemini",
+      model: "gemini-1.5-flash",
+      baseUrl: null,
+      isActive: false,
+      isDefault: false,
+      createdAt: "2026-05-10T12:00:00.000Z",
+      updatedAt: "2026-05-10T12:00:00.000Z",
+    },
+  ];
+
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      browserErrors.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => {
+    browserErrors.push(error.message);
+  });
+
+  await page.route("**/api/organizations", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify([
+        {
+          id: "org-1",
+          name: "SEORx Test Org",
+          slug: "seorx-test-org",
+          plan: "starter",
+          createdAt: "2026-05-01T12:00:00.000Z",
+          updatedAt: "2026-05-01T12:00:00.000Z",
+        },
+      ]),
+    });
+  });
+  await page.route("**/api/ai-providers**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const id = url.pathname.match(/\/api\/ai-providers\/([^/]+)$/)?.[1];
+
+    if (request.method() === "GET" && url.pathname === "/api/ai-providers") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify(providers) });
+      return;
+    }
+
+    if (request.method() === "POST" && url.pathname === "/api/ai-providers") {
+      const data = request.postDataJSON() as {
+        orgId: string;
+        name: string;
+        provider: string;
+        model: string;
+        baseUrl?: string;
+        isDefault?: boolean;
+      };
+      const created = {
+        id: "provider-created",
+        orgId: data.orgId,
+        name: data.name,
+        provider: data.provider,
+        model: data.model,
+        baseUrl: data.baseUrl || null,
+        isActive: true,
+        isDefault: !!data.isDefault,
+        createdAt: "2026-05-12T12:00:00.000Z",
+        updatedAt: "2026-05-12T12:00:00.000Z",
+      };
+      providers.push(created);
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(created) });
+      return;
+    }
+
+    if (request.method() === "PUT" && id) {
+      const provider = providers.find((item) => item.id === id);
+      if (!provider) {
+        await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "Not found" }) });
+        return;
+      }
+      const data = request.postDataJSON() as Partial<typeof provider>;
+      if (data.isDefault) {
+        providers.forEach((item) => {
+          item.isDefault = false;
+        });
+      }
+      Object.assign(provider, data, { updatedAt: "2026-05-12T12:00:01.000Z" });
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify(provider) });
+      return;
+    }
+
+    if (request.method() === "DELETE" && id) {
+      const index = providers.findIndex((item) => item.id === id);
+      if (index >= 0) {
+        providers.splice(index, 1);
+      }
+      await route.fulfill({ status: 204 });
+      return;
+    }
+
+    await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "Not found" }) });
+  });
+
+  await page.goto("/ai-providers");
+
+  await expect(page.getByRole("heading", { name: "AI Providers" })).toBeVisible();
+  await expect(page.getByTestId("provider-card-provider-existing")).toContainText("Existing Gemini");
+  await expect(page.getByTestId("provider-card-provider-existing")).toContainText("Inactive");
+
+  await page.getByTestId("add-provider-button").click();
+  await page.getByTestId("input-provider-name").fill("Primary OpenAI");
+  await page.getByTestId("input-api-key").fill("sk-test-provider-key");
+  await page.getByTestId("submit-provider").click();
+
+  await expect(page.getByTestId("provider-card-provider-created")).toContainText("Primary OpenAI");
+  await expect(page.getByTestId("provider-card-provider-created")).toContainText("openai");
+  await expect(page.getByTestId("provider-card-provider-created")).toContainText("gpt-4o");
+
+  await page.getByTestId("set-default-provider-provider-created").click();
+  await expect(page.getByTestId("provider-card-provider-created")).toContainText("Default");
+  await expect(page.getByTestId("provider-card-provider-created")).not.toContainText("Inactive");
+
+  await page.getByTestId("toggle-provider-provider-created").click();
+  await expect(page.getByTestId("provider-card-provider-created")).toContainText("Inactive");
+  await expect(page.getByTestId("toggle-provider-provider-created")).toHaveText("Activate");
+
+  await page.getByTestId("delete-provider-provider-created").click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByTestId("provider-card-provider-created")).toHaveCount(0);
+  await expect(page.getByTestId("provider-card-provider-existing")).toBeVisible();
+
+  expect(browserErrors).toEqual([]);
+});
+
 test("@signed-in reports page generates a report and opens ready detail", async ({ page }) => {
   const browserErrors: string[] = [];
   const reports: any[] = [];
@@ -432,6 +569,169 @@ test("@signed-in reports page generates a report and opens ready detail", async 
   await expect(page.getByText("Two high-priority fixes are ready for client delivery.")).toBeVisible();
   await expect(page.getByText("Missing title tag")).toBeVisible();
   await expect(page.getByTestId("download-report")).toHaveAttribute("href", "/api/reports/report-1/download");
+
+  expect(browserErrors).toEqual([]);
+});
+
+test("@signed-in audit detail filters issues, triages them, and renders PageSpeed", async ({ page }) => {
+  const browserErrors: string[] = [];
+  const issues = [
+    {
+      id: "issue-1",
+      auditId: "audit-1",
+      url: "https://acme.example",
+      category: "technical_seo",
+      severity: "critical",
+      status: "open",
+      title: "Missing title tag",
+      description: "The homepage is missing a title tag.",
+      recommendation: "Add a concise title tag.",
+      aiRecommendation: "Prioritize the homepage title because it affects every result impression.",
+      priorityScore: 95,
+      createdAt: "2026-05-10T12:00:00.000Z",
+    },
+    {
+      id: "issue-2",
+      auditId: "audit-1",
+      url: "https://acme.example/services",
+      category: "content",
+      severity: "high",
+      status: "open",
+      title: "Thin service page",
+      description: "The service page has very little useful content.",
+      recommendation: "Expand the service page content.",
+      aiRecommendation: "Add FAQs and internal links from related services.",
+      priorityScore: 82,
+      createdAt: "2026-05-10T12:01:00.000Z",
+    },
+    {
+      id: "issue-3",
+      auditId: "audit-1",
+      url: "https://acme.example/contact",
+      category: "technical_seo",
+      severity: "high",
+      status: "open",
+      title: "Slow contact page",
+      description: "The contact page is slower than expected.",
+      recommendation: "Compress images and reduce render-blocking scripts.",
+      aiRecommendation: "Prioritize the form page because it affects lead conversion.",
+      priorityScore: 78,
+      createdAt: "2026-05-10T12:02:00.000Z",
+    },
+  ];
+
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      browserErrors.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => {
+    browserErrors.push(error.message);
+  });
+
+  await page.route("**/api/audits/audit-1", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "audit-1",
+        clientId: "client-1",
+        clientName: "Acme Dental",
+        url: "https://acme.example",
+        status: "completed",
+        seoScore: 82,
+        issueCount: 3,
+        criticalCount: 1,
+        highCount: 2,
+        mediumCount: 0,
+        lowCount: 0,
+        crawledPages: 12,
+        scanDurationMs: 4200,
+        createdAt: "2026-05-10T12:00:00.000Z",
+        completedAt: "2026-05-10T12:04:00.000Z",
+      }),
+    });
+  });
+  await page.route("**/api/audits/audit-1/issues*", async (route) => {
+    const url = new URL(route.request().url());
+    const status = url.searchParams.get("status");
+    const severity = url.searchParams.get("severity");
+    const filtered = issues.filter((issue) => {
+      return (!status || issue.status === status) && (!severity || issue.severity === severity);
+    });
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(filtered) });
+  });
+  await page.route("**/api/pagespeed/audit-1", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "pagespeed-1",
+        auditId: "audit-1",
+        performanceScore: 91,
+        accessibilityScore: 87,
+        bestPracticesScore: 94,
+        seoScore: 98,
+        fcp: 1.2,
+        lcp: 2.4,
+        cls: 0.045,
+        totalBlockingTime: 120,
+        ttfb: 0.35,
+        isReal: false,
+        createdAt: "2026-05-10T12:05:00.000Z",
+      }),
+    });
+  });
+  await page.route("**/api/issues/*/approve", async (route) => {
+    const id = route.request().url().match(/\/api\/issues\/([^/]+)\/approve$/)?.[1];
+    const issue = issues.find((item) => item.id === id);
+    if (!issue) {
+      await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "Not found" }) });
+      return;
+    }
+    issue.status = "approved";
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(issue) });
+  });
+  await page.route("**/api/issues/*/dismiss", async (route) => {
+    const id = route.request().url().match(/\/api\/issues\/([^/]+)\/dismiss$/)?.[1];
+    const issue = issues.find((item) => item.id === id);
+    if (!issue) {
+      await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "Not found" }) });
+      return;
+    }
+    issue.status = "dismissed";
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(issue) });
+  });
+
+  await page.goto("/audits/audit-1");
+
+  await expect(page.getByRole("heading", { name: "Acme Dental" })).toBeVisible();
+  await expect(page.getByTestId("issue-card-issue-1")).toContainText("Missing title tag");
+  await expect(page.getByTestId("issue-card-issue-2")).toContainText("Thin service page");
+
+  await page.getByTestId("audit-severity-filter").click();
+  await page.getByRole("option", { name: "High" }).click();
+  await expect(page.getByTestId("issue-card-issue-1")).toHaveCount(0);
+  await expect(page.getByTestId("issue-card-issue-2")).toBeVisible();
+  await expect(page.getByTestId("issue-card-issue-3")).toBeVisible();
+
+  await page.getByTestId("audit-status-filter").click();
+  await page.getByRole("option", { name: "Open" }).click();
+  await page.getByTestId("approve-issue-issue-2").click();
+  await page.getByTestId("confirm-approve").click();
+  await expect(page.getByTestId("issue-card-issue-2")).toHaveCount(0);
+  await expect(page.getByTestId("issue-card-issue-3")).toBeVisible();
+
+  await page.getByTestId("dismiss-issue-issue-3").click();
+  await page.getByTestId("confirm-dismiss").click();
+  await expect(page.getByText("No issues found.")).toBeVisible();
+
+  await page.getByTestId("pagespeed-tab").click();
+  await expect(page.getByText("These metrics are estimated because live PageSpeed data wasn't available for this run.")).toBeVisible();
+  await expect(page.getByText("Performance")).toBeVisible();
+  await expect(page.getByText("91")).toBeVisible();
+  await expect(page.getByText("Core Web Vitals")).toBeVisible();
+  await expect(page.getByText("1.20s")).toBeVisible();
+  await expect(page.getByText("0.045")).toBeVisible();
+  await expect(page.getByText("120ms")).toBeVisible();
 
   expect(browserErrors).toEqual([]);
 });

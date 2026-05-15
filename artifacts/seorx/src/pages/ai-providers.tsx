@@ -70,6 +70,15 @@ export default function AiProviders() {
       },
     },
   });
+  const updateProvider = useUpdateAiProvider({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getListAiProvidersQueryKey() });
+        toast({ title: "Updated" });
+      },
+      onError: () => toast({ title: "Error", description: "Failed to update provider.", variant: "destructive" }),
+    },
+  });
 
   const form = useForm<z.infer<typeof createSchema>>({
     resolver: zodResolver(createSchema),
@@ -84,6 +93,19 @@ export default function AiProviders() {
 
   const selectedProvider = form.watch("provider");
   const models = PROVIDER_MODELS[selectedProvider] ?? [];
+  const updateProviderState = (provider: any, data: Record<string, unknown>) => {
+    updateProvider.mutate({
+      id: provider.id,
+      data: {
+        name: provider.name,
+        model: provider.model,
+        baseUrl: provider.baseUrl ?? "",
+        isActive: provider.isActive,
+        isDefault: provider.isDefault,
+        ...data,
+      } as any,
+    });
+  };
 
   const providerBadgeColor: Record<string, string> = {
     openai: "bg-emerald-100 text-emerald-700 border-emerald-200",
@@ -212,16 +234,40 @@ export default function AiProviders() {
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
                     {p.model}
-                    {p.baseUrl && <span className="ml-2">· {p.baseUrl}</span>}
+                    {p.baseUrl && <span className="ml-2">- {p.baseUrl}</span>}
                   </div>
                 </div>
-                <button
-                  className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                  onClick={() => setDeleteId(p.id)}
-                  data-testid={`delete-provider-${p.id}`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {!p.isDefault && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs"
+                      onClick={() => updateProviderState(p, { isDefault: true, isActive: true })}
+                      disabled={updateProvider.isPending}
+                      data-testid={`set-default-provider-${p.id}`}
+                    >
+                      Set default
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => updateProviderState(p, { isActive: !p.isActive })}
+                    disabled={updateProvider.isPending}
+                    data-testid={`toggle-provider-${p.id}`}
+                  >
+                    {p.isActive ? "Deactivate" : "Activate"}
+                  </Button>
+                  <button
+                    className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                    onClick={() => setDeleteId(p.id)}
+                    data-testid={`delete-provider-${p.id}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -232,7 +278,7 @@ export default function AiProviders() {
         <CardContent className="p-5">
           <h3 className="text-sm font-semibold text-foreground mb-2">How AI Recommendations Work</h3>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            When an audit completes, SEORx uses the active AI provider to generate fix recommendations for each issue. All AI-generated content requires human approval before it is shown to clients. Configure your preferred LLM provider above — you can use OpenAI, Anthropic, Google Gemini, a local Ollama instance, or any OpenAI-compatible endpoint.
+            When an audit completes, SEORx uses the active AI provider to generate fix recommendations for each issue. All AI-generated content requires human approval before it is shown to clients. Configure your preferred LLM provider above - you can use OpenAI, Anthropic, Google Gemini, a local Ollama instance, or any OpenAI-compatible endpoint.
           </p>
         </CardContent>
       </Card>

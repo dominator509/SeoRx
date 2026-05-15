@@ -199,8 +199,8 @@ Optional integration variables:
 
 These are not necessarily broken, but they are still production-readiness risks:
 
-1. Audit detail issue filters, PageSpeed states, and issue mutations need deeper e2e coverage.
-2. Settings, organizations, onboarding, and AI provider configuration need full
+1. Organizations and onboarding need full e2e coverage.
+2. Settings needs full
    workflow tests.
 3. Real external integrations need environment-backed smoke checks or clear
    mocked-contract tests.

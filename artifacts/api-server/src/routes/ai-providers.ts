@@ -32,6 +32,9 @@ router.post("/ai-providers", requireAuth, async (req, res) => {
     }
     const id = crypto.randomUUID();
     const encryptedApiKey = apiKey ? encryptSecret(apiKey as string) : null;
+    if (isDefault) {
+      await db.update(aiProvidersTable).set({ isDefault: false }).where(eq(aiProvidersTable.orgId, orgId));
+    }
     await db.insert(aiProvidersTable).values({ id, orgId, name, provider, model, encryptedApiKey, baseUrl, isDefault });
     const p = await db.query.aiProvidersTable.findFirst({ where: eq(aiProvidersTable.id, id) });
     if (!p) { res.status(500).json({ error: "Failed to create provider" }); return; }
@@ -54,8 +57,16 @@ router.put("/ai-providers/:id", requireAuth, async (req, res) => {
       return;
     }
     const { name, model, apiKey, baseUrl, isActive, isDefault } = req.body;
-    const updateData: Record<string, unknown> = { name, model, baseUrl, isActive, isDefault, updatedAt: new Date() };
+    const updateData: Record<string, unknown> = { updatedAt: new Date() };
+    if (name !== undefined) updateData.name = name;
+    if (model !== undefined) updateData.model = model;
+    if (baseUrl !== undefined) updateData.baseUrl = baseUrl;
+    if (isActive !== undefined) updateData.isActive = isActive;
+    if (isDefault !== undefined) updateData.isDefault = isDefault;
     if (apiKey) updateData.encryptedApiKey = encryptSecret(apiKey as string);
+    if (isDefault) {
+      await db.update(aiProvidersTable).set({ isDefault: false }).where(eq(aiProvidersTable.orgId, existing.orgId));
+    }
     await db.update(aiProvidersTable).set(updateData).where(eq(aiProvidersTable.id, id));
     const p = await db.query.aiProvidersTable.findFirst({ where: eq(aiProvidersTable.id, id) });
     if (!p) { res.status(404).json({ error: "Not found" }); return; }
