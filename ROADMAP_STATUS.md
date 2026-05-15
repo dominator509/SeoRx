@@ -66,6 +66,7 @@ before final status.
 | New audit e2e | Complete | Audit creation posts to API and redirects to audit detail route. |
 | Issue triage e2e | Complete | Approve and dismiss actions update issue state and refresh visible data. |
 | Issue triage stale-data fix | Complete | Global Issues page now invalidates the generated audit-issues query key after mutations. |
+| Reports e2e | Complete | Report generation, refreshed list state, detail view, summary/top issues, and download link are covered. |
 
 ## Active Roadmap
 
@@ -106,13 +107,14 @@ Completed workflows:
 - Client list/search/create.
 - New audit creation.
 - Issue approval and dismissal.
+- Report generation/list/detail/download-link workflow.
 
 Next workflows:
 
 | Priority | Workflow | Status | Acceptance |
 | --- | --- | --- | --- |
-| P0 | Reports list/generate/detail/download | Next | Generate a report from a completed audit, see it in the list, open detail, verify ready/download behavior. |
-| P1 | Audit detail PageSpeed and issue filters | Pending | Audit detail renders issue filters, PageSpeed states, and approve/dismiss behavior with refreshed data. |
+| P0 | Reports list/generate/detail/download | Complete | Generate a report from a completed audit, see it in the list, open detail, verify ready/download behavior. |
+| P1 | Audit detail PageSpeed and issue filters | Next | Audit detail renders issue filters, PageSpeed states, and approve/dismiss behavior with refreshed data. |
 | P1 | AI provider configuration | Pending | Create/update/set active/delete provider through UI with API mocked and visible state verified. |
 | P1 | Organizations and onboarding | Pending | Org selection/creation/member flows or onboarding completion are covered. |
 | P2 | Settings | Pending | User-facing settings interactions render without Clerk hook errors and persist intended values. |
@@ -167,7 +169,7 @@ Next:
 
 | Risk | Impact | Next action |
 | --- | --- | --- |
-| Report workflow not yet e2e-covered | Client deliverable path could regress silently. | Make reports the next P0 workflow. |
+| Audit detail workflow needs deeper coverage | The main post-audit analysis surface could regress silently. | Cover issue filters, PageSpeed states, and approve/dismiss refresh behavior next. |
 | Optional integrations need stronger proof | Metrics may appear missing or stale when live keys are configured incorrectly. | Add mocked-contract and live-key smoke tests. |
 | Replit-specific files remain | Deployment expectations may be unclear for non-Replit hosts. | Decide target host and remove or document remaining Replit files. |
 | Vite sourcemap warnings remain | Builds pass, but diagnostics are noisy. | Investigate after workflow coverage is broader. |
@@ -175,9 +177,9 @@ Next:
 
 ## Next Best Step
 
-Implement the P0 Reports workflow hardening:
-1. Inspect report list/detail UI and reports API route behavior.
-2. Add e2e coverage for report generation from a completed audit.
-3. Verify list refresh, detail navigation, and download link behavior.
-4. Fix any live-data or stale-query issue uncovered.
+Implement the P1 Audit Detail workflow hardening:
+1. Inspect audit detail issue filters, PageSpeed tab states, and mutation behavior.
+2. Add e2e coverage for filtering audit issues by severity/status.
+3. Verify approve/dismiss actions refresh the detail issue list.
+4. Verify PageSpeed metrics and fallback/empty states render correctly.
 5. Run focused e2e, then the standard verification gate.

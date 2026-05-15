@@ -111,7 +111,7 @@ router.delete("/reports/:id", requireAuth, async (req, res) => {
   }
 });
 
-// ─── PDF download ─────────────────────────────────────────────────────────────
+// PDF download
 router.get("/reports/:id/download", requireAuth, async (req, res) => {
   try {
     const id = req.params.id as string;
@@ -147,14 +147,14 @@ router.get("/reports/:id/download", requireAuth, async (req, res) => {
   }
 });
 
-// ─── Async report generation ──────────────────────────────────────────────────
+// Async report generation
 async function generateReport(reportId: string, auditId: string) {
   await new Promise((r) => setTimeout(r, 2000));
   const issues = await db.query.auditIssuesTable.findMany({ where: eq(auditIssuesTable.auditId, auditId) });
   const criticalCount = issues.filter((i) => i.severity === "critical").length;
   const highCount = issues.filter((i) => i.severity === "high").length;
   const approvedCount = issues.filter((i) => i.status === "approved").length;
-  const summary = `This SEO audit identified ${issues.length} total issues, including ${criticalCount} critical and ${highCount} high-priority items. ${approvedCount} issue${approvedCount !== 1 ? "s" : ""} ${approvedCount !== 1 ? "have" : "has"} been approved for client delivery. Addressing the top-priority issues is estimated to improve organic visibility by 25–40% within 90 days.`;
+  const summary = `This SEO audit identified ${issues.length} total issues, including ${criticalCount} critical and ${highCount} high-priority items. ${approvedCount} issue${approvedCount !== 1 ? "s" : ""} ${approvedCount !== 1 ? "have" : "has"} been approved for client delivery. Addressing the top-priority issues is estimated to improve organic visibility by 25-40% within 90 days.`;
   await db
     .update(reportsTable)
     .set({ status: "ready", summary, downloadUrl: `/api/reports/${reportId}/download`, updatedAt: new Date() })

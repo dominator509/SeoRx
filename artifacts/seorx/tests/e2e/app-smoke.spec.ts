@@ -319,6 +319,123 @@ test("@signed-in new audit submits and redirects to the audit detail route", asy
   expect(browserErrors).toEqual([]);
 });
 
+test("@signed-in reports page generates a report and opens ready detail", async ({ page }) => {
+  const browserErrors: string[] = [];
+  const reports: any[] = [];
+  const completedAudit = {
+    id: "audit-1",
+    clientId: "client-1",
+    clientName: "Acme Dental",
+    url: "https://acme.example",
+    status: "completed",
+    seoScore: 82,
+    issueCount: 2,
+    createdAt: "2026-05-10T12:00:00.000Z",
+    completedAt: "2026-05-10T12:04:00.000Z",
+  };
+  const reportDetail = {
+    id: "report-1",
+    auditId: "audit-1",
+    clientId: "client-1",
+    clientName: "Acme Dental",
+    title: "Acme May SEO Report",
+    format: "pdf",
+    status: "ready",
+    summary: "Two high-priority fixes are ready for client delivery.",
+    downloadUrl: "/api/reports/report-1/download",
+    issueCount: 2,
+    createdAt: "2026-05-12T12:00:00.000Z",
+    updatedAt: "2026-05-12T12:00:01.000Z",
+    topIssues: [
+      {
+        id: "issue-1",
+        title: "Missing title tag",
+        severity: "critical",
+        recommendation: "Add a concise title tag.",
+        priorityScore: 95,
+      },
+      {
+        id: "issue-2",
+        title: "Thin service page",
+        severity: "high",
+        recommendation: "Expand the service page content.",
+        priorityScore: 82,
+      },
+    ],
+  };
+
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      browserErrors.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => {
+    browserErrors.push(error.message);
+  });
+
+  await page.route("**/api/audits?*", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: [completedAudit], total: 1 }),
+    });
+  });
+  await page.route("**/api/reports**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+
+    if (request.method() === "POST" && url.pathname === "/api/reports") {
+      const data = request.postDataJSON() as { auditId: string; title: string; format: string };
+      const created = {
+        ...reportDetail,
+        auditId: data.auditId,
+        title: data.title,
+        format: data.format,
+        topIssues: undefined,
+      };
+      reports.splice(0, reports.length, created);
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(created) });
+      return;
+    }
+
+    if (request.method() === "GET" && url.pathname === "/api/reports/report-1") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify(reportDetail) });
+      return;
+    }
+
+    if (request.method() === "GET" && url.pathname === "/api/reports") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify(reports) });
+      return;
+    }
+
+    await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "Not found" }) });
+  });
+
+  await page.goto("/reports");
+
+  await expect(page.getByRole("heading", { name: "Reports" })).toBeVisible();
+  await expect(page.getByText("No reports yet.")).toBeVisible();
+
+  await page.getByTestId("generate-report-button").click();
+  await page.getByTestId("select-audit").click();
+  await page.getByRole("option", { name: "Acme Dental - https://acme.example" }).click();
+  await page.getByTestId("input-report-title").fill("Acme May SEO Report");
+  await page.getByTestId("submit-report").click();
+
+  await expect(page.getByTestId("report-row-report-1")).toContainText("Acme May SEO Report");
+  await expect(page.getByTestId("report-row-report-1")).toContainText("ready");
+  await expect(page.getByTestId("download-report-report-1")).toHaveAttribute("href", "/api/reports/report-1/download");
+
+  await page.getByTestId("report-row-report-1").click();
+  await expect(page).toHaveURL(/\/reports\/report-1$/);
+  await expect(page.getByRole("heading", { name: "Acme May SEO Report" })).toBeVisible();
+  await expect(page.getByText("Executive Summary")).toBeVisible();
+  await expect(page.getByText("Two high-priority fixes are ready for client delivery.")).toBeVisible();
+  await expect(page.getByText("Missing title tag")).toBeVisible();
+  await expect(page.getByTestId("download-report")).toHaveAttribute("href", "/api/reports/report-1/download");
+
+  expect(browserErrors).toEqual([]);
+});
+
 test("@signed-in issues page approves and dismisses issues with refreshed live data", async ({ page }) => {
   const browserErrors: string[] = [];
   const issues = [

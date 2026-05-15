@@ -79,7 +79,7 @@ export default function Reports() {
                     <FormLabel>Audit</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl><SelectTrigger data-testid="select-audit"><SelectValue placeholder="Select audit" /></SelectTrigger></FormControl>
-                      <SelectContent>{completedAudits.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.clientName} — {a.url}</SelectItem>)}</SelectContent>
+                      <SelectContent>{completedAudits.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.clientName} - {a.url}</SelectItem>)}</SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
@@ -132,7 +132,7 @@ export default function Reports() {
                       <Badge variant="outline" className="text-[10px] uppercase">{report.format}</Badge>
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
-                      {report.clientName} · Created {format(new Date(report.createdAt), "MMM d, yyyy")}
+                      {report.clientName} - Created {format(new Date(report.createdAt), "MMM d, yyyy")}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:flex-shrink-0">

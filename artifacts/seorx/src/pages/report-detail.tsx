@@ -46,8 +46,8 @@ export default function ReportDetail() {
               </div>
             </div>
             {report.status === "ready" && report.downloadUrl && (
-              <a href={report.downloadUrl}>
-                <Button size="sm" variant="outline" className="gap-1.5" data-testid="download-report">
+              <a href={report.downloadUrl} data-testid="download-report">
+                <Button size="sm" variant="outline" className="gap-1.5">
                   <Download className="w-4 h-4" />Download
                 </Button>
               </a>
