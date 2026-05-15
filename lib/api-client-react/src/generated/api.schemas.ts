@@ -402,6 +402,94 @@ export interface UpdateAiProviderBody {
   isDefault?: boolean;
 }
 
+export interface GscProperty {
+  siteUrl: string;
+  permissionLevel: string;
+}
+
+export interface GscPropertiesResponse {
+  available: boolean;
+  message?: string;
+  properties: GscProperty[];
+}
+
+export interface GscAnalyticsBody {
+  orgId: string;
+  siteUrl: string;
+  startDate: string;
+  endDate: string;
+  dimensions?: string[];
+}
+
+export interface GscAnalyticsRow {
+  keys?: string[];
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+
+export interface GscAnalyticsResponse {
+  available: boolean;
+  message?: string;
+  siteUrl: string;
+  startDate: string;
+  endDate: string;
+  rows: GscAnalyticsRow[];
+}
+
+export type WebhookEventsItem =
+  (typeof WebhookEventsItem)[keyof typeof WebhookEventsItem];
+
+export const WebhookEventsItem = {
+  auditcompleted: "audit.completed",
+  issueapproved: "issue.approved",
+  issuedismissed: "issue.dismissed",
+  reportready: "report.ready",
+} as const;
+
+export interface Webhook {
+  id: string;
+  orgId: string;
+  url: string;
+  events: WebhookEventsItem[];
+  isActive: boolean;
+  lastStatusCode?: number | null;
+  lastDeliveredAt?: string | null;
+  lastError?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateWebhookBodyEventsItem =
+  (typeof CreateWebhookBodyEventsItem)[keyof typeof CreateWebhookBodyEventsItem];
+
+export const CreateWebhookBodyEventsItem = {
+  auditcompleted: "audit.completed",
+  issueapproved: "issue.approved",
+  issuedismissed: "issue.dismissed",
+  reportready: "report.ready",
+} as const;
+
+export interface CreateWebhookBody {
+  orgId: string;
+  url: string;
+  events: CreateWebhookBodyEventsItem[];
+  secret?: string;
+}
+
+export type TestWebhookBody = unknown & {
+  webhookId?: string;
+  url?: string;
+};
+
+export interface TestWebhookResponse {
+  success: boolean;
+  statusCode?: number;
+  orgId?: string;
+  message: string;
+}
+
 export interface PageSpeedResult {
   auditId: string;
   url: string;
@@ -421,6 +509,11 @@ export interface PageSpeedResult {
   ttfb?: number;
   fetchedAt: string;
 }
+
+/**
+ * Bad request
+ */
+export type BadRequestResponse = ErrorResponse;
 
 /**
  * Unauthorized
@@ -499,4 +592,17 @@ export type GetRecentAuditsParams = {
 export type GetScoreTrendsParams = {
   clientId?: string;
   days?: number;
+};
+
+export type ConnectGoogleSearchConsoleParams = {
+  orgId: string;
+  returnUrl?: string;
+};
+
+export type ListGoogleSearchConsolePropertiesParams = {
+  orgId: string;
+};
+
+export type ListWebhooksParams = {
+  orgId?: string;
 };

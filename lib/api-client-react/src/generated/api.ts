@@ -23,23 +23,31 @@ import type {
   AuditDetail,
   AuditIssue,
   AuditList,
+  BadRequestResponse,
   Client,
+  ConnectGoogleSearchConsoleParams,
   CreateAiProviderBody,
   CreateAuditBody,
   CreateClientBody,
   CreateOrganizationBody,
   CreateReportBody,
+  CreateWebhookBody,
   DashboardStats,
   DismissIssueBody,
   GetRecentAuditsParams,
   GetScoreTrendsParams,
+  GscAnalyticsBody,
+  GscAnalyticsResponse,
+  GscPropertiesResponse,
   HealthStatus,
   InviteOrgMemberBody,
   IssueBreakdown,
   ListAuditIssuesParams,
   ListAuditsParams,
   ListClientsParams,
+  ListGoogleSearchConsolePropertiesParams,
   ListReportsParams,
+  ListWebhooksParams,
   NotFoundResponse,
   OrgMember,
   Organization,
@@ -47,12 +55,15 @@ import type {
   Report,
   ReportDetail,
   ScoreTrend,
+  TestWebhookBody,
+  TestWebhookResponse,
   UnauthorizedResponse,
   UpdateAiProviderBody,
   UpdateClientBody,
   UpdateOrganizationBody,
   UpdateUserProfileBody,
   UserProfile,
+  Webhook,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -3088,3 +3099,667 @@ export function useGetPageSpeedResults<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Start Google Search Console OAuth flow
+ */
+export const getConnectGoogleSearchConsoleUrl = (
+  params: ConnectGoogleSearchConsoleParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/integrations/gsc/connect?${stringifiedParams}`
+    : `/api/integrations/gsc/connect`;
+};
+
+export const connectGoogleSearchConsole = async (
+  params: ConnectGoogleSearchConsoleParams,
+  options?: RequestInit,
+): Promise<unknown> => {
+  return customFetch<unknown>(getConnectGoogleSearchConsoleUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getConnectGoogleSearchConsoleQueryKey = (
+  params?: ConnectGoogleSearchConsoleParams,
+) => {
+  return [
+    `/api/integrations/gsc/connect`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getConnectGoogleSearchConsoleQueryOptions = <
+  TData = Awaited<ReturnType<typeof connectGoogleSearchConsole>>,
+  TError = ErrorType<void | BadRequestResponse | UnauthorizedResponse>,
+>(
+  params: ConnectGoogleSearchConsoleParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof connectGoogleSearchConsole>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getConnectGoogleSearchConsoleQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof connectGoogleSearchConsole>>
+  > = ({ signal }) =>
+    connectGoogleSearchConsole(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof connectGoogleSearchConsole>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ConnectGoogleSearchConsoleQueryResult = NonNullable<
+  Awaited<ReturnType<typeof connectGoogleSearchConsole>>
+>;
+export type ConnectGoogleSearchConsoleQueryError = ErrorType<
+  void | BadRequestResponse | UnauthorizedResponse
+>;
+
+/**
+ * @summary Start Google Search Console OAuth flow
+ */
+
+export function useConnectGoogleSearchConsole<
+  TData = Awaited<ReturnType<typeof connectGoogleSearchConsole>>,
+  TError = ErrorType<void | BadRequestResponse | UnauthorizedResponse>,
+>(
+  params: ConnectGoogleSearchConsoleParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof connectGoogleSearchConsole>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getConnectGoogleSearchConsoleQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List connected Google Search Console properties
+ */
+export const getListGoogleSearchConsolePropertiesUrl = (
+  params: ListGoogleSearchConsolePropertiesParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/integrations/gsc/properties?${stringifiedParams}`
+    : `/api/integrations/gsc/properties`;
+};
+
+export const listGoogleSearchConsoleProperties = async (
+  params: ListGoogleSearchConsolePropertiesParams,
+  options?: RequestInit,
+): Promise<GscPropertiesResponse> => {
+  return customFetch<GscPropertiesResponse>(
+    getListGoogleSearchConsolePropertiesUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListGoogleSearchConsolePropertiesQueryKey = (
+  params?: ListGoogleSearchConsolePropertiesParams,
+) => {
+  return [
+    `/api/integrations/gsc/properties`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getListGoogleSearchConsolePropertiesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listGoogleSearchConsoleProperties>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(
+  params: ListGoogleSearchConsolePropertiesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listGoogleSearchConsoleProperties>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getListGoogleSearchConsolePropertiesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listGoogleSearchConsoleProperties>>
+  > = ({ signal }) =>
+    listGoogleSearchConsoleProperties(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listGoogleSearchConsoleProperties>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListGoogleSearchConsolePropertiesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listGoogleSearchConsoleProperties>>
+>;
+export type ListGoogleSearchConsolePropertiesQueryError =
+  ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary List connected Google Search Console properties
+ */
+
+export function useListGoogleSearchConsoleProperties<
+  TData = Awaited<ReturnType<typeof listGoogleSearchConsoleProperties>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(
+  params: ListGoogleSearchConsolePropertiesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listGoogleSearchConsoleProperties>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListGoogleSearchConsolePropertiesQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Query Google Search Console search analytics
+ */
+export const getGetGoogleSearchConsoleAnalyticsUrl = () => {
+  return `/api/integrations/gsc/analytics`;
+};
+
+export const getGoogleSearchConsoleAnalytics = async (
+  gscAnalyticsBody: GscAnalyticsBody,
+  options?: RequestInit,
+): Promise<GscAnalyticsResponse> => {
+  return customFetch<GscAnalyticsResponse>(
+    getGetGoogleSearchConsoleAnalyticsUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(gscAnalyticsBody),
+    },
+  );
+};
+
+export const getGetGoogleSearchConsoleAnalyticsMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof getGoogleSearchConsoleAnalytics>>,
+    TError,
+    { data: BodyType<GscAnalyticsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof getGoogleSearchConsoleAnalytics>>,
+  TError,
+  { data: BodyType<GscAnalyticsBody> },
+  TContext
+> => {
+  const mutationKey = ["getGoogleSearchConsoleAnalytics"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof getGoogleSearchConsoleAnalytics>>,
+    { data: BodyType<GscAnalyticsBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return getGoogleSearchConsoleAnalytics(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GetGoogleSearchConsoleAnalyticsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof getGoogleSearchConsoleAnalytics>>
+>;
+export type GetGoogleSearchConsoleAnalyticsMutationBody =
+  BodyType<GscAnalyticsBody>;
+export type GetGoogleSearchConsoleAnalyticsMutationError =
+  ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Query Google Search Console search analytics
+ */
+export const useGetGoogleSearchConsoleAnalytics = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof getGoogleSearchConsoleAnalytics>>,
+    TError,
+    { data: BodyType<GscAnalyticsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof getGoogleSearchConsoleAnalytics>>,
+  TError,
+  { data: BodyType<GscAnalyticsBody> },
+  TContext
+> => {
+  return useMutation(
+    getGetGoogleSearchConsoleAnalyticsMutationOptions(options),
+  );
+};
+
+/**
+ * @summary List outbound webhooks
+ */
+export const getListWebhooksUrl = (params?: ListWebhooksParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/integrations/webhooks?${stringifiedParams}`
+    : `/api/integrations/webhooks`;
+};
+
+export const listWebhooks = async (
+  params?: ListWebhooksParams,
+  options?: RequestInit,
+): Promise<Webhook[]> => {
+  return customFetch<Webhook[]>(getListWebhooksUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListWebhooksQueryKey = (params?: ListWebhooksParams) => {
+  return [`/api/integrations/webhooks`, ...(params ? [params] : [])] as const;
+};
+
+export const getListWebhooksQueryOptions = <
+  TData = Awaited<ReturnType<typeof listWebhooks>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(
+  params?: ListWebhooksParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listWebhooks>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListWebhooksQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listWebhooks>>> = ({
+    signal,
+  }) => listWebhooks(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listWebhooks>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListWebhooksQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listWebhooks>>
+>;
+export type ListWebhooksQueryError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary List outbound webhooks
+ */
+
+export function useListWebhooks<
+  TData = Awaited<ReturnType<typeof listWebhooks>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(
+  params?: ListWebhooksParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listWebhooks>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListWebhooksQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Register an outbound webhook
+ */
+export const getCreateWebhookUrl = () => {
+  return `/api/integrations/webhooks`;
+};
+
+export const createWebhook = async (
+  createWebhookBody: CreateWebhookBody,
+  options?: RequestInit,
+): Promise<Webhook> => {
+  return customFetch<Webhook>(getCreateWebhookUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createWebhookBody),
+  });
+};
+
+export const getCreateWebhookMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createWebhook>>,
+    TError,
+    { data: BodyType<CreateWebhookBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createWebhook>>,
+  TError,
+  { data: BodyType<CreateWebhookBody> },
+  TContext
+> => {
+  const mutationKey = ["createWebhook"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createWebhook>>,
+    { data: BodyType<CreateWebhookBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createWebhook(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateWebhookMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createWebhook>>
+>;
+export type CreateWebhookMutationBody = BodyType<CreateWebhookBody>;
+export type CreateWebhookMutationError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Register an outbound webhook
+ */
+export const useCreateWebhook = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createWebhook>>,
+    TError,
+    { data: BodyType<CreateWebhookBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createWebhook>>,
+  TError,
+  { data: BodyType<CreateWebhookBody> },
+  TContext
+> => {
+  return useMutation(getCreateWebhookMutationOptions(options));
+};
+
+/**
+ * @summary Delete outbound webhook
+ */
+export const getDeleteWebhookUrl = (id: string) => {
+  return `/api/integrations/webhooks/${id}`;
+};
+
+export const deleteWebhook = async (
+  id: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteWebhookUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteWebhookMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteWebhook>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteWebhook>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteWebhook"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteWebhook>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteWebhook(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteWebhookMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteWebhook>>
+>;
+
+export type DeleteWebhookMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Delete outbound webhook
+ */
+export const useDeleteWebhook = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteWebhook>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteWebhook>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteWebhookMutationOptions(options));
+};
+
+/**
+ * @summary Send a test webhook payload
+ */
+export const getTestWebhookUrl = () => {
+  return `/api/integrations/webhooks/test`;
+};
+
+export const testWebhook = async (
+  testWebhookBody: TestWebhookBody,
+  options?: RequestInit,
+): Promise<TestWebhookResponse> => {
+  return customFetch<TestWebhookResponse>(getTestWebhookUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(testWebhookBody),
+  });
+};
+
+export const getTestWebhookMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testWebhook>>,
+    TError,
+    { data: BodyType<TestWebhookBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof testWebhook>>,
+  TError,
+  { data: BodyType<TestWebhookBody> },
+  TContext
+> => {
+  const mutationKey = ["testWebhook"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof testWebhook>>,
+    { data: BodyType<TestWebhookBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return testWebhook(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TestWebhookMutationResult = NonNullable<
+  Awaited<ReturnType<typeof testWebhook>>
+>;
+export type TestWebhookMutationBody = BodyType<TestWebhookBody>;
+export type TestWebhookMutationError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Send a test webhook payload
+ */
+export const useTestWebhook = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testWebhook>>,
+    TError,
+    { data: BodyType<TestWebhookBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof testWebhook>>,
+  TError,
+  { data: BodyType<TestWebhookBody> },
+  TContext
+> => {
+  return useMutation(getTestWebhookMutationOptions(options));
+};

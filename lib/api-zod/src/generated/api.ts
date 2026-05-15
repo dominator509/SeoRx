@@ -767,3 +767,133 @@ export const GetPageSpeedResultsResponse = zod.object({
   ttfb: zod.number().optional().describe("Time to First Byte (ms)"),
   fetchedAt: zod.coerce.date(),
 });
+
+/**
+ * @summary Start Google Search Console OAuth flow
+ */
+export const ConnectGoogleSearchConsoleQueryParams = zod.object({
+  orgId: zod.coerce.string(),
+  returnUrl: zod.coerce.string().optional(),
+});
+
+/**
+ * @summary List connected Google Search Console properties
+ */
+export const ListGoogleSearchConsolePropertiesQueryParams = zod.object({
+  orgId: zod.coerce.string(),
+});
+
+export const ListGoogleSearchConsolePropertiesResponse = zod.object({
+  available: zod.boolean(),
+  message: zod.string().optional(),
+  properties: zod.array(
+    zod.object({
+      siteUrl: zod.string(),
+      permissionLevel: zod.string(),
+    }),
+  ),
+});
+
+/**
+ * @summary Query Google Search Console search analytics
+ */
+export const getGoogleSearchConsoleAnalyticsBodyDimensionsDefault = [
+  `query`,
+  `page`,
+];
+
+export const GetGoogleSearchConsoleAnalyticsBody = zod.object({
+  orgId: zod.string(),
+  siteUrl: zod.string(),
+  startDate: zod.coerce.date(),
+  endDate: zod.coerce.date(),
+  dimensions: zod
+    .array(zod.string())
+    .default(getGoogleSearchConsoleAnalyticsBodyDimensionsDefault),
+});
+
+export const GetGoogleSearchConsoleAnalyticsResponse = zod.object({
+  available: zod.boolean(),
+  message: zod.string().optional(),
+  siteUrl: zod.string(),
+  startDate: zod.coerce.date(),
+  endDate: zod.coerce.date(),
+  rows: zod.array(
+    zod.object({
+      keys: zod.array(zod.string()).optional(),
+      clicks: zod.number(),
+      impressions: zod.number(),
+      ctr: zod.number(),
+      position: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary List outbound webhooks
+ */
+export const ListWebhooksQueryParams = zod.object({
+  orgId: zod.coerce.string().optional(),
+});
+
+export const ListWebhooksResponseItem = zod.object({
+  id: zod.string(),
+  orgId: zod.string(),
+  url: zod.string(),
+  events: zod.array(
+    zod.enum([
+      "audit.completed",
+      "issue.approved",
+      "issue.dismissed",
+      "report.ready",
+    ]),
+  ),
+  isActive: zod.boolean(),
+  lastStatusCode: zod.number().nullish(),
+  lastDeliveredAt: zod.coerce.date().nullish(),
+  lastError: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListWebhooksResponse = zod.array(ListWebhooksResponseItem);
+
+/**
+ * @summary Register an outbound webhook
+ */
+export const CreateWebhookBody = zod.object({
+  orgId: zod.string(),
+  url: zod.string(),
+  events: zod.array(
+    zod.enum([
+      "audit.completed",
+      "issue.approved",
+      "issue.dismissed",
+      "report.ready",
+    ]),
+  ),
+  secret: zod.string().optional(),
+});
+
+/**
+ * @summary Delete outbound webhook
+ */
+export const DeleteWebhookParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
+ * @summary Send a test webhook payload
+ */
+export const TestWebhookBody = zod.union([zod.unknown(), zod.unknown()]).and(
+  zod.object({
+    webhookId: zod.string().optional(),
+    url: zod.string().optional(),
+  }),
+);
+
+export const TestWebhookResponse = zod.object({
+  success: zod.boolean(),
+  statusCode: zod.number().optional(),
+  orgId: zod.string().optional(),
+  message: zod.string(),
+});

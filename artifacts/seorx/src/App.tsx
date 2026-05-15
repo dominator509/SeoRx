@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk, useAuth } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
@@ -8,27 +8,29 @@ import { queryClient } from "./lib/queryClient";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
-import NotFound from "@/pages/not-found";
-import Landing from "@/pages/landing";
-import Dashboard from "@/pages/dashboard";
-import Clients from "@/pages/clients";
-import ClientDetail from "@/pages/client-detail";
-import Audits from "@/pages/audits";
-import AuditNew from "@/pages/audit-new";
-import AuditDetail from "@/pages/audit-detail";
-import Issues from "@/pages/issues";
-import Reports from "@/pages/reports";
-import ReportDetail from "@/pages/report-detail";
-import AiProviders from "@/pages/ai-providers";
-import Organizations from "@/pages/organizations";
-import Settings from "@/pages/settings";
-import Onboarding from "@/pages/onboarding";
 import AppLayout from "@/components/layout/app-layout";
 
-const clerkPubKey = publishableKeyFromHost(
-  window.location.hostname,
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-);
+const NotFound = lazy(() => import("@/pages/not-found"));
+const Landing = lazy(() => import("@/pages/landing"));
+const Dashboard = lazy(() => import("@/pages/dashboard"));
+const Clients = lazy(() => import("@/pages/clients"));
+const ClientDetail = lazy(() => import("@/pages/client-detail"));
+const Audits = lazy(() => import("@/pages/audits"));
+const AuditNew = lazy(() => import("@/pages/audit-new"));
+const AuditDetail = lazy(() => import("@/pages/audit-detail"));
+const Issues = lazy(() => import("@/pages/issues"));
+const Reports = lazy(() => import("@/pages/reports"));
+const ReportDetail = lazy(() => import("@/pages/report-detail"));
+const AiProviders = lazy(() => import("@/pages/ai-providers"));
+const Organizations = lazy(() => import("@/pages/organizations"));
+const Settings = lazy(() => import("@/pages/settings"));
+const Onboarding = lazy(() => import("@/pages/onboarding"));
+
+const configuredClerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+const clerkPubKey = configuredClerkPubKey
+  ? publishableKeyFromHost(window.location.hostname, configuredClerkPubKey)
+  : undefined;
+const e2eAuthEnabled = import.meta.env.VITE_E2E_AUTH === "true";
 
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -88,6 +90,23 @@ const clerkAppearance = {
   },
 };
 
+function RouteFallback() {
+  return <div className="min-h-[100dvh] bg-background" aria-busy="true" />;
+}
+
+function MissingAuthConfig() {
+  return (
+    <main className="flex min-h-[100dvh] items-center justify-center bg-gray-50 px-6">
+      <div className="max-w-md rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h1 className="text-lg font-semibold text-gray-900">Authentication is not configured</h1>
+        <p className="mt-2 text-sm leading-6 text-gray-600">
+          Set the Clerk publishable key for this environment, then rebuild the app.
+        </p>
+      </div>
+    </main>
+  );
+}
+
 function SignInPage() {
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 px-4">
@@ -112,6 +131,22 @@ function AuthTokenSetter() {
   return null;
 }
 
+function E2EAuthTokenSetter() {
+  useEffect(() => {
+    setAuthTokenGetter(() => "e2e-test-token");
+    return () => setAuthTokenGetter(null);
+  }, []);
+  return null;
+}
+
+function SignedIn({ children }: { children: React.ReactNode }) {
+  return e2eAuthEnabled ? <>{children}</> : <Show when="signed-in">{children}</Show>;
+}
+
+function SignedOut({ children }: { children: React.ReactNode }) {
+  return e2eAuthEnabled ? null : <Show when="signed-out">{children}</Show>;
+}
+
 function ClerkQueryClientCacheInvalidator() {
   const { addListener } = useClerk();
   const qc = useQueryClient();
@@ -132,12 +167,12 @@ function ClerkQueryClientCacheInvalidator() {
 function HomeRedirect() {
   return (
     <>
-      <Show when="signed-in">
+      <SignedIn>
         <Redirect to="/dashboard" />
-      </Show>
-      <Show when="signed-out">
+      </SignedIn>
+      <SignedOut>
         <Landing />
-      </Show>
+      </SignedOut>
     </>
   );
 }
@@ -145,15 +180,15 @@ function HomeRedirect() {
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   return (
     <>
-      <Show when="signed-in">
-        <AuthTokenSetter />
+      <SignedIn>
+        {e2eAuthEnabled ? <E2EAuthTokenSetter /> : <AuthTokenSetter />}
         <AppLayout>
           <Component />
         </AppLayout>
-      </Show>
-      <Show when="signed-out">
+      </SignedIn>
+      <SignedOut>
         <Redirect to="/" />
-      </Show>
+      </SignedOut>
     </>
   );
 }
@@ -165,13 +200,13 @@ function Router() {
       <Route path="/sign-in/*?" component={SignInPage} />
       <Route path="/sign-up/*?" component={SignUpPage} />
       <Route path="/onboarding">
-        <Show when="signed-in">
-          <AuthTokenSetter />
+        <SignedIn>
+          {e2eAuthEnabled ? <E2EAuthTokenSetter /> : <AuthTokenSetter />}
           <Onboarding />
-        </Show>
-        <Show when="signed-out">
+        </SignedIn>
+        <SignedOut>
           <Redirect to="/" />
-        </Show>
+        </SignedOut>
       </Route>
       <Route path="/dashboard"><ProtectedRoute component={Dashboard} /></Route>
       <Route path="/clients"><ProtectedRoute component={Clients} /></Route>
@@ -187,6 +222,19 @@ function Router() {
       <Route path="/settings"><ProtectedRoute component={Settings} /></Route>
       <Route component={NotFound} />
     </Switch>
+  );
+}
+
+function E2EProviderWithRoutes() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Suspense fallback={<RouteFallback />}>
+          <Router />
+        </Suspense>
+        <Toaster />
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -209,7 +257,9 @@ function ClerkProviderWithRoutes() {
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
         <TooltipProvider>
-          <Router />
+          <Suspense fallback={<RouteFallback />}>
+            <Router />
+          </Suspense>
           <Toaster />
         </TooltipProvider>
       </QueryClientProvider>
@@ -218,6 +268,18 @@ function ClerkProviderWithRoutes() {
 }
 
 function App() {
+  if (e2eAuthEnabled) {
+    return (
+      <WouterRouter base={basePath}>
+        <E2EProviderWithRoutes />
+      </WouterRouter>
+    );
+  }
+
+  if (!clerkPubKey) {
+    return <MissingAuthConfig />;
+  }
+
   return (
     <WouterRouter base={basePath}>
       <ClerkProviderWithRoutes />

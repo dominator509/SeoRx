@@ -38,10 +38,29 @@ const navItems = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
+const e2eAuthEnabled = import.meta.env.VITE_E2E_AUTH === "true";
+const e2eUser = {
+  firstName: "E2E",
+  lastName: "Tester",
+  emailAddresses: [{ emailAddress: "e2e@example.com" }],
+};
+
+function useLayoutUser() {
+  if (e2eAuthEnabled) {
+    return {
+      user: e2eUser,
+      signOut: () => undefined,
+    };
+  }
+
   const { user } = useUser();
   const { signOut } = useClerk();
+  return { user, signOut };
+}
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
+  const { user, signOut } = useLayoutUser();
 
   const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("").toUpperCase() || user?.emailAddresses[0]?.emailAddress?.[0]?.toUpperCase() || "U";
 
