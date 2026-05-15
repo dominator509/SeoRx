@@ -318,3 +318,116 @@ test("@signed-in new audit submits and redirects to the audit detail route", asy
   await expect(page).toHaveURL(/\/audits\/audit-started$/);
   expect(browserErrors).toEqual([]);
 });
+
+test("@signed-in issues page approves and dismisses issues with refreshed live data", async ({ page }) => {
+  const browserErrors: string[] = [];
+  const issues = [
+    {
+      id: "issue-1",
+      auditId: "audit-1",
+      url: "https://acme.example",
+      category: "technical_seo",
+      severity: "critical",
+      status: "open",
+      title: "Missing title tag",
+      description: "The homepage is missing a title tag.",
+      recommendation: "Add a concise, keyword-focused title tag.",
+      aiRecommendation: "Prioritize this because it affects every search result impression.",
+      priorityScore: 95,
+      createdAt: "2026-05-10T12:00:00.000Z",
+    },
+    {
+      id: "issue-2",
+      auditId: "audit-1",
+      url: "https://acme.example/services",
+      category: "content",
+      severity: "high",
+      status: "open",
+      title: "Thin service page",
+      description: "The service page has very little useful content.",
+      recommendation: "Expand the page with treatment details and local trust signals.",
+      aiRecommendation: "Add FAQs and internal links from related services.",
+      priorityScore: 82,
+      createdAt: "2026-05-10T12:01:00.000Z",
+    },
+  ];
+
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      browserErrors.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => {
+    browserErrors.push(error.message);
+  });
+
+  await page.route("**/api/audits?*", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        items: [
+          {
+            id: "audit-1",
+            clientId: "client-1",
+            clientName: "Acme Dental",
+            url: "https://acme.example",
+            status: "completed",
+            seoScore: 82,
+            issueCount: 2,
+            createdAt: "2026-05-10T12:00:00.000Z",
+            completedAt: "2026-05-10T12:04:00.000Z",
+          },
+        ],
+        total: 1,
+      }),
+    });
+  });
+  await page.route("**/api/audits/audit-1/issues*", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const status = url.searchParams.get("status");
+    const severity = url.searchParams.get("severity");
+    const filtered = issues.filter((issue) => {
+      return (!status || issue.status === status) && (!severity || issue.severity === severity);
+    });
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(filtered) });
+  });
+  await page.route("**/api/issues/*/approve", async (route) => {
+    const id = route.request().url().match(/\/api\/issues\/([^/]+)\/approve$/)?.[1];
+    const issue = issues.find((item) => item.id === id);
+    if (!issue) {
+      await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "Not found" }) });
+      return;
+    }
+    issue.status = "approved";
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(issue) });
+  });
+  await page.route("**/api/issues/*/dismiss", async (route) => {
+    const id = route.request().url().match(/\/api\/issues\/([^/]+)\/dismiss$/)?.[1];
+    const issue = issues.find((item) => item.id === id);
+    if (!issue) {
+      await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "Not found" }) });
+      return;
+    }
+    issue.status = "dismissed";
+    await route.fulfill({ contentType: "application/json", body: JSON.stringify(issue) });
+  });
+
+  await page.goto("/issues");
+
+  await expect(page.getByRole("heading", { name: "Issues" })).toBeVisible();
+  await expect(page.getByTestId("issue-card-issue-1")).toContainText("Missing title tag");
+  await expect(page.getByTestId("issue-card-issue-2")).toContainText("Thin service page");
+
+  await page.getByTestId("approve-issue-1").click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Approve" }).click();
+  await expect(page.getByTestId("issue-card-issue-1")).toHaveCount(0);
+  await expect(page.getByTestId("issue-card-issue-2")).toBeVisible();
+
+  await page.getByTestId("dismiss-issue-2").click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Dismiss" }).click();
+  await expect(page.getByText("No completed audits yet.")).toHaveCount(0);
+  await expect(page.getByTestId("issue-card-issue-2")).toHaveCount(0);
+
+  expect(browserErrors).toEqual([]);
+});

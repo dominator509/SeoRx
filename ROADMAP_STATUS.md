@@ -1,211 +1,183 @@
-# SEORx Build Roadmap Status
+# SEORx Production Readiness Roadmap
 
-> Auto-maintained by the build process. Last updated: 2026-05-03
+Last updated: 2026-05-15
 
-## Status Legend
-- ✅ Complete
-- 🔄 In Progress
-- ⏳ Pending
-- ❌ Blocked
-- 📝 Deviated (see notes)
+This file is the delivery source of truth. When asked to "proceed", pick the
+highest priority item in this roadmap that is not complete, implement it, run
+the listed verification, then update this file.
 
----
+Related docs:
+- `ARCHITECTURE.md`: current system architecture and ownership boundaries.
+- `DEPLOYMENT_GUIDE.md`: production environment and release checklist.
 
-## Phase 1: Repository Initialization ✅
-- [x] pnpm monorepo workspace initialized
-- [x] TypeScript strict mode configured (tsconfig.base.json)
-- [x] ESBuild production build configured
-- [x] API server scaffold (Express 5 + Pino logging)
-- [x] React + Vite frontend scaffold
-- [x] Drizzle ORM + PostgreSQL configured
-- [x] OpenAPI-first contract with Orval codegen
+## Current Position
 
-## Phase 2: Authentication & Security ✅
-- [x] Clerk Auth provisioned (Replit-managed)
-- [x] Clerk proxy middleware on API server
-- [x] requireAuth middleware for all protected routes
-- [x] API keys never hard-coded (all via env secrets)
-- [x] SESSION_SECRET environment variable configured
-- [x] Developer API bearer-token auth middleware
+Current phase: Phase 2, workflow hardening.
 
-## Phase 3: Database Schema ✅
-- [x] users table (clerkId, email, role RBAC)
-- [x] organizations table (multi-tenant, plan tiers)
-- [x] org_members table (RBAC roles per org)
-- [x] clients table (domain, SEO score, audit tracking)
-- [x] audits table (status, scores, crawl metadata)
-- [x] audit_issues table (severity, category, priority scoring, approval workflow)
-- [x] reports table (format, status, download URL)
-- [x] ai_providers table (encrypted API keys, provider types)
-- [x] page_speed_results table (Core Web Vitals, device type)
-- [x] api_keys table (SHA-256 hash only, never plaintext)
-- [x] DB schema pushed to development database
+The imported Replit app has been cleaned into a buildable, testable monorepo.
+Core API, database, frontend, auth, generated clients, and browser test harness
+are in place. We are now proving each business workflow end to end and fixing
+live-data or stale-data bugs as they are discovered.
 
-## Phase 4: API Server Routes ✅
-- [x] GET/PUT /api/auth/me (user profile)
-- [x] CRUD /api/organizations + members (RBAC-scoped)
-- [x] CRUD /api/clients (org-scoped + plan limit enforcement)
-- [x] CRUD /api/audits (org-scoped + plan limit enforcement + real crawler)
-- [x] GET /api/audits/:id/issues (org-scoped, with filters)
-- [x] PUT /api/issues/:id/approve + dismiss (RBAC + org-scoped)
-- [x] CRUD /api/reports (RBAC-scoped, real PDF download)
-- [x] GET /api/reports/:id/download (PDFKit streamed PDF)
-- [x] GET /api/dashboard/* (all endpoints org-scoped)
-- [x] CRUD /api/ai-providers (AES-256-GCM encrypted key storage)
-- [x] GET /api/pagespeed/:auditId (RBAC-scoped, real API + fallback)
-- [x] GET /api/billing/plans (public plan comparison)
-- [x] POST /api/billing/checkout (Stripe checkout session)
-- [x] POST /api/billing/portal (Stripe customer portal)
-- [x] POST /api/billing/webhook (Stripe event handler)
-- [x] CRUD /api/api-keys (developer API key management)
-- [x] GET /api/integrations/gsc/connect (GSC OAuth initiation)
-- [x] GET /api/integrations/gsc/callback (GSC OAuth callback)
-- [x] GET /api/integrations/gsc/properties (GSC property list)
-- [x] POST /api/integrations/gsc/analytics (GSC search analytics)
-- [x] GET /api/integrations/webhooks (list registered webhooks)
-- [x] POST /api/integrations/webhooks (register outbound webhook)
-- [x] POST /api/integrations/webhooks/test (test webhook delivery)
-- [x] GET /api/docs (Swagger UI)
-- [x] GET /api/openapi.json (raw OpenAPI spec)
-- [x] GET /api/developer/authorize (API key bearer-token auth)
+## How To Advance This Roadmap
 
-## Phase 5: OpenAPI Spec & Codegen ✅
-- [x] Comprehensive OpenAPI 3.1 spec (lib/api-spec/openapi.yaml)
-- [x] Orval codegen → React Query hooks (lib/api-client-react)
-- [x] Orval codegen → Zod validation schemas (lib/api-zod)
-- [x] All schema names collision-free
+For each roadmap item:
+1. Inspect the affected UI, API route, schema, and generated client surfaces.
+2. Fix any wiring bug found while adding coverage.
+3. Prefer realistic e2e coverage for user workflows and API integration tests
+   for server behavior.
+4. Run focused checks first.
+5. Run broad checks before marking the item complete.
+6. Update this roadmap with the result and any newly discovered risk.
 
-## Phase 6: Frontend Build ✅
-- [x] react-vite artifact scaffolded at "/"
-- [x] Clerk client dependencies installed
-- [x] Branded Clerk sign-in/sign-up pages
-- [x] Landing page (public, branded)
-- [x] Dashboard with stats + charts
-- [x] Client management pages
-- [x] Audit job pages (list, new, detail + PageSpeed tab)
-- [x] Issue list with approve/dismiss (human workflow)
-- [x] Report pages (list + generate + detail)
-- [x] AI Provider configuration page
-- [x] Onboarding wizard (multi-step)
-- [x] Settings page
-- [x] Organization management page
+Do not mark a workflow production-ready just because the page renders. A
+workflow is ready only when the expected user action, API request, state
+refresh, and visible result are covered.
 
-## Phase 7: SEO Scanner Engine ✅
-- [x] Real multi-page crawler (cheerio + node-fetch, robots-parser)
-- [x] robots.txt fetching and enforcement per-URL
-- [x] Rate limiting safeguards (300ms between requests)
-- [x] Max depth (4) and max pages controls
-- [x] Full page analysis: title, meta, h1/h2, images, links, canonical, OG, structured data, viewport
-- [x] 18+ issue detection rules across all 8 categories
-- [x] Priority scoring algorithm (0–100 per issue)
-- [x] SEO score calculation from real crawl findings
-- [x] Graceful error handling
+## Verification Commands
 
-## Phase 8: AI Provider Adapters ✅
-- [x] OpenAI adapter (configurable model)
-- [x] Anthropic Claude adapter
-- [x] Google Gemini adapter
-- [x] Ollama local LLM adapter
-- [x] Custom OpenAI-compatible endpoint
-- [x] Batch AI recommendation generation (top 10 issues per audit)
-- [x] Human approval gate preserved
+Use these checks as the standard gate:
 
-## Phase 9: PageSpeed Integration ✅
-- [x] Real PageSpeed Insights API v5 (activates when PAGESPEED_API_KEY set)
-- [x] Synthetic fallback (no key required)
-- [x] Mobile + desktop results stored separately
+```powershell
+corepack pnpm --filter @workspace/seorx run typecheck
+corepack pnpm --filter @workspace/seorx run test:e2e
+corepack pnpm test
+corepack pnpm run build
+git diff --check
+```
 
-## Phase 10: Report Generation ✅
-- [x] Real PDF export via PDFKit (branded, multi-page)
-- [x] Executive summary generation
-- [x] AI recommendations in PDF (approved issues only)
-- [x] GET /api/reports/:id/download streams PDF directly
+Run `corepack pnpm test` and `corepack pnpm run build` sequentially. The API
+integration suite provisions temporary database resources and should not be run
+in parallel with the broad build.
 
-## Phase 11: Data Seeding ✅
-- [x] 2 organizations, 4 clients, 5 audits, 8 issues, 3 AI providers
+If Playwright leaves transient output, remove `artifacts/seorx/test-results`
+before final status.
 
-## Phase 12: RBAC ✅
-- [x] loadUserContext middleware (preloads user + all org memberships per request)
-- [x] requireAuth, requireOrgMember, requireOrgRole helpers
-- [x] Org-scoped data isolation on all resource endpoints
-- [x] assertClientAccess / assertAuditAccess for per-resource checks
+## Completed Since Hardening Began
 
-## Phase 13: Stripe / License Enforcement ✅
-- [x] Billing plan comparison endpoint (public)
-- [x] Checkout session + customer portal + webhook handler
-- [x] Webhook auto-upgrades/downgrades org plan in DB
-- [x] enforceClientLimit middleware (POST /clients)
-- [x] enforceAuditLimit middleware (POST /audits) — monthly counter per org
-- [x] enforceAiLimit middleware — blocks AI recs on free plan
-- [x] maxPages auto-clamped to plan limit on each audit
+| Area | Status | Notes |
+| --- | --- | --- |
+| Replit banner cleanup | Complete | Product app no longer ships the "Made in Replit" banner. |
+| Production auth guard | Complete | Missing Clerk publishable key now shows a clear production state instead of a broken app. |
+| API integration test foundation | Complete | Vitest/Supertest coverage exists for protected API behavior and integration routes. |
+| Frontend e2e harness | Complete | Playwright runs production auth-config and signed-in mocked workflows. |
+| Dashboard e2e | Complete | Live metrics, recent audits, trends, and issue breakdown surfaces are mocked and asserted. |
+| Clients e2e | Complete | Client list, search, and create workflow covered. |
+| New audit e2e | Complete | Audit creation posts to API and redirects to audit detail route. |
+| Issue triage e2e | Complete | Approve and dismiss actions update issue state and refresh visible data. |
+| Issue triage stale-data fix | Complete | Global Issues page now invalidates the generated audit-issues query key after mutations. |
 
-## Phase 14: Developer API ✅
-- [x] api_keys table (SHA-256 hash, never plaintext, `srx_` prefix)
-- [x] POST /api/api-keys — generate key (full key shown once)
-- [x] GET /api/api-keys — list keys (prefix + metadata only)
-- [x] DELETE /api/api-keys/:id — revoke key
-- [x] PATCH /api/api-keys/:id — toggle active state
-- [x] GET /api/docs — Swagger UI (custom SEORx branding)
-- [x] GET /api/openapi.json — raw OpenAPI spec
-- [x] GET /api/developer/authorize — bearer-token auth verification
+## Active Roadmap
 
-## Phase 15: Security Hardening ✅
-- [x] Helmet.js security headers (CSP, HSTS, X-Frame-Options)
-- [x] CORS locked to ALLOWED_ORIGINS allowlist in production
-- [x] Global rate limit: 500 req / 15 min
-- [x] Audit rate limit: 20 audits / hour per user (IPv6-safe)
-- [x] Webhook rate limit: 100 req / min
-- [x] Body size limits (2 MB JSON, raw for Stripe)
-- [x] Stripe webhook signature verification
-- [x] AES-256-GCM encryption for AI provider API keys (lib/crypto.ts)
-- [x] SHA-256 hashing for developer API keys (one-way)
-- [x] Graceful base64 fallback with startup warning when ENCRYPTION_KEY not set
+### Phase 0: Source Of Truth Documentation
 
-## Phase 16: Tests ⏳
-- [ ] Unit tests for SEO scanner modules
-- [ ] Integration tests for API routes
-- [ ] E2E tests for audit flow
+Status: Complete.
 
-## Phase 17: Documentation ✅
-- [x] ARCHITECTURE.md (full architecture reference)
-- [x] API reference via Swagger UI at /api/docs
-- [x] Deployment guide
+Goal: Keep architecture and roadmap state durable inside the repo.
 
-## Phase 18: Integration Scaffolds ✅
-- [x] Google Search Console OAuth flow (connect, callback, properties, analytics)
-- [x] Outbound webhook registration (Zapier / Make / n8n compatible)
-- [x] Webhook test delivery endpoint
-- [x] Valid event types: audit.completed, issue.approved, issue.dismissed, report.ready
+Acceptance:
+- `ARCHITECTURE.md` describes the current package layout and ownership rules.
+- `ROADMAP_STATUS.md` identifies current phase, next priorities, and verification gates.
+- Future work can proceed from this file without relying on conversation memory.
 
-## Phase 19: Deployment Readiness ✅
-- [x] PORT env var respected
-- [x] BASE_PATH env var respected
-- [x] No hard-coded secrets
-- [x] Replit artifact.toml configured
-- [x] Static frontend build (vite build)
-- [x] Prod/dev environment separation via Clerk
+### Phase 1: Import Cleanup And Baseline Stability
 
----
+Status: Mostly complete.
 
-## Deviations from original plan
+Completed:
+- App builds with workspace commands.
+- Replit user-facing banner removed.
+- Auth misconfiguration has a clear fallback state.
+- Typecheck, build, API tests, and e2e commands exist.
 
-| Phase | Deviation | Reason |
-|-------|-----------|--------|
-| 18 | GSC token storage not yet persisted (OAuth flow works, tokens not saved to DB) | Requires org_integrations table; deferred to next phase |
-| 18 | Webhook registrations stored in-memory only | Requires org_webhooks table; deferred to next phase |
+Remaining:
+- Decide whether `.replit`, `.replitignore`, and Replit catalog package entries are still needed for the chosen host.
+- Remove or isolate remaining Replit-only development affordances if the production target is not Replit.
 
-## Manual Fallback Paths (Preserved)
-- Audit issues default to `status: "open"` pending human approval
-- AI recommendations stored as `aiRecommendation` field — never auto-applied
-- Reports require explicit creation (no auto-publish)
-- All client-facing AI output gated by approve/dismiss workflow
-- Stripe: all billing endpoints gracefully disabled when STRIPE_SECRET_KEY not set
-- Encryption: falls back to base64 with startup warning when ENCRYPTION_KEY not set
+### Phase 2: Workflow Hardening
 
-## Completed Phases Summary
-✅ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19
-⏳ 16 (tests)
+Status: Active.
 
-## Next Priority Actions
-1. ⏳ Phase 16: Test suite (unit + integration)
-2. ⏳ Phase 18 follow-up: Persist GSC tokens + webhook registrations to DB
+Goal: Prove the primary product workflows through browser-level tests and fix
+live-data issues as they appear.
+
+Completed workflows:
+- Dashboard metrics.
+- Client list/search/create.
+- New audit creation.
+- Issue approval and dismissal.
+
+Next workflows:
+
+| Priority | Workflow | Status | Acceptance |
+| --- | --- | --- | --- |
+| P0 | Reports list/generate/detail/download | Next | Generate a report from a completed audit, see it in the list, open detail, verify ready/download behavior. |
+| P1 | Audit detail PageSpeed and issue filters | Pending | Audit detail renders issue filters, PageSpeed states, and approve/dismiss behavior with refreshed data. |
+| P1 | AI provider configuration | Pending | Create/update/set active/delete provider through UI with API mocked and visible state verified. |
+| P1 | Organizations and onboarding | Pending | Org selection/creation/member flows or onboarding completion are covered. |
+| P2 | Settings | Pending | User-facing settings interactions render without Clerk hook errors and persist intended values. |
+
+### Phase 3: API And Data Contract Hardening
+
+Status: Partial.
+
+Goal: Ensure API routes, database schema, OpenAPI, generated clients, and UI
+expectations stay aligned.
+
+Completed:
+- OpenAPI codegen is in place.
+- API integration tests exist.
+- Integration persistence schema and routes exist.
+
+Next:
+- Expand API integration tests for reports, issue mutations, audit creation,
+  and RBAC denial cases.
+- Add regression tests for response shapes used by dashboard and reports.
+- Verify generated clients after every OpenAPI change.
+
+### Phase 4: Live Integration Readiness
+
+Status: Partial.
+
+Goal: Make optional live integrations reliable, testable, and clearly degraded
+when credentials are absent.
+
+Next:
+- Google Search Console connect/properties/analytics contract tests.
+- PageSpeed live-key smoke path plus fallback assertions.
+- AI provider live/fallback behavior tests.
+- Outbound webhook registration and test delivery coverage.
+- Stripe disabled-state and webhook signature coverage.
+
+### Phase 5: Production Operations
+
+Status: Pending.
+
+Goal: Make the app deployable and operable outside the original import context.
+
+Next:
+- Confirm target hosting model.
+- Validate required environment variables.
+- Add deployment health-check runbook.
+- Confirm database migration/push path.
+- Add logging and error-handling expectations.
+- Decide on CI sequencing for typecheck, API tests, e2e, and build.
+
+## Known Risks
+
+| Risk | Impact | Next action |
+| --- | --- | --- |
+| Report workflow not yet e2e-covered | Client deliverable path could regress silently. | Make reports the next P0 workflow. |
+| Optional integrations need stronger proof | Metrics may appear missing or stale when live keys are configured incorrectly. | Add mocked-contract and live-key smoke tests. |
+| Replit-specific files remain | Deployment expectations may be unclear for non-Replit hosts. | Decide target host and remove or document remaining Replit files. |
+| Vite sourcemap warnings remain | Builds pass, but diagnostics are noisy. | Investigate after workflow coverage is broader. |
+| External API behavior depends on credentials | CI cannot rely on real providers by default. | Use deterministic mocks plus optional live smoke checks. |
+
+## Next Best Step
+
+Implement the P0 Reports workflow hardening:
+1. Inspect report list/detail UI and reports API route behavior.
+2. Add e2e coverage for report generation from a completed audit.
+3. Verify list refresh, detail navigation, and download link behavior.
+4. Fix any live-data or stale-query issue uncovered.
+5. Run focused e2e, then the standard verification gate.

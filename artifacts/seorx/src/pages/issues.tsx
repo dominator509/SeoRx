@@ -111,8 +111,8 @@ export default function Issues() {
 
   const approveIssue = useApproveIssue({
     mutation: {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: ["listAuditIssues"] });
+      onSuccess: (issue: any) => {
+        qc.invalidateQueries({ queryKey: getListAuditIssuesQueryKey(issue.auditId) });
         setApproveId(null);
         toast({ title: "Approved", description: "Issue approved." });
       },
@@ -120,8 +120,8 @@ export default function Issues() {
   });
   const dismissIssue = useDismissIssue({
     mutation: {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: ["listAuditIssues"] });
+      onSuccess: (issue: any) => {
+        qc.invalidateQueries({ queryKey: getListAuditIssuesQueryKey(issue.auditId) });
         setDismissId(null);
         toast({ title: "Dismissed", description: "Issue dismissed." });
       },
