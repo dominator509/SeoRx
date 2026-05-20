@@ -1,6 +1,6 @@
 # SEORx Architecture
 
-Last updated: 2026-05-15
+Last updated: 2026-05-18
 
 This file is the architecture source of truth for the current repo. Use
 `ROADMAP_STATUS.md` for delivery sequencing and `DEPLOYMENT_GUIDE.md` for
@@ -166,6 +166,10 @@ Current e2e coverage includes:
 - Client list, search, and create workflow.
 - New audit submission and redirect workflow.
 - Issue approval and dismissal workflow with refreshed live data.
+- Report generation/list/detail/download-link workflow.
+- Audit detail issue filters, triage refresh, and PageSpeed metrics.
+- AI provider create/update/default/active/delete workflow.
+- Organization create/list/member invite refresh and first-run onboarding.
 
 Important test caveat: API integration tests create temporary database
 resources. Run root API tests and full workspace build sequentially, not in
@@ -199,10 +203,9 @@ Optional integration variables:
 
 These are not necessarily broken, but they are still production-readiness risks:
 
-1. Organizations and onboarding need full e2e coverage.
-2. Settings needs full
+1. Settings needs full
    workflow tests.
-3. Real external integrations need environment-backed smoke checks or clear
+2. Real external integrations need environment-backed smoke checks or clear
    mocked-contract tests.
-4. Production deployment runbooks need validation against the target host.
-5. Some Vite builds still emit non-failing sourcemap warnings for UI components.
+3. Production deployment runbooks need validation against the target host.
+4. Some Vite builds still emit non-failing sourcemap warnings for UI components.

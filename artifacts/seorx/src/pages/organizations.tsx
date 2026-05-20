@@ -1,7 +1,8 @@
 import { useState } from "react";
 import {
   useListOrganizations, useCreateOrganization, useDeleteOrganization,
-  getListOrganizationsQueryKey,
+  useListOrgMembers, useInviteOrgMember,
+  getListOrganizationsQueryKey, getListOrgMembersQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +15,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -26,6 +28,11 @@ const schema = z.object({
   slug: z.string().min(2, "Slug required").regex(/^[a-z0-9-]+$/, "Lowercase letters, numbers and hyphens only"),
 });
 
+const memberSchema = z.object({
+  email: z.string().email("Enter a valid email"),
+  role: z.enum(["viewer", "agency", "client", "admin"]),
+});
+
 const planBadge: Record<string, string> = {
   free: "bg-gray-100 text-gray-600",
   starter: "bg-blue-100 text-blue-700",
@@ -36,10 +43,18 @@ const planBadge: Record<string, string> = {
 export default function Organizations() {
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [memberOrgId, setMemberOrgId] = useState<string | null>(null);
   const { toast } = useToast();
   const qc = useQueryClient();
 
   const { data: orgs, isLoading } = useListOrganizations({ query: { queryKey: getListOrganizationsQueryKey() } });
+  const selectedOrg = (orgs as any[] | undefined)?.find((org) => org.id === memberOrgId);
+  const { data: members, isLoading: membersLoading } = useListOrgMembers(memberOrgId ?? "", {
+    query: {
+      enabled: !!memberOrgId,
+      queryKey: memberOrgId ? getListOrgMembersQueryKey(memberOrgId) : ["org-members", "disabled"],
+    },
+  });
   const createOrg = useCreateOrganization({
     mutation: {
       onSuccess: () => {
@@ -60,10 +75,27 @@ export default function Organizations() {
       },
     },
   });
+  const inviteMember = useInviteOrgMember({
+    mutation: {
+      onSuccess: () => {
+        if (memberOrgId) {
+          qc.invalidateQueries({ queryKey: getListOrgMembersQueryKey(memberOrgId) });
+        }
+        qc.invalidateQueries({ queryKey: getListOrganizationsQueryKey() });
+        memberForm.reset({ email: "", role: "viewer" });
+        toast({ title: "Member invited" });
+      },
+      onError: () => toast({ title: "Error", description: "Failed to invite member.", variant: "destructive" }),
+    },
+  });
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
     defaultValues: { name: "", slug: "" },
+  });
+  const memberForm = useForm<z.infer<typeof memberSchema>>({
+    resolver: zodResolver(memberSchema),
+    defaultValues: { email: "", role: "viewer" },
   });
 
   return (
@@ -121,18 +153,90 @@ export default function Organizations() {
                     <span className="font-mono text-[10px]">{org.slug}</span>
                   </div>
                 </div>
-                <button
-                  className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                  onClick={() => setDeleteId(org.id)}
-                  data-testid={`delete-org-${org.id}`}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => setMemberOrgId(org.id)}
+                    data-testid={`manage-members-${org.id}`}
+                  >
+                    <Users className="w-4 h-4" />Members
+                  </Button>
+                  <button
+                    className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                    onClick={() => setDeleteId(org.id)}
+                    data-testid={`delete-org-${org.id}`}
+                    aria-label={`Delete ${org.name}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      <Dialog open={!!memberOrgId} onOpenChange={(open) => !open && setMemberOrgId(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>{selectedOrg ? `${selectedOrg.name} Members` : "Organization Members"}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-md border divide-y" data-testid="org-members-list">
+              {membersLoading ? (
+                <div className="p-3 text-sm text-muted-foreground">Loading members...</div>
+              ) : !(members as any[] | undefined)?.length ? (
+                <div className="p-3 text-sm text-muted-foreground">No members yet.</div>
+              ) : (
+                (members as any[]).map((member) => (
+                  <div key={member.id} className="flex items-center justify-between gap-3 p-3 text-sm" data-testid={`org-member-${member.id}`}>
+                    <span className="truncate">{member.email}</span>
+                    <Badge variant="secondary" className="capitalize">{member.role}</Badge>
+                  </div>
+                ))
+              )}
+            </div>
+            <Form {...memberForm}>
+              <form
+                onSubmit={memberForm.handleSubmit((values) => {
+                  if (!memberOrgId) return;
+                  inviteMember.mutate({ orgId: memberOrgId, data: values });
+                })}
+                className="grid gap-3 sm:grid-cols-[1fr_8rem_auto]"
+              >
+                <FormField control={memberForm.control} name="email" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl><Input type="email" placeholder="teammate@example.com" {...field} data-testid="input-member-email" /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={memberForm.control} name="role" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl><SelectTrigger data-testid="select-member-role"><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="viewer">Viewer</SelectItem>
+                        <SelectItem value="agency">Agency</SelectItem>
+                        <SelectItem value="client">Client</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <div className="flex items-end">
+                  <Button type="submit" className="w-full" disabled={inviteMember.isPending} data-testid="submit-member-invite">
+                    {inviteMember.isPending ? "Inviting..." : "Invite"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
         <AlertDialogContent>

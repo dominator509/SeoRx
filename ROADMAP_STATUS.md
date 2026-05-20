@@ -1,6 +1,6 @@
 # SEORx Production Readiness Roadmap
 
-Last updated: 2026-05-15
+Last updated: 2026-05-18
 
 This file is the delivery source of truth. When asked to "proceed", pick the
 highest priority item in this roadmap that is not complete, implement it, run
@@ -69,6 +69,7 @@ before final status.
 | Reports e2e | Complete | Report generation, refreshed list state, detail view, summary/top issues, and download link are covered. |
 | Audit detail e2e | Complete | Issue filters, detail-page approve/dismiss refresh, and PageSpeed metrics/fallback messaging are covered. |
 | AI providers e2e | Complete | Provider create, set default/active update, deactivate, list refresh, and delete behavior are covered. |
+| Organizations and onboarding e2e | Complete | Organization create/list/member invite refresh plus first-run org/client/audit onboarding are covered. |
 
 ## Active Roadmap
 
@@ -112,6 +113,7 @@ Completed workflows:
 - Report generation/list/detail/download-link workflow.
 - Audit detail issue filters, triage refresh, and PageSpeed metrics.
 - AI provider create/update/default/active/delete workflow.
+- Organization create/list/member invite refresh and first-run onboarding through audit creation.
 
 Next workflows:
 
@@ -120,8 +122,8 @@ Next workflows:
 | P0 | Reports list/generate/detail/download | Complete | Generate a report from a completed audit, see it in the list, open detail, verify ready/download behavior. |
 | P1 | Audit detail PageSpeed and issue filters | Complete | Audit detail renders issue filters, PageSpeed states, and approve/dismiss behavior with refreshed data. |
 | P1 | AI provider configuration | Complete | Create/update/set active/delete provider through UI with API mocked and visible state verified. |
-| P1 | Organizations and onboarding | Next | Org selection/creation/member flows or onboarding completion are covered. |
-| P2 | Settings | Pending | User-facing settings interactions render without Clerk hook errors and persist intended values. |
+| P1 | Organizations and onboarding | Complete | Org creation/member invite and onboarding completion are covered. |
+| P2 | Settings | Next | User-facing settings interactions render without Clerk hook errors and persist intended values. |
 
 ### Phase 3: API And Data Contract Hardening
 
@@ -181,9 +183,9 @@ Next:
 
 ## Next Best Step
 
-Implement the P1 Organizations and onboarding hardening:
-1. Inspect organization management, onboarding UI, API route behavior, and generated client hooks.
-2. Add e2e coverage for the highest-value tenant setup workflow.
-3. Verify visible organization state refreshes after create/update/member actions.
+Implement the P2 Settings hardening:
+1. Inspect settings UI, profile/auth hooks, API route behavior, and generated client hooks.
+2. Add e2e coverage for the highest-value user-facing settings workflow.
+3. Verify visible settings state refreshes after updates.
 4. Fix any live-data or stale-query issue uncovered.
-5. Run focused e2e, then the standard verification gate.
+5. Run focused checks, then the standard verification gate.

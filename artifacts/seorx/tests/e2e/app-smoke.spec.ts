@@ -456,6 +456,259 @@ test("@signed-in AI providers page creates, updates, and deletes providers", asy
   expect(browserErrors).toEqual([]);
 });
 
+test("@signed-in organizations page creates organizations and invites members", async ({ page }) => {
+  const browserErrors: string[] = [];
+  const organizations = [
+    {
+      id: "org-1",
+      name: "SEORx Test Org",
+      slug: "seorx-test-org",
+      plan: "starter",
+      memberCount: 1,
+      clientCount: 2,
+      auditCount: 4,
+      myRole: "admin",
+      createdAt: "2026-05-01T12:00:00.000Z",
+      updatedAt: "2026-05-01T12:00:00.000Z",
+    },
+  ];
+  const membersByOrg: Record<string, any[]> = {
+    "org-1": [
+      {
+        id: "member-1",
+        orgId: "org-1",
+        userId: "user-1",
+        email: "owner@seorx.example",
+        role: "admin",
+        createdAt: "2026-05-01T12:00:00.000Z",
+      },
+    ],
+  };
+
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      browserErrors.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => {
+    browserErrors.push(error.message);
+  });
+
+  await page.route("**/api/organizations**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const memberMatch = url.pathname.match(/\/api\/organizations\/([^/]+)\/members$/);
+
+    if (request.method() === "GET" && url.pathname === "/api/organizations") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify(organizations) });
+      return;
+    }
+
+    if (request.method() === "POST" && url.pathname === "/api/organizations") {
+      const data = request.postDataJSON() as { name: string; slug: string };
+      const created = {
+        id: "org-2",
+        name: data.name,
+        slug: data.slug,
+        plan: "free",
+        memberCount: 1,
+        clientCount: 0,
+        auditCount: 0,
+        myRole: "admin",
+        createdAt: "2026-05-12T12:00:00.000Z",
+        updatedAt: "2026-05-12T12:00:00.000Z",
+      };
+      organizations.push(created);
+      membersByOrg[created.id] = [
+        {
+          id: "member-2",
+          orgId: created.id,
+          userId: "user-2",
+          email: "founder@northstar.example",
+          role: "admin",
+          createdAt: "2026-05-12T12:00:00.000Z",
+        },
+      ];
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(created) });
+      return;
+    }
+
+    if (memberMatch && request.method() === "GET") {
+      const orgId = memberMatch[1];
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify(membersByOrg[orgId] ?? []) });
+      return;
+    }
+
+    if (memberMatch && request.method() === "POST") {
+      const orgId = memberMatch[1];
+      const data = request.postDataJSON() as { email: string; role: string };
+      const invited = {
+        id: "member-invited",
+        orgId,
+        userId: "member-invited",
+        email: data.email,
+        role: data.role,
+        createdAt: "2026-05-12T12:05:00.000Z",
+      };
+      membersByOrg[orgId] = [...(membersByOrg[orgId] ?? []), invited];
+      const org = organizations.find((item) => item.id === orgId);
+      if (org) {
+        org.memberCount = membersByOrg[orgId].length;
+      }
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(invited) });
+      return;
+    }
+
+    await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "Not found" }) });
+  });
+
+  await page.goto("/organizations");
+
+  await expect(page.getByRole("heading", { name: "Organizations" })).toBeVisible();
+  await expect(page.getByTestId("org-card-org-1")).toContainText("SEORx Test Org");
+  await expect(page.getByTestId("org-card-org-1")).toContainText("1 members");
+
+  await page.getByTestId("add-org-button").click();
+  await page.getByTestId("input-org-name").fill("Northstar Growth");
+  await page.getByTestId("input-org-slug").fill("northstar-growth");
+  await page.getByTestId("submit-org").click();
+
+  await expect(page.getByTestId("org-card-org-2")).toContainText("Northstar Growth");
+  await expect(page.getByTestId("org-card-org-2")).toContainText("northstar-growth");
+
+  await page.getByTestId("manage-members-org-2").click();
+  await expect(page.getByRole("dialog")).toContainText("Northstar Growth Members");
+  await expect(page.getByTestId("org-member-member-2")).toContainText("founder@northstar.example");
+
+  await page.getByTestId("input-member-email").fill("strategist@northstar.example");
+  await page.getByTestId("select-member-role").click();
+  await page.getByRole("option", { name: "Agency" }).click();
+  await page.getByTestId("submit-member-invite").click();
+
+  await expect(page.getByTestId("org-member-member-invited")).toContainText("strategist@northstar.example");
+  await expect(page.getByTestId("org-member-member-invited")).toContainText("agency");
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("org-card-org-2")).toContainText("2 members");
+
+  expect(browserErrors).toEqual([]);
+});
+
+test("@signed-in onboarding creates tenant, first client, and first audit", async ({ page }) => {
+  const browserErrors: string[] = [];
+  const createdRequests: string[] = [];
+
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      browserErrors.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => {
+    browserErrors.push(error.message);
+  });
+
+  await page.route("**/api/organizations", async (route) => {
+    const request = route.request();
+    if (request.method() !== "POST") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify([]) });
+      return;
+    }
+
+    const data = request.postDataJSON() as { name: string; slug: string };
+    createdRequests.push(`org:${data.slug}`);
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "onboarding-org",
+        name: data.name,
+        slug: data.slug,
+        plan: "free",
+        memberCount: 1,
+        clientCount: 0,
+        auditCount: 0,
+        createdAt: "2026-05-12T12:00:00.000Z",
+        updatedAt: "2026-05-12T12:00:00.000Z",
+      }),
+    });
+  });
+  await page.route("**/api/clients*", async (route) => {
+    const request = route.request();
+    if (request.method() !== "POST") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify([]) });
+      return;
+    }
+
+    const data = request.postDataJSON() as { orgId: string; name: string; domain: string };
+    createdRequests.push(`client:${data.orgId}:${data.domain}`);
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "onboarding-client",
+        orgId: data.orgId,
+        name: data.name,
+        domain: data.domain,
+        seoScore: null,
+        auditCount: 0,
+        issueCount: 0,
+        lastAuditAt: null,
+        createdAt: "2026-05-12T12:01:00.000Z",
+        updatedAt: "2026-05-12T12:01:00.000Z",
+      }),
+    });
+  });
+  await page.route("**/api/audits", async (route) => {
+    const request = route.request();
+    if (request.method() !== "POST") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify({ items: [], total: 0 }) });
+      return;
+    }
+
+    const data = request.postDataJSON() as { clientId: string; url: string; maxPages: number; includePageSpeed: boolean };
+    createdRequests.push(`audit:${data.clientId}:${data.url}:${data.maxPages}:${data.includePageSpeed}`);
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: "onboarding-audit",
+        clientId: data.clientId,
+        clientName: "Northstar Dental",
+        url: data.url,
+        status: "pending",
+        maxPages: data.maxPages,
+        includePageSpeed: data.includePageSpeed,
+        createdAt: "2026-05-12T12:02:00.000Z",
+      }),
+    });
+  });
+
+  await page.goto("/onboarding");
+
+  await expect(page.getByText("Create your organization")).toBeVisible();
+  await page.getByTestId("input-org-name").fill("Northstar Growth");
+  await page.getByTestId("input-org-slug").fill("northstar-growth");
+  await page.getByTestId("next-org").click();
+
+  await expect(page.getByText("Add your first client")).toBeVisible();
+  await page.getByTestId("input-client-name").fill("Northstar Dental");
+  await page.getByTestId("input-client-domain").fill("northstar.example");
+  await page.getByTestId("next-client").click();
+
+  await expect(page.getByText("Run your first audit")).toBeVisible();
+  await page.getByTestId("input-audit-url").fill("https://northstar.example");
+  await page.getByTestId("start-audit").click();
+
+  await expect(page.getByRole("heading", { name: "You're all set!" })).toBeVisible();
+  await page.getByTestId("go-to-dashboard").click();
+  await expect(page).toHaveURL(/\/audits\/onboarding-audit$/);
+  expect(createdRequests).toEqual([
+    "org:northstar-growth",
+    "client:onboarding-org:northstar.example",
+    "audit:onboarding-client:https://northstar.example:50:false",
+  ]);
+  expect(browserErrors).toEqual([]);
+});
+
 test("@signed-in reports page generates a report and opens ready detail", async ({ page }) => {
   const browserErrors: string[] = [];
   const reports: any[] = [];

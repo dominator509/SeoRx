@@ -126,6 +126,67 @@ describe("production-critical API behavior", () => {
     expect(res.body.map((client: { name: string }) => client.name)).not.toContain("Blocked Client");
   });
 
+  it("creates organizations, assigns the creator as admin, and invites members", async () => {
+    const slug = `created-org-${crypto.randomUUID()}`;
+
+    const createRes = await request(app)
+      .post("/api/organizations")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ name: "Created Org", slug });
+
+    expect(createRes.status).toBe(201);
+    expect(createRes.body).toMatchObject({
+      name: "Created Org",
+      slug,
+      memberCount: 1,
+      clientCount: 0,
+      auditCount: 0,
+    });
+
+    const listRes = await request(app)
+      .get("/api/organizations")
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(listRes.status).toBe(200);
+    expect(listRes.body.some((org: { id: string; myRole?: string }) => org.id === createRes.body.id && org.myRole === "admin")).toBe(true);
+
+    const inviteRes = await request(app)
+      .post(`/api/organizations/${createRes.body.id}/members`)
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ email: "teammate@example.com", role: "agency" });
+
+    expect(inviteRes.status).toBe(201);
+    expect(inviteRes.body).toMatchObject({
+      email: "teammate@example.com",
+      role: "agency",
+    });
+    expect(inviteRes.body.joinedAt).toBeTruthy();
+
+    const membersRes = await request(app)
+      .get(`/api/organizations/${createRes.body.id}/members`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(membersRes.status).toBe(200);
+    expect(membersRes.body.map((member: { email: string }) => member.email)).toEqual(
+      expect.arrayContaining(["test-user-1@example.com", "teammate@example.com"]),
+    );
+  });
+
+  it("rejects organization member access outside membership", async () => {
+    const blockedOrgId = await seedOrg(`member-private-${crypto.randomUUID()}`, OTHER_USER_ID);
+
+    const listRes = await request(app)
+      .get(`/api/organizations/${blockedOrgId}/members`)
+      .set("x-test-user-id", TEST_USER_ID);
+    const inviteRes = await request(app)
+      .post(`/api/organizations/${blockedOrgId}/members`)
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ email: "blocked@example.com", role: "viewer" });
+
+    expect(listRes.status).toBe(403);
+    expect(inviteRes.status).toBe(403);
+  });
+
   it("persists outbound webhooks and hides encrypted secrets", async () => {
     const orgId = await seedOrg("webhook-org");
 
