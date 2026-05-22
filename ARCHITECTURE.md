@@ -167,6 +167,9 @@ Current API coverage includes:
 - Audit creation/list response contracts and tenant scoping.
 - Issue approve/dismiss mutation authorization.
 - Report list/detail/download contracts, including PDF generation.
+- Dashboard stats, recent audits, issue breakdown, score trends, and empty
+  aggregate states.
+- Concurrent first-login user provisioning.
 - Integration disabled/unavailable paths for webhooks and Google Search Console.
 
 Current e2e coverage includes:
@@ -213,7 +216,7 @@ Optional integration variables:
 
 These are not necessarily broken, but they are still production-readiness risks:
 
-1. Dashboard aggregate and reporting response-shape coverage needs broader
+1. Report creation async behavior and generated-client parity need broader
    route-level regression coverage beyond browser workflows.
 2. Real external integrations need environment-backed smoke checks or clear
    mocked-contract tests.

@@ -73,6 +73,7 @@ before final status.
 | Organizations and onboarding e2e | Complete | Organization create/list/member invite refresh plus first-run org/client/audit onboarding are covered. |
 | Settings e2e | Complete | Profile load/update, refreshed visible state, and e2e-safe auth hook behavior are covered. |
 | API contract hardening slice 1 | Complete | Audit creation/list, issue mutation RBAC, report list/detail/download, and report PDF generation are covered. |
+| API contract hardening slice 2 | Complete | Dashboard stats, recent audits, issue breakdown, score trends, empty states, and concurrent first-login provisioning are covered. |
 
 ## Active Roadmap
 
@@ -142,10 +143,13 @@ Completed:
 - Integration persistence schema and routes exist.
 - API integration tests cover audit creation/list scoping, issue approve/dismiss
   RBAC, report list/detail/download contracts, and PDF download generation.
+- API integration tests cover dashboard stats, recent audits, issue breakdown,
+  score trends, empty aggregate states, and concurrent first-login user
+  provisioning.
 
 Next:
-- Add regression tests for response shapes used by dashboard metrics, recent
-  audits, issue breakdown, and report generation responses.
+- Add API integration tests for report creation async status transitions and
+  dashboard/report OpenAPI response-shape parity.
 - Verify generated clients after every OpenAPI change.
 
 ### Phase 4: Live Integration Readiness
@@ -180,7 +184,7 @@ Next:
 
 | Risk | Impact | Next action |
 | --- | --- | --- |
-| Dashboard and aggregate response-shape coverage is thinner than workflow coverage | Metrics or trend widgets could drift from frontend expectations. | Add dashboard metrics/recent-audits/issue-breakdown API response-shape tests next. |
+| Report creation async behavior has thinner route-level coverage than report list/detail/download | Report generation state changes could drift from frontend expectations. | Add report creation status transition and generated-client parity tests next. |
 | Optional integrations need stronger proof | Metrics may appear missing or stale when live keys are configured incorrectly. | Add mocked-contract and live-key smoke tests. |
 | Replit-specific files remain | Deployment expectations may be unclear for non-Replit hosts. | Decide target host and remove or document remaining Replit files. |
 | Vite sourcemap warnings remain | Builds pass, but diagnostics are noisy. | Investigate after workflow coverage is broader. |
@@ -189,7 +193,7 @@ Next:
 ## Next Best Step
 
 Implement the next Phase 3 API and data contract hardening slice:
-1. Inspect dashboard metrics, recent audits, issue breakdown, report creation, and generated client response expectations.
-2. Add API integration tests for aggregate response shapes used by the frontend.
+1. Inspect report creation, async generation, OpenAPI schemas, and generated client response expectations.
+2. Add API integration tests for report creation state transitions and contract parity.
 3. Fix any response-shape, authorization, or stale contract issue uncovered.
 4. Run focused API tests, then the standard verification gate.

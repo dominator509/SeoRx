@@ -20,14 +20,17 @@ export async function getOrCreateUser(clerkId: string, email: string, firstName?
   });
   if (!user) {
     const id = crypto.randomUUID();
-    await db.insert(usersTable).values({
-      id,
-      clerkId,
-      email,
-      firstName,
-      lastName,
-      role: "admin",
-    });
+    await db
+      .insert(usersTable)
+      .values({
+        id,
+        clerkId,
+        email,
+        firstName,
+        lastName,
+        role: "admin",
+      })
+      .onConflictDoNothing({ target: usersTable.clerkId });
     user = await db.query.usersTable.findFirst({
       where: eq(usersTable.clerkId, clerkId),
     });

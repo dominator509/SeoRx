@@ -121,19 +121,27 @@ async function seedAudit(slug: string, userId = TEST_USER_ID, status: "pending" 
   return { ...seeded, auditId };
 }
 
-async function seedIssue(auditId: string, title: string, severity: "critical" | "high" | "medium" | "low" | "info" = "high") {
+async function seedIssue(
+  auditId: string,
+  title: string,
+  severity: "critical" | "high" | "medium" | "low" | "info" = "high",
+  status: "open" | "approved" | "dismissed" | "fixed" = "open",
+  category: "meta" | "content" | "performance" | "links" | "structured_data" | "mobile" | "security" | "crawlability" = "meta",
+) {
   const issueId = crypto.randomUUID();
   await dbModule.db.insert(dbModule.auditIssuesTable).values({
     id: issueId,
     auditId,
     url: "https://allowed.example/",
-    category: "meta",
+    category,
     severity,
-    status: "open",
+    status,
     title,
     description: `${title} description`,
     recommendation: `${title} recommendation`,
     priorityScore: severity === "critical" ? 95 : 80,
+    approvedBy: status === "approved" ? TEST_USER_ID : null,
+    approvedAt: status === "approved" ? new Date() : null,
   });
   return issueId;
 }
@@ -475,6 +483,120 @@ describe("production-critical API behavior", () => {
     expect(downloadRes.status).toBe(200);
     expect(downloadRes.headers["content-type"]).toContain("application/pdf");
     expect(downloadRes.headers["content-disposition"]).toContain("Allowed-Report.pdf");
+  });
+
+  it("returns empty dashboard aggregate shapes for users with no organizations", async () => {
+    const emptyUserId = `dashboard-empty-${crypto.randomUUID()}`;
+
+    const [statsRes, recentRes, breakdownRes, trendsRes] = await Promise.all([
+      request(app).get("/api/dashboard/stats").set("x-test-user-id", emptyUserId),
+      request(app).get("/api/dashboard/recent-audits?limit=3").set("x-test-user-id", emptyUserId),
+      request(app).get("/api/dashboard/issue-breakdown").set("x-test-user-id", emptyUserId),
+      request(app).get("/api/dashboard/score-trends?days=7").set("x-test-user-id", emptyUserId),
+    ]);
+
+    expect(statsRes.status).toBe(200);
+    expect(statsRes.body).toEqual({
+      totalClients: 0,
+      totalAudits: 0,
+      totalIssues: 0,
+      criticalIssues: 0,
+      resolvedIssues: 0,
+      avgSeoScore: 0,
+      auditsThisMonth: 0,
+      pendingApprovals: 0,
+    });
+    expect(recentRes.status).toBe(200);
+    expect(recentRes.body).toEqual([]);
+    expect(breakdownRes.status).toBe(200);
+    expect(breakdownRes.body).toEqual({ bySeverity: [], byCategory: [] });
+    expect(trendsRes.status).toBe(200);
+    expect(trendsRes.body).toEqual([]);
+  });
+
+  it("returns dashboard aggregate response shapes scoped to the user's organizations", async () => {
+    const dashboardUserId = `dashboard-user-${crypto.randomUUID()}`;
+    const blockedUserId = `dashboard-blocked-${crypto.randomUUID()}`;
+    const allowedOne = await seedAudit(`dashboard-allowed-one-${crypto.randomUUID()}`, dashboardUserId);
+    const allowedTwo = await seedAudit(`dashboard-allowed-two-${crypto.randomUUID()}`, dashboardUserId);
+    const blocked = await seedAudit(`dashboard-blocked-${crypto.randomUUID()}`, blockedUserId);
+
+    await dbModule.db.update(dbModule.clientsTable).set({ seoScore: 80 }).where(eq(dbModule.clientsTable.id, allowedOne.clientId));
+    await dbModule.db.update(dbModule.clientsTable).set({ seoScore: 90 }).where(eq(dbModule.clientsTable.id, allowedTwo.clientId));
+    await dbModule.db.update(dbModule.clientsTable).set({ seoScore: 10 }).where(eq(dbModule.clientsTable.id, blocked.clientId));
+    await dbModule.db.update(dbModule.auditsTable).set({ createdAt: new Date(), completedAt: new Date(), seoScore: 80 }).where(eq(dbModule.auditsTable.id, allowedOne.auditId));
+    await dbModule.db.update(dbModule.auditsTable).set({ createdAt: new Date(), completedAt: new Date(), seoScore: 90 }).where(eq(dbModule.auditsTable.id, allowedTwo.auditId));
+    await dbModule.db.update(dbModule.auditsTable).set({ createdAt: new Date(), completedAt: new Date(), seoScore: 10 }).where(eq(dbModule.auditsTable.id, blocked.auditId));
+
+    await seedIssue(allowedOne.auditId, "Dashboard critical open", "critical", "open", "meta");
+    await seedIssue(allowedOne.auditId, "Dashboard high approved", "high", "approved", "content");
+    await seedIssue(allowedTwo.auditId, "Dashboard medium fixed", "medium", "fixed", "performance");
+    await seedIssue(allowedTwo.auditId, "Dashboard low dismissed", "low", "dismissed", "links");
+    await seedIssue(blocked.auditId, "Blocked dashboard critical", "critical", "open", "security");
+
+    const statsRes = await request(app)
+      .get("/api/dashboard/stats")
+      .set("x-test-user-id", dashboardUserId);
+
+    expect(statsRes.status).toBe(200);
+    expect(statsRes.body).toEqual({
+      totalClients: 2,
+      totalAudits: 2,
+      totalIssues: 4,
+      criticalIssues: 1,
+      resolvedIssues: 3,
+      avgSeoScore: 85,
+      auditsThisMonth: 2,
+      pendingApprovals: 1,
+    });
+
+    const recentRes = await request(app)
+      .get("/api/dashboard/recent-audits?limit=1")
+      .set("x-test-user-id", dashboardUserId);
+
+    expect(recentRes.status).toBe(200);
+    expect(recentRes.body).toHaveLength(1);
+    expect([allowedOne.auditId, allowedTwo.auditId]).toContain(recentRes.body[0].id);
+    expect(recentRes.body[0]).toMatchObject({
+      clientName: expect.any(String),
+      issueCount: expect.any(Number),
+      criticalCount: expect.any(Number),
+      highCount: expect.any(Number),
+      mediumCount: expect.any(Number),
+      lowCount: expect.any(Number),
+    });
+    expect(recentRes.body.some((audit: { id: string }) => audit.id === blocked.auditId)).toBe(false);
+
+    const breakdownRes = await request(app)
+      .get("/api/dashboard/issue-breakdown")
+      .set("x-test-user-id", dashboardUserId);
+
+    expect(breakdownRes.status).toBe(200);
+    expect(Object.fromEntries(breakdownRes.body.bySeverity.map((item: { severity: string; count: number }) => [item.severity, item.count]))).toMatchObject({
+      critical: 1,
+      high: 1,
+      medium: 1,
+      low: 1,
+    });
+    expect(Object.fromEntries(breakdownRes.body.byCategory.map((item: { category: string; count: number }) => [item.category, item.count]))).toMatchObject({
+      meta: 1,
+      content: 1,
+      performance: 1,
+      links: 1,
+    });
+    expect(breakdownRes.body.byCategory.some((item: { category: string }) => item.category === "security")).toBe(false);
+
+    const trendsRes = await request(app)
+      .get("/api/dashboard/score-trends?days=30")
+      .set("x-test-user-id", dashboardUserId);
+
+    expect(trendsRes.status).toBe(200);
+    expect(trendsRes.body).toHaveLength(1);
+    expect(trendsRes.body[0]).toMatchObject({
+      date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      avgScore: 85,
+      auditCount: 2,
+    });
   });
 
   it("persists outbound webhooks and hides encrypted secrets", async () => {

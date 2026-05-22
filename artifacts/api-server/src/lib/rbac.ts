@@ -46,12 +46,15 @@ export async function loadUserContext(req: Request, res: Response, next: NextFun
     if (!user) {
       const email = (auth as any)?.sessionClaims?.email ?? "";
       const id = crypto.randomUUID();
-      await db.insert(usersTable).values({
-        id,
-        clerkId,
-        email,
-        role: "admin",
-      });
+      await db
+        .insert(usersTable)
+        .values({
+          id,
+          clerkId,
+          email,
+          role: "admin",
+        })
+        .onConflictDoNothing({ target: usersTable.clerkId });
       user = await db.query.usersTable.findFirst({ where: eq(usersTable.clerkId, clerkId) });
     }
 
