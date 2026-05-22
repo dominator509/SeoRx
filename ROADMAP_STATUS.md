@@ -1,6 +1,6 @@
 # SEORx Production Readiness Roadmap
 
-Last updated: 2026-05-18
+Last updated: 2026-05-19
 
 This file is the delivery source of truth. When asked to "proceed", pick the
 highest priority item in this roadmap that is not complete, implement it, run
@@ -12,12 +12,13 @@ Related docs:
 
 ## Current Position
 
-Current phase: Phase 2, workflow hardening.
+Current phase: Phase 3, API and data contract hardening.
 
 The imported Replit app has been cleaned into a buildable, testable monorepo.
 Core API, database, frontend, auth, generated clients, and browser test harness
-are in place. We are now proving each business workflow end to end and fixing
-live-data or stale-data bugs as they are discovered.
+are in place. Primary business workflows now have browser coverage, and the
+next push is proving API behavior, RBAC, response shapes, and generated
+contract alignment more deeply.
 
 ## How To Advance This Roadmap
 
@@ -70,6 +71,7 @@ before final status.
 | Audit detail e2e | Complete | Issue filters, detail-page approve/dismiss refresh, and PageSpeed metrics/fallback messaging are covered. |
 | AI providers e2e | Complete | Provider create, set default/active update, deactivate, list refresh, and delete behavior are covered. |
 | Organizations and onboarding e2e | Complete | Organization create/list/member invite refresh plus first-run org/client/audit onboarding are covered. |
+| Settings e2e | Complete | Profile load/update, refreshed visible state, and e2e-safe auth hook behavior are covered. |
 
 ## Active Roadmap
 
@@ -100,7 +102,7 @@ Remaining:
 
 ### Phase 2: Workflow Hardening
 
-Status: Active.
+Status: Complete.
 
 Goal: Prove the primary product workflows through browser-level tests and fix
 live-data issues as they appear.
@@ -114,6 +116,7 @@ Completed workflows:
 - Audit detail issue filters, triage refresh, and PageSpeed metrics.
 - AI provider create/update/default/active/delete workflow.
 - Organization create/list/member invite refresh and first-run onboarding through audit creation.
+- Settings profile load/update with refreshed visible state.
 
 Next workflows:
 
@@ -123,7 +126,7 @@ Next workflows:
 | P1 | Audit detail PageSpeed and issue filters | Complete | Audit detail renders issue filters, PageSpeed states, and approve/dismiss behavior with refreshed data. |
 | P1 | AI provider configuration | Complete | Create/update/set active/delete provider through UI with API mocked and visible state verified. |
 | P1 | Organizations and onboarding | Complete | Org creation/member invite and onboarding completion are covered. |
-| P2 | Settings | Next | User-facing settings interactions render without Clerk hook errors and persist intended values. |
+| P2 | Settings | Complete | Profile update renders without Clerk hook errors and persists intended values. |
 
 ### Phase 3: API And Data Contract Hardening
 
@@ -175,7 +178,7 @@ Next:
 
 | Risk | Impact | Next action |
 | --- | --- | --- |
-| Organizations and onboarding are not yet e2e-covered | Tenant setup or first-run activation could regress silently. | Cover org selection/creation/member or onboarding completion flows next. |
+| API contract coverage is thinner than browser workflow coverage | Backend response drift or RBAC regressions could still reach the UI. | Expand reports, issue mutation, audit creation, and RBAC API tests next. |
 | Optional integrations need stronger proof | Metrics may appear missing or stale when live keys are configured incorrectly. | Add mocked-contract and live-key smoke tests. |
 | Replit-specific files remain | Deployment expectations may be unclear for non-Replit hosts. | Decide target host and remove or document remaining Replit files. |
 | Vite sourcemap warnings remain | Builds pass, but diagnostics are noisy. | Investigate after workflow coverage is broader. |
@@ -183,9 +186,8 @@ Next:
 
 ## Next Best Step
 
-Implement the P2 Settings hardening:
-1. Inspect settings UI, profile/auth hooks, API route behavior, and generated client hooks.
-2. Add e2e coverage for the highest-value user-facing settings workflow.
-3. Verify visible settings state refreshes after updates.
-4. Fix any live-data or stale-query issue uncovered.
-5. Run focused checks, then the standard verification gate.
+Implement the first Phase 3 API and data contract hardening slice:
+1. Inspect reports, issue mutations, audit creation, RBAC helpers, and generated client response expectations.
+2. Add API integration tests for the highest-risk missing server behaviors.
+3. Fix any authorization, response-shape, or stale contract issue uncovered.
+4. Run focused API tests, then the standard verification gate.

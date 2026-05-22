@@ -28,9 +28,23 @@ router.put("/auth/me", requireAuth, async (req, res) => {
   const clerkId = (req as any).clerkUserId as string;
   try {
     const { firstName, lastName, avatarUrl } = req.body;
-    const user = await db.query.usersTable.findFirst({ where: eq(usersTable.clerkId, clerkId) });
-    if (!user) { res.status(404).json({ error: "User not found" }); return; }
-    await db.update(usersTable).set({ firstName, lastName, avatarUrl, updatedAt: new Date() }).where(eq(usersTable.clerkId, clerkId));
+    let user = await db.query.usersTable.findFirst({ where: eq(usersTable.clerkId, clerkId) });
+    if (!user) {
+      const clerkUser = await clerkClient.users.getUser(clerkId);
+      user = await getOrCreateUser(
+        clerkId,
+        clerkUser.emailAddresses[0]?.emailAddress ?? "",
+        clerkUser.firstName ?? undefined,
+        clerkUser.lastName ?? undefined,
+      );
+    }
+    const updates = {
+      ...(firstName !== undefined ? { firstName } : {}),
+      ...(lastName !== undefined ? { lastName } : {}),
+      ...(avatarUrl !== undefined ? { avatarUrl } : {}),
+      updatedAt: new Date(),
+    };
+    await db.update(usersTable).set(updates).where(eq(usersTable.clerkId, clerkId));
     const updated = await db.query.usersTable.findFirst({ where: eq(usersTable.clerkId, clerkId) });
     res.json(updated);
   } catch (err) {

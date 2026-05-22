@@ -31,6 +31,18 @@ export async function getOrCreateUser(clerkId: string, email: string, firstName?
     user = await db.query.usersTable.findFirst({
       where: eq(usersTable.clerkId, clerkId),
     });
+  } else {
+    const updates = {
+      ...(!user.firstName && firstName ? { firstName } : {}),
+      ...(!user.lastName && lastName ? { lastName } : {}),
+      updatedAt: new Date(),
+    };
+    if (Object.keys(updates).length > 1) {
+      await db.update(usersTable).set(updates).where(eq(usersTable.clerkId, clerkId));
+      user = await db.query.usersTable.findFirst({
+        where: eq(usersTable.clerkId, clerkId),
+      });
+    }
   }
   return user!;
 }

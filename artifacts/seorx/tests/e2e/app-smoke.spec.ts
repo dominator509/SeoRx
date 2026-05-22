@@ -1101,3 +1101,70 @@ test("@signed-in issues page approves and dismisses issues with refreshed live d
 
   expect(browserErrors).toEqual([]);
 });
+
+test("@signed-in settings page updates profile with refreshed visible state", async ({ page }) => {
+  const browserErrors: string[] = [];
+  let profile = {
+    id: "user-1",
+    clerkId: "e2e-user",
+    email: "e2e@example.com",
+    firstName: "E2E",
+    lastName: "Tester",
+    avatarUrl: null,
+    role: "admin",
+    createdAt: "2026-05-13T12:00:00.000Z",
+    updatedAt: "2026-05-13T12:00:00.000Z",
+  };
+
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      browserErrors.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => {
+    browserErrors.push(error.message);
+  });
+
+  await page.route("**/api/auth/me", async (route) => {
+    const request = route.request();
+    if (request.method() === "GET") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify(profile) });
+      return;
+    }
+
+    if (request.method() === "PUT") {
+      const data = request.postDataJSON() as { firstName?: string; lastName?: string };
+      profile = {
+        ...profile,
+        ...data,
+        updatedAt: "2026-05-13T12:05:00.000Z",
+      };
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify(profile) });
+      return;
+    }
+
+    await route.fulfill({ status: 405, contentType: "application/json", body: JSON.stringify({ error: "Method not allowed" }) });
+  });
+
+  await page.goto("/settings");
+
+  await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+  await expect(page.getByTestId("settings-display-name")).toHaveText("E2E Tester");
+  await expect(page.getByTestId("settings-display-email")).toHaveText("e2e@example.com");
+  await expect(page.getByText("admin")).toBeVisible();
+  await expect(page.getByTestId("input-first-name")).toHaveValue("E2E");
+  await expect(page.getByTestId("input-last-name")).toHaveValue("Tester");
+
+  await page.getByTestId("input-first-name").fill("Dana");
+  await page.getByTestId("input-last-name").fill("North");
+  await page.getByTestId("save-profile").click();
+
+  await expect(page.getByTestId("settings-display-name")).toHaveText("Dana North");
+  await expect(page.getByTestId("input-first-name")).toHaveValue("Dana");
+  await expect(page.getByTestId("input-last-name")).toHaveValue("North");
+  await expect(page.getByText("Profile updated", { exact: true })).toBeVisible();
+  await expect(page.getByText("Starter - 10 audits/month, 5 clients")).toBeVisible();
+  await expect(page.getByTestId("sign-out")).toBeVisible();
+
+  expect(browserErrors).toEqual([]);
+});

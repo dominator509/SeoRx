@@ -16,21 +16,53 @@ import { useEffect } from "react";
 import { LogOut, Shield, User } from "lucide-react";
 
 const schema = z.object({ firstName: z.string().min(1, "First name required"), lastName: z.string().optional(), });
+const e2eAuthEnabled = import.meta.env.VITE_E2E_AUTH === "true";
+const e2eUser = {
+  firstName: "E2E",
+  lastName: "Tester",
+  fullName: "E2E Tester",
+  emailAddresses: [{ emailAddress: "e2e@example.com" }],
+};
 
-export default function Settings() {
+function useSettingsUser() {
+  if (e2eAuthEnabled) {
+    return {
+      user: e2eUser,
+      signOut: () => undefined,
+    };
+  }
+
   const { user } = useUser();
   const { signOut } = useClerk();
+  return { user, signOut };
+}
+
+export default function Settings() {
+  const { user, signOut } = useSettingsUser();
   const { toast } = useToast();
   const qc = useQueryClient();
 
   const { data: profile } = useGetMe({ query: { queryKey: getGetMeQueryKey() } });
-  const updateMe = useUpdateMe({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: getGetMeQueryKey() }); toast({ title: "Profile updated" }); }, onError: () => toast({ title: "Error", description: "Failed to update profile.", variant: "destructive" }), }, });
+  const updateMe = useUpdateMe({
+    mutation: {
+      onSuccess: (updatedProfile) => {
+        qc.setQueryData(getGetMeQueryKey(), updatedProfile);
+        form.reset({ firstName: updatedProfile.firstName ?? "", lastName: updatedProfile.lastName ?? "" });
+        toast({ title: "Profile updated" });
+      },
+      onError: () => toast({ title: "Error", description: "Failed to update profile.", variant: "destructive" }),
+    },
+  });
 
   const form = useForm<z.infer<typeof schema>>({ resolver: zodResolver(schema), defaultValues: { firstName: "", lastName: "" }, });
 
   useEffect(() => { if (profile) form.reset({ firstName: profile.firstName ?? "", lastName: profile.lastName ?? "" }); }, [profile, form]);
 
-  const initials = [user?.firstName?.[0], user?.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "U";
+  const displayFirstName = profile?.firstName || user?.firstName || "";
+  const displayLastName = profile?.lastName || user?.lastName || "";
+  const displayName = [displayFirstName, displayLastName].filter(Boolean).join(" ") || user?.fullName || user?.emailAddresses[0]?.emailAddress;
+  const displayEmail = profile?.email || user?.emailAddresses[0]?.emailAddress;
+  const initials = [displayFirstName[0], displayLastName[0]].filter(Boolean).join("").toUpperCase() || displayEmail?.[0]?.toUpperCase() || "U";
 
   return (
     <div className="p-4 sm:p-6 space-y-5 max-w-2xl mx-auto">
@@ -47,8 +79,8 @@ export default function Settings() {
               <AvatarFallback className="text-lg bg-primary text-primary-foreground font-bold">{initials}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <div className="font-semibold text-foreground truncate">{user?.fullName || user?.emailAddresses[0]?.emailAddress}</div>
-              <div className="text-sm text-muted-foreground truncate">{user?.emailAddresses[0]?.emailAddress}</div>
+              <div className="font-semibold text-foreground truncate" data-testid="settings-display-name">{displayName}</div>
+              <div className="text-sm text-muted-foreground truncate" data-testid="settings-display-email">{displayEmail}</div>
               {profile?.role && <Badge variant="secondary" className="mt-1 text-[10px] capitalize">{profile.role}</Badge>}
             </div>
           </div>
@@ -98,7 +130,7 @@ export default function Settings() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-semibold">Current Plan</div>
-              <div className="text-xs text-muted-foreground mt-0.5">Starter — 10 audits/month, 5 clients</div>
+              <div className="text-xs text-muted-foreground mt-0.5">Starter - 10 audits/month, 5 clients</div>
             </div>
             <Badge className="bg-primary/10 text-primary border-primary/20">Starter</Badge>
           </div>

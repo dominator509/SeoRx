@@ -7,6 +7,15 @@ const TEST_USER_ID = "test-user-1";
 const OTHER_USER_ID = "test-user-2";
 
 vi.mock("@clerk/express", () => ({
+  clerkClient: {
+    users: {
+      getUser: vi.fn(async (userId: string) => ({
+        firstName: userId === TEST_USER_ID ? "Test" : "Other",
+        lastName: "User",
+        emailAddresses: [{ emailAddress: `${userId}@example.com` }],
+      })),
+    },
+  },
   clerkMiddleware: () => (_req: unknown, _res: unknown, next: () => void) => next(),
   getAuth: (req: { headers?: Record<string, string | string[] | undefined> }) => {
     const header = req.headers?.["x-test-user-id"];
@@ -98,6 +107,33 @@ describe("production-critical API behavior", () => {
   it("requires auth for protected client routes", async () => {
     const res = await request(app).get("/api/clients");
     expect(res.status).toBe(401);
+  });
+
+  it("creates and updates the authenticated user profile", async () => {
+    const getRes = await request(app)
+      .get("/api/auth/me")
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(getRes.status).toBe(200);
+    expect(getRes.body).toMatchObject({
+      clerkId: TEST_USER_ID,
+      email: "test-user-1@example.com",
+      firstName: "Test",
+      lastName: "User",
+    });
+
+    const updateRes = await request(app)
+      .put("/api/auth/me")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ firstName: "Dana", lastName: "North" });
+
+    expect(updateRes.status).toBe(200);
+    expect(updateRes.body).toMatchObject({
+      clerkId: TEST_USER_ID,
+      email: "test-user-1@example.com",
+      firstName: "Dana",
+      lastName: "North",
+    });
   });
 
   it("scopes clients to the authenticated user's organizations", async () => {
