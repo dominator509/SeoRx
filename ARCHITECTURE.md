@@ -1,6 +1,6 @@
 # SEORx Architecture
 
-Last updated: 2026-05-19
+Last updated: 2026-05-22
 
 This file is the architecture source of truth for the current repo. Use
 `ROADMAP_STATUS.md` for delivery sequencing and `DEPLOYMENT_GUIDE.md` for
@@ -160,6 +160,15 @@ Current test layers:
 - TypeScript checks across libraries, artifacts, and scripts.
 - Workspace builds for API, frontend, and mockup artifact.
 
+Current API coverage includes:
+- Auth/profile creation and update behavior.
+- Client and organization scoping.
+- Organization member invite and RBAC denial behavior.
+- Audit creation/list response contracts and tenant scoping.
+- Issue approve/dismiss mutation authorization.
+- Report list/detail/download contracts, including PDF generation.
+- Integration disabled/unavailable paths for webhooks and Google Search Console.
+
 Current e2e coverage includes:
 - Production auth misconfiguration fallback.
 - Signed-in dashboard live metric surfaces.
@@ -204,8 +213,8 @@ Optional integration variables:
 
 These are not necessarily broken, but they are still production-readiness risks:
 
-1. API contract and RBAC behavior needs broader route-level regression
-   coverage beyond browser workflows.
+1. Dashboard aggregate and reporting response-shape coverage needs broader
+   route-level regression coverage beyond browser workflows.
 2. Real external integrations need environment-backed smoke checks or clear
    mocked-contract tests.
 3. Production deployment runbooks need validation against the target host.

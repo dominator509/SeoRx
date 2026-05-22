@@ -38,7 +38,12 @@ function scoreColor(score: number): string {
 }
 
 export function generatePdfReport(data: ReportData): Readable {
-  const doc = new PDFDocument({ margin: 50, size: "A4", info: { Title: data.reportTitle, Author: "SEORx" } });
+  const doc = new PDFDocument({
+    margin: 50,
+    size: "A4",
+    bufferPages: true,
+    info: { Title: data.reportTitle, Author: "SEORx" },
+  });
 
   const pageWidth = doc.page.width - 100; // minus margins
 
@@ -276,7 +281,7 @@ export function generatePdfReport(data: ReportData): Readable {
       .font("Helvetica")
       .fillColor(COLORS.muted)
       .text(
-        `SEORx Audit Report — ${data.clientName} — ${data.generatedAt.toLocaleDateString()} — Page ${i + 1}`,
+        `SEORx Audit Report - ${data.clientName} - ${data.generatedAt.toLocaleDateString()} - Page ${i + 1}`,
         50,
         doc.page.height - 35,
         { width: pageWidth, align: "center" },

@@ -1,6 +1,6 @@
 # SEORx Production Readiness Roadmap
 
-Last updated: 2026-05-19
+Last updated: 2026-05-22
 
 This file is the delivery source of truth. When asked to "proceed", pick the
 highest priority item in this roadmap that is not complete, implement it, run
@@ -72,6 +72,7 @@ before final status.
 | AI providers e2e | Complete | Provider create, set default/active update, deactivate, list refresh, and delete behavior are covered. |
 | Organizations and onboarding e2e | Complete | Organization create/list/member invite refresh plus first-run org/client/audit onboarding are covered. |
 | Settings e2e | Complete | Profile load/update, refreshed visible state, and e2e-safe auth hook behavior are covered. |
+| API contract hardening slice 1 | Complete | Audit creation/list, issue mutation RBAC, report list/detail/download, and report PDF generation are covered. |
 
 ## Active Roadmap
 
@@ -139,11 +140,12 @@ Completed:
 - OpenAPI codegen is in place.
 - API integration tests exist.
 - Integration persistence schema and routes exist.
+- API integration tests cover audit creation/list scoping, issue approve/dismiss
+  RBAC, report list/detail/download contracts, and PDF download generation.
 
 Next:
-- Expand API integration tests for reports, issue mutations, audit creation,
-  and RBAC denial cases.
-- Add regression tests for response shapes used by dashboard and reports.
+- Add regression tests for response shapes used by dashboard metrics, recent
+  audits, issue breakdown, and report generation responses.
 - Verify generated clients after every OpenAPI change.
 
 ### Phase 4: Live Integration Readiness
@@ -178,7 +180,7 @@ Next:
 
 | Risk | Impact | Next action |
 | --- | --- | --- |
-| API contract coverage is thinner than browser workflow coverage | Backend response drift or RBAC regressions could still reach the UI. | Expand reports, issue mutation, audit creation, and RBAC API tests next. |
+| Dashboard and aggregate response-shape coverage is thinner than workflow coverage | Metrics or trend widgets could drift from frontend expectations. | Add dashboard metrics/recent-audits/issue-breakdown API response-shape tests next. |
 | Optional integrations need stronger proof | Metrics may appear missing or stale when live keys are configured incorrectly. | Add mocked-contract and live-key smoke tests. |
 | Replit-specific files remain | Deployment expectations may be unclear for non-Replit hosts. | Decide target host and remove or document remaining Replit files. |
 | Vite sourcemap warnings remain | Builds pass, but diagnostics are noisy. | Investigate after workflow coverage is broader. |
@@ -186,8 +188,8 @@ Next:
 
 ## Next Best Step
 
-Implement the first Phase 3 API and data contract hardening slice:
-1. Inspect reports, issue mutations, audit creation, RBAC helpers, and generated client response expectations.
-2. Add API integration tests for the highest-risk missing server behaviors.
-3. Fix any authorization, response-shape, or stale contract issue uncovered.
+Implement the next Phase 3 API and data contract hardening slice:
+1. Inspect dashboard metrics, recent audits, issue breakdown, report creation, and generated client response expectations.
+2. Add API integration tests for aggregate response shapes used by the frontend.
+3. Fix any response-shape, authorization, or stale contract issue uncovered.
 4. Run focused API tests, then the standard verification gate.
