@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   text,
@@ -45,7 +46,7 @@ export const issueStatusEnum = pgEnum("issue_status", [
 ]);
 
 export const auditsTable = pgTable("audits", {
-  id: text("id").primaryKey().default("gen_random_uuid()"),
+  id: text("id").primaryKey().default(sql`gen_random_uuid()::text`),
   clientId: text("client_id")
     .notNull()
     .references(() => clientsTable.id, { onDelete: "cascade" }),
@@ -65,7 +66,7 @@ export const auditsTable = pgTable("audits", {
 });
 
 export const auditIssuesTable = pgTable("audit_issues", {
-  id: text("id").primaryKey().default("gen_random_uuid()"),
+  id: text("id").primaryKey().default(sql`gen_random_uuid()::text`),
   auditId: text("audit_id")
     .notNull()
     .references(() => auditsTable.id, { onDelete: "cascade" }),

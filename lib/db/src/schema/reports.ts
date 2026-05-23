@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { pgTable, text, timestamp, pgEnum, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -12,7 +13,7 @@ export const reportStatusEnum = pgEnum("report_status", [
 ]);
 
 export const reportsTable = pgTable("reports", {
-  id: text("id").primaryKey().default("gen_random_uuid()"),
+  id: text("id").primaryKey().default(sql`gen_random_uuid()::text`),
   auditId: text("audit_id")
     .notNull()
     .references(() => auditsTable.id, { onDelete: "cascade" }),

@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import request from "supertest";
 import { eq } from "drizzle-orm";
 import {
+  AuthorizeDeveloperApiKeyResponse,
   GetDashboardStatsResponse,
   GetGoogleSearchConsoleAnalyticsResponse,
   GetIssueBreakdownResponse,
@@ -10,11 +11,13 @@ import {
   GetRecentAuditsResponse,
   GetReportResponse,
   GetScoreTrendsResponse,
+  ListApiKeysResponse,
   ListGoogleSearchConsolePropertiesResponse,
   ListReportsResponse,
   ListReportsResponseItem,
   ListWebhooksResponse,
   TestWebhookResponse,
+  UpdateApiKeyResponse,
 } from "@workspace/api-zod";
 import { encryptSecret } from "../lib/crypto";
 
@@ -276,7 +279,7 @@ beforeAll(async () => {
     process.env.DATABASE_URL = "postgres://seorx:seorx@localhost:55433/seorx";
   }
 
-  run("corepack", ["pnpm", "--filter", "@workspace/db", "run", "push-force"], {
+  run("corepack", ["pnpm", "--filter", "@workspace/db", "run", "migrate"], {
     DATABASE_URL: process.env.DATABASE_URL,
   });
 
@@ -331,6 +334,89 @@ describe("production-critical API behavior", () => {
       email: "test-user-1@example.com",
       firstName: "Dana",
       lastName: "North",
+    });
+  });
+
+  it("manages developer API keys without exposing hashes and authorizes active keys", async () => {
+    const orgId = await seedOrg("api-key-org");
+    const blockedOrgId = await seedOrg("api-key-private-org", OTHER_USER_ID);
+
+    const blockedListRes = await request(app)
+      .get(`/api/api-keys?orgId=${blockedOrgId}`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(blockedListRes.status).toBe(403);
+
+    const createRes = await request(app)
+      .post("/api/api-keys")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ orgId, name: "Production automation" });
+
+    expect(createRes.status).toBe(201);
+    expect(createRes.body).toMatchObject({
+      orgId,
+      name: "Production automation",
+      message: "Store this key securely — it will not be shown again.",
+    });
+    expect(createRes.body.key).toMatch(/^srx_/);
+    expect(createRes.body.prefix).toBe(createRes.body.key.slice(0, 12));
+
+    const listRes = await request(app)
+      .get(`/api/api-keys?orgId=${orgId}`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(listRes.status).toBe(200);
+    const listedKeys = ListApiKeysResponse.parse(listRes.body);
+    expect(listedKeys).toHaveLength(1);
+    expect(listedKeys[0]).toMatchObject({
+      orgId,
+      name: "Production automation",
+      keyPrefix: createRes.body.prefix,
+      isActive: true,
+    });
+    expect(listRes.body[0]).not.toHaveProperty("keyHash");
+    expect(listRes.body[0]).not.toHaveProperty("key");
+
+    const authorizeRes = await request(app)
+      .get("/api/developer/authorize")
+      .set("Authorization", `Bearer ${createRes.body.key}`);
+
+    expect(authorizeRes.status).toBe(200);
+    expect(AuthorizeDeveloperApiKeyResponse.parse(authorizeRes.body)).toMatchObject({
+      ok: true,
+      orgId,
+      orgName: "api-key-org",
+      keyPrefix: createRes.body.prefix,
+      role: "developer",
+    });
+
+    const updatedListRes = await request(app)
+      .get(`/api/api-keys?orgId=${orgId}`)
+      .set("x-test-user-id", TEST_USER_ID);
+    const keyId = ListApiKeysResponse.parse(updatedListRes.body)[0]?.id;
+    expect(keyId).toBeTruthy();
+
+    const deactivateRes = await request(app)
+      .patch(`/api/api-keys/${keyId}`)
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ isActive: false });
+
+    expect(deactivateRes.status).toBe(200);
+    expect(UpdateApiKeyResponse.parse(deactivateRes.body)).toMatchObject({
+      id: keyId,
+      orgId,
+      isActive: false,
+    });
+    expect(deactivateRes.body).not.toHaveProperty("keyHash");
+
+    const inactiveAuthorizeRes = await request(app)
+      .get("/api/developer/authorize")
+      .set("Authorization", `Bearer ${createRes.body.key}`);
+
+    expect(inactiveAuthorizeRes.status).toBe(401);
+    expect(inactiveAuthorizeRes.body).toMatchObject({
+      error: "Unauthorized",
+      message: "Invalid or inactive API key",
     });
   });
 

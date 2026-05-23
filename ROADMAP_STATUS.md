@@ -80,6 +80,9 @@ before final status.
 | Production operations slice 1 | Complete | Deployment guide now documents host-agnostic assumptions, environment rules, health checks, DB push expectations, and CI gate sequencing. |
 | Production operations slice 2 | Complete | Replit import files, Replit Vite plugins, workspace catalog entries, and Replit-specific install allowlist entries have been removed. |
 | CI workflow | Complete | GitHub Actions runs typecheck, e2e, API tests, build, and diff check in release-gate order. |
+| Production migration policy | Complete | Generated Drizzle migrations are the production policy, with CI drift checks and an initial audited schema migration committed. |
+| Architecture e2e pass | Complete | Registered API surfaces were compared against OpenAPI/test coverage; developer API keys, billing, GSC callback, and report-download contracts were added or tightened. |
+| Vite diagnostic cleanup | Complete | Inert Next.js-only `"use client"` directives were removed from Vite UI wrappers; product builds no longer emit sourcemap warning noise. |
 
 ## Active Roadmap
 
@@ -158,6 +161,9 @@ Completed:
 - API integration tests parse dashboard/report responses through generated
   OpenAPI/Zod schemas, including report creation async status transitions and
   not-ready download behavior.
+- Developer API key management and key-based authorization are covered at the
+  API layer, including no-hash/no-secret list responses and inactive-key
+  rejection.
 - Report generation failures are recorded as `failed` instead of leaving
   reports stuck in `generating`.
 
@@ -197,29 +203,30 @@ Completed:
   handling rules.
 - Release smoke checks include API health, OpenAPI/docs, auth, CORS, core
   workflows, billing disabled state, and optional integration degradation.
-- Database push expectations and migration-policy caveat are documented.
+- Generated migration expectations and direct-push restrictions are documented.
 - Verification command sequencing is documented as the release gate.
+- Initial Drizzle migration history exists in `lib/db/migrations`.
+- CI checks migration consistency with `@workspace/db` before e2e/API/build.
+- API integration tests apply generated migrations instead of direct schema
+  pushes.
 
 Next:
 - Confirm the final target hosting vendor.
-- Decide whether production DB changes will use direct Drizzle push or generated
-  migrations.
 - Add environment-backed optional live smoke checks once production credentials
   exist.
+- Product and mockup Vite builds no longer emit the previous UI wrapper
+  sourcemap warning noise.
 
 ## Known Risks
 
 | Risk | Impact | Next action |
 | --- | --- | --- |
-| Vite sourcemap warnings remain | Builds pass, but diagnostics are noisy. | Investigate after workflow coverage is broader. |
 | External API behavior depends on credentials | CI cannot rely on real providers by default. | Keep deterministic mocks in CI and add optional environment-backed smoke checks once production credentials exist. |
-| Production migration policy is not final | Direct schema pushes may not satisfy release governance. | Confirm whether to keep Drizzle push or add generated migrations before launch. |
+| Existing direct-pushed databases may not have migration history | Applying generated migrations to those databases without reconciliation can fail or duplicate objects. | Treat new production databases as migration-managed from day one; reconcile any existing environment before promotion. |
 
 ## Next Best Step
 
 Implement the next Phase 5 production operations slice:
 1. Confirm the final target hosting vendor or keep documenting host-agnostic assumptions.
-2. Confirm production database migration policy.
-3. Add environment-backed optional live smoke checks once production credentials exist.
-4. Investigate Vite sourcemap warnings after production operations basics are settled.
-5. Run the standard verification gate.
+2. Add environment-backed optional live smoke checks once production credentials exist.
+3. Run the standard verification gate.

@@ -1,10 +1,11 @@
+import { sql } from "drizzle-orm";
 import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { organizationsTable } from "./organizations";
 
 export const apiKeysTable = pgTable("api_keys", {
-  id: text("id").primaryKey().default("gen_random_uuid()"),
+  id: text("id").primaryKey().default(sql`gen_random_uuid()::text`),
   orgId: text("org_id")
     .notNull()
     .references(() => organizationsTable.id, { onDelete: "cascade" }),

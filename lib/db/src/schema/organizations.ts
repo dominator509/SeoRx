@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { pgTable, text, timestamp, pgEnum, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -17,7 +18,7 @@ export const orgMemberRoleEnum = pgEnum("org_member_role", [
 ]);
 
 export const organizationsTable = pgTable("organizations", {
-  id: text("id").primaryKey().default("gen_random_uuid()"),
+  id: text("id").primaryKey().default(sql`gen_random_uuid()::text`),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   logoUrl: text("logo_url"),
@@ -27,7 +28,7 @@ export const organizationsTable = pgTable("organizations", {
 });
 
 export const orgMembersTable = pgTable("org_members", {
-  id: text("id").primaryKey().default("gen_random_uuid()"),
+  id: text("id").primaryKey().default(sql`gen_random_uuid()::text`),
   orgId: text("org_id")
     .notNull()
     .references(() => organizationsTable.id, { onDelete: "cascade" }),

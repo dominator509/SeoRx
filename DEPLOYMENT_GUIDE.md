@@ -96,21 +96,37 @@ Schema ownership lives in `lib/db/src/schema`.
 Before release:
 1. Confirm `DATABASE_URL` points at the intended database.
 2. Review pending schema changes.
-3. Run the DB package push/migration process for the target environment.
-4. Confirm the API can read/write tenant-scoped data.
+3. Generate and review an auditable migration for every schema change.
+4. Run the reviewed migrations against the target environment.
+5. Confirm the API can read/write tenant-scoped data.
 
-Current command:
+Generate migrations:
 
 ```powershell
-corepack pnpm --filter @workspace/db run push
+corepack pnpm --filter @workspace/db exec drizzle-kit generate --config ./drizzle.config.ts --name <migration_name>
 ```
 
-Use the production team's migration policy if it differs from direct Drizzle
-pushes.
+Apply migrations:
 
-Rollback note: direct schema pushes should be reviewed before production use.
-If the selected host requires auditable migrations, add a migration generation
-step before first production release.
+```powershell
+corepack pnpm --filter @workspace/db run migrate
+```
+
+Check migration consistency:
+
+```powershell
+corepack pnpm --filter @workspace/db run check
+```
+
+Production rule: do not use direct Drizzle pushes for production databases.
+`push` and `push-force` remain available only for disposable local or test
+databases. Existing databases that were created through direct pushes must be
+reconciled with the committed migration history before they are treated as
+production environments.
+
+Rollback note: rollback is handled through a reviewed follow-up migration or a
+database restore from a verified backup, depending on the severity and data
+impact of the release.
 
 ## App Build Outputs
 
@@ -181,7 +197,6 @@ Webhooks:
 Track completion in `ROADMAP_STATUS.md`.
 
 - Final target hosting vendor needs confirmation.
-- Production migration policy needs confirmation.
 - Optional provider live smoke checks need real production credentials and
   should stay outside default CI.
 - Vite sourcemap warnings are non-failing but still noisy.

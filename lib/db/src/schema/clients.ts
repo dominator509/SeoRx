@@ -1,9 +1,10 @@
+import { sql } from "drizzle-orm";
 import { pgTable, text, timestamp, integer, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const clientsTable = pgTable("clients", {
-  id: text("id").primaryKey().default("gen_random_uuid()"),
+  id: text("id").primaryKey().default(sql`gen_random_uuid()::text`),
   orgId: text("org_id"),
   name: text("name").notNull(),
   domain: text("domain").notNull(),

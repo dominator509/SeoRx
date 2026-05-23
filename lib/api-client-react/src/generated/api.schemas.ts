@@ -438,6 +438,104 @@ export interface GscAnalyticsResponse {
   rows: GscAnalyticsRow[];
 }
 
+export interface ApiKey {
+  id: string;
+  orgId: string;
+  name: string;
+  keyPrefix: string;
+  isActive: boolean;
+  lastUsedAt?: string | null;
+  expiresAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateApiKeyBody {
+  orgId: string;
+  name: string;
+  expiresAt?: string;
+}
+
+export interface CreateApiKeyResponse {
+  key: string;
+  prefix: string;
+  name: string;
+  orgId: string;
+  message: string;
+}
+
+export interface UpdateApiKeyBody {
+  isActive: boolean;
+}
+
+export type DeveloperAuthorizeResponseRole =
+  (typeof DeveloperAuthorizeResponseRole)[keyof typeof DeveloperAuthorizeResponseRole];
+
+export const DeveloperAuthorizeResponseRole = {
+  developer: "developer",
+} as const;
+
+export interface DeveloperAuthorizeResponse {
+  ok: boolean;
+  orgId: string;
+  orgName: string;
+  keyPrefix: string;
+  role: DeveloperAuthorizeResponseRole;
+}
+
+export type BillingPlanPlan =
+  (typeof BillingPlanPlan)[keyof typeof BillingPlanPlan];
+
+export const BillingPlanPlan = {
+  free: "free",
+  starter: "starter",
+  professional: "professional",
+  enterprise: "enterprise",
+} as const;
+
+export interface BillingPlan {
+  plan: BillingPlanPlan;
+  auditsPerMonth: number | null;
+  clientsMax: number | null;
+  aiRecommendations: boolean;
+  whiteLabel: boolean;
+  apiAccess: boolean;
+}
+
+export type CreateBillingCheckoutBodyPlan =
+  (typeof CreateBillingCheckoutBodyPlan)[keyof typeof CreateBillingCheckoutBodyPlan];
+
+export const CreateBillingCheckoutBodyPlan = {
+  starter: "starter",
+  professional: "professional",
+  enterprise: "enterprise",
+} as const;
+
+export interface CreateBillingCheckoutBody {
+  orgId: string;
+  plan: CreateBillingCheckoutBodyPlan;
+  successUrl: string;
+  cancelUrl: string;
+}
+
+export interface BillingSessionResponse {
+  url: string;
+  sessionId: string;
+}
+
+export interface CreateBillingPortalBody {
+  orgId: string;
+  returnUrl: string;
+}
+
+export interface BillingPortalResponse {
+  url: string;
+}
+
+export interface StripeWebhookResponse {
+  received: boolean;
+}
+
 export type WebhookEventsItem =
   (typeof WebhookEventsItem)[keyof typeof WebhookEventsItem];
 
@@ -521,6 +619,26 @@ export type BadRequestResponse = ErrorResponse;
 export type UnauthorizedResponse = ErrorResponse;
 
 /**
+ * Forbidden
+ */
+export type ForbiddenResponse = ErrorResponse;
+
+/**
+ * Conflict
+ */
+export type ConflictResponse = ErrorResponse;
+
+/**
+ * Service unavailable
+ */
+export type ServiceUnavailableResponse = ErrorResponse;
+
+/**
+ * Internal server error
+ */
+export type InternalServerErrorResponse = ErrorResponse;
+
+/**
  * Not found
  */
 export type NotFoundResponse = ErrorResponse;
@@ -594,9 +712,18 @@ export type GetScoreTrendsParams = {
   days?: number;
 };
 
+export type ListApiKeysParams = {
+  orgId?: string;
+};
+
 export type ConnectGoogleSearchConsoleParams = {
   orgId: string;
   returnUrl?: string;
+};
+
+export type HandleGoogleSearchConsoleCallbackParams = {
+  code?: string;
+  state?: string;
 };
 
 export type ListGoogleSearchConsolePropertiesParams = {
@@ -606,3 +733,5 @@ export type ListGoogleSearchConsolePropertiesParams = {
 export type ListWebhooksParams = {
   orgId?: string;
 };
+
+export type HandleStripeWebhookBody = { [key: string]: unknown };

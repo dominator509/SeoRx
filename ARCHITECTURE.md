@@ -136,8 +136,10 @@ Important table groups:
 - Configuration: `ai_providers`, `integrations`
 - Developer access: `api_keys`
 
-Database changes should be made in the Drizzle schema first, then pushed through
-the DB package workflow.
+Database changes should be made in the Drizzle schema first, then captured in a
+generated migration under `lib/db/migrations`. Production databases use reviewed
+migrations through the DB package `migrate` workflow; direct Drizzle pushes are
+reserved for disposable local or test databases.
 
 ## API Contract And Codegen
 
@@ -180,6 +182,8 @@ Current API coverage includes:
   handling, and delivery status persistence.
 - Stripe plans, disabled checkout, billing org authorization, portal guardrails,
   and webhook signature failure states.
+- Developer API key creation/list/update and key-based authorization, including
+  inactive-key rejection and hidden key hashes.
 
 Current e2e coverage includes:
 - Production auth misconfiguration fallback.
@@ -228,4 +232,5 @@ These are not necessarily broken, but they are still production-readiness risks:
 1. Production deployment runbooks need validation against the target host.
 2. Optional live provider smoke checks still depend on real production
    credentials and should remain outside default CI.
-3. Some Vite builds still emit non-failing sourcemap warnings for UI components.
+3. Target-host deployment checks still need to be exercised against the chosen
+   production vendor.

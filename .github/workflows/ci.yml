@@ -40,6 +40,9 @@ jobs:
       - name: Frontend typecheck
         run: corepack pnpm --filter @workspace/seorx run typecheck
 
+      - name: Database migration check
+        run: corepack pnpm --filter @workspace/db run check
+
       - name: End-to-end tests
         run: corepack pnpm --filter @workspace/seorx run test:e2e
 

@@ -603,6 +603,13 @@ export const DeleteReportParams = zod.object({
 });
 
 /**
+ * @summary Download a ready report PDF
+ */
+export const DownloadReportParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
  * @summary Get dashboard summary statistics
  */
 export const GetDashboardStatsResponse = zod.object({
@@ -769,11 +776,89 @@ export const GetPageSpeedResultsResponse = zod.object({
 });
 
 /**
+ * @summary List developer API keys
+ */
+export const ListApiKeysQueryParams = zod.object({
+  orgId: zod.coerce.string().optional(),
+});
+
+export const ListApiKeysResponseItem = zod.object({
+  id: zod.string(),
+  orgId: zod.string(),
+  name: zod.string(),
+  keyPrefix: zod.string(),
+  isActive: zod.boolean(),
+  lastUsedAt: zod.coerce.date().nullish(),
+  expiresAt: zod.coerce.date().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListApiKeysResponse = zod.array(ListApiKeysResponseItem);
+
+/**
+ * @summary Create a developer API key
+ */
+export const CreateApiKeyBody = zod.object({
+  orgId: zod.string(),
+  name: zod.string(),
+  expiresAt: zod.coerce.date().optional(),
+});
+
+/**
+ * @summary Activate or deactivate a developer API key
+ */
+export const UpdateApiKeyParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateApiKeyBody = zod.object({
+  isActive: zod.boolean(),
+});
+
+export const UpdateApiKeyResponse = zod.object({
+  id: zod.string(),
+  orgId: zod.string(),
+  name: zod.string(),
+  keyPrefix: zod.string(),
+  isActive: zod.boolean(),
+  lastUsedAt: zod.coerce.date().nullish(),
+  expiresAt: zod.coerce.date().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Revoke a developer API key
+ */
+export const DeleteApiKeyParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
+ * @summary Validate a developer API key
+ */
+export const AuthorizeDeveloperApiKeyResponse = zod.object({
+  ok: zod.boolean(),
+  orgId: zod.string(),
+  orgName: zod.string(),
+  keyPrefix: zod.string(),
+  role: zod.enum(["developer"]),
+});
+
+/**
  * @summary Start Google Search Console OAuth flow
  */
 export const ConnectGoogleSearchConsoleQueryParams = zod.object({
   orgId: zod.coerce.string(),
   returnUrl: zod.coerce.string().optional(),
+});
+
+/**
+ * @summary Handle Google Search Console OAuth callback
+ */
+export const HandleGoogleSearchConsoleCallbackQueryParams = zod.object({
+  code: zod.coerce.string().optional(),
+  state: zod.coerce.string().optional(),
 });
 
 /**
@@ -896,4 +981,53 @@ export const TestWebhookResponse = zod.object({
   statusCode: zod.number().optional(),
   orgId: zod.string().optional(),
   message: zod.string(),
+});
+
+/**
+ * @summary List billing plans and product limits
+ */
+export const ListBillingPlansResponseItem = zod.object({
+  plan: zod.enum(["free", "starter", "professional", "enterprise"]),
+  auditsPerMonth: zod.number().nullable(),
+  clientsMax: zod.number().nullable(),
+  aiRecommendations: zod.boolean(),
+  whiteLabel: zod.boolean(),
+  apiAccess: zod.boolean(),
+});
+export const ListBillingPlansResponse = zod.array(ListBillingPlansResponseItem);
+
+/**
+ * @summary Create a Stripe checkout session
+ */
+export const CreateBillingCheckoutBody = zod.object({
+  orgId: zod.string(),
+  plan: zod.enum(["starter", "professional", "enterprise"]),
+  successUrl: zod.string(),
+  cancelUrl: zod.string(),
+});
+
+export const CreateBillingCheckoutResponse = zod.object({
+  url: zod.string(),
+  sessionId: zod.string(),
+});
+
+/**
+ * @summary Create a Stripe customer portal session
+ */
+export const CreateBillingPortalBody = zod.object({
+  orgId: zod.string(),
+  returnUrl: zod.string(),
+});
+
+export const CreateBillingPortalResponse = zod.object({
+  url: zod.string(),
+});
+
+/**
+ * @summary Handle Stripe webhook events
+ */
+export const HandleStripeWebhookBody = zod.record(zod.string(), zod.unknown());
+
+export const HandleStripeWebhookResponse = zod.object({
+  received: zod.boolean(),
 });

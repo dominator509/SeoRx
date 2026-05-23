@@ -18,30 +18,45 @@ import type {
 
 import type {
   AiProvider,
+  ApiKey,
   ApproveIssueBody,
   Audit,
   AuditDetail,
   AuditIssue,
   AuditList,
   BadRequestResponse,
+  BillingPlan,
+  BillingPortalResponse,
+  BillingSessionResponse,
   Client,
+  ConflictResponse,
   ConnectGoogleSearchConsoleParams,
   CreateAiProviderBody,
+  CreateApiKeyBody,
+  CreateApiKeyResponse,
   CreateAuditBody,
+  CreateBillingCheckoutBody,
+  CreateBillingPortalBody,
   CreateClientBody,
   CreateOrganizationBody,
   CreateReportBody,
   CreateWebhookBody,
   DashboardStats,
+  DeveloperAuthorizeResponse,
   DismissIssueBody,
+  ForbiddenResponse,
   GetRecentAuditsParams,
   GetScoreTrendsParams,
   GscAnalyticsBody,
   GscAnalyticsResponse,
   GscPropertiesResponse,
+  HandleGoogleSearchConsoleCallbackParams,
+  HandleStripeWebhookBody,
   HealthStatus,
+  InternalServerErrorResponse,
   InviteOrgMemberBody,
   IssueBreakdown,
+  ListApiKeysParams,
   ListAuditIssuesParams,
   ListAuditsParams,
   ListClientsParams,
@@ -55,10 +70,13 @@ import type {
   Report,
   ReportDetail,
   ScoreTrend,
+  ServiceUnavailableResponse,
+  StripeWebhookResponse,
   TestWebhookBody,
   TestWebhookResponse,
   UnauthorizedResponse,
   UpdateAiProviderBody,
+  UpdateApiKeyBody,
   UpdateClientBody,
   UpdateOrganizationBody,
   UpdateUserProfileBody,
@@ -2336,6 +2354,99 @@ export const useDeleteReport = <
 };
 
 /**
+ * @summary Download a ready report PDF
+ */
+export const getDownloadReportUrl = (id: string) => {
+  return `/api/reports/${id}/download`;
+};
+
+export const downloadReport = async (
+  id: string,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getDownloadReportUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getDownloadReportQueryKey = (id: string) => {
+  return [`/api/reports/${id}/download`] as const;
+};
+
+export const getDownloadReportQueryOptions = <
+  TData = Awaited<ReturnType<typeof downloadReport>>,
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | ConflictResponse
+  >,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof downloadReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getDownloadReportQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadReport>>> = ({
+    signal,
+  }) => downloadReport(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof downloadReport>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type DownloadReportQueryResult = NonNullable<
+  Awaited<ReturnType<typeof downloadReport>>
+>;
+export type DownloadReportQueryError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse | ConflictResponse
+>;
+
+/**
+ * @summary Download a ready report PDF
+ */
+
+export function useDownloadReport<
+  TData = Awaited<ReturnType<typeof downloadReport>>,
+  TError = ErrorType<
+    UnauthorizedResponse | NotFoundResponse | ConflictResponse
+  >,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof downloadReport>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getDownloadReportQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Get dashboard summary statistics
  */
 export const getGetDashboardStatsUrl = () => {
@@ -3101,6 +3212,453 @@ export function useGetPageSpeedResults<
 }
 
 /**
+ * @summary List developer API keys
+ */
+export const getListApiKeysUrl = (params?: ListApiKeysParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/api-keys?${stringifiedParams}`
+    : `/api/api-keys`;
+};
+
+export const listApiKeys = async (
+  params?: ListApiKeysParams,
+  options?: RequestInit,
+): Promise<ApiKey[]> => {
+  return customFetch<ApiKey[]>(getListApiKeysUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListApiKeysQueryKey = (params?: ListApiKeysParams) => {
+  return [`/api/api-keys`, ...(params ? [params] : [])] as const;
+};
+
+export const getListApiKeysQueryOptions = <
+  TData = Awaited<ReturnType<typeof listApiKeys>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: ListApiKeysParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listApiKeys>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListApiKeysQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listApiKeys>>> = ({
+    signal,
+  }) => listApiKeys(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listApiKeys>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListApiKeysQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listApiKeys>>
+>;
+export type ListApiKeysQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary List developer API keys
+ */
+
+export function useListApiKeys<
+  TData = Awaited<ReturnType<typeof listApiKeys>>,
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+>(
+  params?: ListApiKeysParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listApiKeys>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListApiKeysQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a developer API key
+ */
+export const getCreateApiKeyUrl = () => {
+  return `/api/api-keys`;
+};
+
+export const createApiKey = async (
+  createApiKeyBody: CreateApiKeyBody,
+  options?: RequestInit,
+): Promise<CreateApiKeyResponse> => {
+  return customFetch<CreateApiKeyResponse>(getCreateApiKeyUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createApiKeyBody),
+  });
+};
+
+export const getCreateApiKeyMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createApiKey>>,
+    TError,
+    { data: BodyType<CreateApiKeyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createApiKey>>,
+  TError,
+  { data: BodyType<CreateApiKeyBody> },
+  TContext
+> => {
+  const mutationKey = ["createApiKey"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createApiKey>>,
+    { data: BodyType<CreateApiKeyBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createApiKey(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateApiKeyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createApiKey>>
+>;
+export type CreateApiKeyMutationBody = BodyType<CreateApiKeyBody>;
+export type CreateApiKeyMutationError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Create a developer API key
+ */
+export const useCreateApiKey = <
+  TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createApiKey>>,
+    TError,
+    { data: BodyType<CreateApiKeyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createApiKey>>,
+  TError,
+  { data: BodyType<CreateApiKeyBody> },
+  TContext
+> => {
+  return useMutation(getCreateApiKeyMutationOptions(options));
+};
+
+/**
+ * @summary Activate or deactivate a developer API key
+ */
+export const getUpdateApiKeyUrl = (id: string) => {
+  return `/api/api-keys/${id}`;
+};
+
+export const updateApiKey = async (
+  id: string,
+  updateApiKeyBody: UpdateApiKeyBody,
+  options?: RequestInit,
+): Promise<ApiKey> => {
+  return customFetch<ApiKey>(getUpdateApiKeyUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateApiKeyBody),
+  });
+};
+
+export const getUpdateApiKeyMutationOptions = <
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateApiKey>>,
+    TError,
+    { id: string; data: BodyType<UpdateApiKeyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateApiKey>>,
+  TError,
+  { id: string; data: BodyType<UpdateApiKeyBody> },
+  TContext
+> => {
+  const mutationKey = ["updateApiKey"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateApiKey>>,
+    { id: string; data: BodyType<UpdateApiKeyBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateApiKey(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateApiKeyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateApiKey>>
+>;
+export type UpdateApiKeyMutationBody = BodyType<UpdateApiKeyBody>;
+export type UpdateApiKeyMutationError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Activate or deactivate a developer API key
+ */
+export const useUpdateApiKey = <
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateApiKey>>,
+    TError,
+    { id: string; data: BodyType<UpdateApiKeyBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateApiKey>>,
+  TError,
+  { id: string; data: BodyType<UpdateApiKeyBody> },
+  TContext
+> => {
+  return useMutation(getUpdateApiKeyMutationOptions(options));
+};
+
+/**
+ * @summary Revoke a developer API key
+ */
+export const getDeleteApiKeyUrl = (id: string) => {
+  return `/api/api-keys/${id}`;
+};
+
+export const deleteApiKey = async (
+  id: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteApiKeyUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteApiKeyMutationOptions = <
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteApiKey>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteApiKey>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["deleteApiKey"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteApiKey>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteApiKey(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteApiKeyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteApiKey>>
+>;
+
+export type DeleteApiKeyMutationError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Revoke a developer API key
+ */
+export const useDeleteApiKey = <
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteApiKey>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteApiKey>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getDeleteApiKeyMutationOptions(options));
+};
+
+/**
+ * @summary Validate a developer API key
+ */
+export const getAuthorizeDeveloperApiKeyUrl = () => {
+  return `/api/developer/authorize`;
+};
+
+export const authorizeDeveloperApiKey = async (
+  options?: RequestInit,
+): Promise<DeveloperAuthorizeResponse> => {
+  return customFetch<DeveloperAuthorizeResponse>(
+    getAuthorizeDeveloperApiKeyUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getAuthorizeDeveloperApiKeyQueryKey = () => {
+  return [`/api/developer/authorize`] as const;
+};
+
+export const getAuthorizeDeveloperApiKeyQueryOptions = <
+  TData = Awaited<ReturnType<typeof authorizeDeveloperApiKey>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof authorizeDeveloperApiKey>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getAuthorizeDeveloperApiKeyQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof authorizeDeveloperApiKey>>
+  > = ({ signal }) => authorizeDeveloperApiKey({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof authorizeDeveloperApiKey>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type AuthorizeDeveloperApiKeyQueryResult = NonNullable<
+  Awaited<ReturnType<typeof authorizeDeveloperApiKey>>
+>;
+export type AuthorizeDeveloperApiKeyQueryError =
+  ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Validate a developer API key
+ */
+
+export function useAuthorizeDeveloperApiKey<
+  TData = Awaited<ReturnType<typeof authorizeDeveloperApiKey>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof authorizeDeveloperApiKey>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getAuthorizeDeveloperApiKeyQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Start Google Search Console OAuth flow
  */
 export const getConnectGoogleSearchConsoleUrl = (
@@ -3197,6 +3755,119 @@ export function useConnectGoogleSearchConsole<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getConnectGoogleSearchConsoleQueryOptions(
+    params,
+    options,
+  );
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Handle Google Search Console OAuth callback
+ */
+export const getHandleGoogleSearchConsoleCallbackUrl = (
+  params?: HandleGoogleSearchConsoleCallbackParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/integrations/gsc/callback?${stringifiedParams}`
+    : `/api/integrations/gsc/callback`;
+};
+
+export const handleGoogleSearchConsoleCallback = async (
+  params?: HandleGoogleSearchConsoleCallbackParams,
+  options?: RequestInit,
+): Promise<unknown> => {
+  return customFetch<unknown>(getHandleGoogleSearchConsoleCallbackUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getHandleGoogleSearchConsoleCallbackQueryKey = (
+  params?: HandleGoogleSearchConsoleCallbackParams,
+) => {
+  return [
+    `/api/integrations/gsc/callback`,
+    ...(params ? [params] : []),
+  ] as const;
+};
+
+export const getHandleGoogleSearchConsoleCallbackQueryOptions = <
+  TData = Awaited<ReturnType<typeof handleGoogleSearchConsoleCallback>>,
+  TError = ErrorType<
+    void | BadRequestResponse | UnauthorizedResponse | ForbiddenResponse
+  >,
+>(
+  params?: HandleGoogleSearchConsoleCallbackParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof handleGoogleSearchConsoleCallback>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ??
+    getHandleGoogleSearchConsoleCallbackQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof handleGoogleSearchConsoleCallback>>
+  > = ({ signal }) =>
+    handleGoogleSearchConsoleCallback(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof handleGoogleSearchConsoleCallback>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type HandleGoogleSearchConsoleCallbackQueryResult = NonNullable<
+  Awaited<ReturnType<typeof handleGoogleSearchConsoleCallback>>
+>;
+export type HandleGoogleSearchConsoleCallbackQueryError = ErrorType<
+  void | BadRequestResponse | UnauthorizedResponse | ForbiddenResponse
+>;
+
+/**
+ * @summary Handle Google Search Console OAuth callback
+ */
+
+export function useHandleGoogleSearchConsoleCallback<
+  TData = Awaited<ReturnType<typeof handleGoogleSearchConsoleCallback>>,
+  TError = ErrorType<
+    void | BadRequestResponse | UnauthorizedResponse | ForbiddenResponse
+  >,
+>(
+  params?: HandleGoogleSearchConsoleCallbackParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof handleGoogleSearchConsoleCallback>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getHandleGoogleSearchConsoleCallbackQueryOptions(
     params,
     options,
   );
@@ -3762,4 +4433,370 @@ export const useTestWebhook = <
   TContext
 > => {
   return useMutation(getTestWebhookMutationOptions(options));
+};
+
+/**
+ * @summary List billing plans and product limits
+ */
+export const getListBillingPlansUrl = () => {
+  return `/api/billing/plans`;
+};
+
+export const listBillingPlans = async (
+  options?: RequestInit,
+): Promise<BillingPlan[]> => {
+  return customFetch<BillingPlan[]>(getListBillingPlansUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListBillingPlansQueryKey = () => {
+  return [`/api/billing/plans`] as const;
+};
+
+export const getListBillingPlansQueryOptions = <
+  TData = Awaited<ReturnType<typeof listBillingPlans>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listBillingPlans>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListBillingPlansQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listBillingPlans>>
+  > = ({ signal }) => listBillingPlans({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listBillingPlans>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListBillingPlansQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listBillingPlans>>
+>;
+export type ListBillingPlansQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List billing plans and product limits
+ */
+
+export function useListBillingPlans<
+  TData = Awaited<ReturnType<typeof listBillingPlans>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listBillingPlans>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListBillingPlansQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a Stripe checkout session
+ */
+export const getCreateBillingCheckoutUrl = () => {
+  return `/api/billing/checkout`;
+};
+
+export const createBillingCheckout = async (
+  createBillingCheckoutBody: CreateBillingCheckoutBody,
+  options?: RequestInit,
+): Promise<BillingSessionResponse> => {
+  return customFetch<BillingSessionResponse>(getCreateBillingCheckoutUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createBillingCheckoutBody),
+  });
+};
+
+export const getCreateBillingCheckoutMutationOptions = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | ServiceUnavailableResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createBillingCheckout>>,
+    TError,
+    { data: BodyType<CreateBillingCheckoutBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createBillingCheckout>>,
+  TError,
+  { data: BodyType<CreateBillingCheckoutBody> },
+  TContext
+> => {
+  const mutationKey = ["createBillingCheckout"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createBillingCheckout>>,
+    { data: BodyType<CreateBillingCheckoutBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createBillingCheckout(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateBillingCheckoutMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createBillingCheckout>>
+>;
+export type CreateBillingCheckoutMutationBody =
+  BodyType<CreateBillingCheckoutBody>;
+export type CreateBillingCheckoutMutationError = ErrorType<
+  | BadRequestResponse
+  | UnauthorizedResponse
+  | ForbiddenResponse
+  | ServiceUnavailableResponse
+>;
+
+/**
+ * @summary Create a Stripe checkout session
+ */
+export const useCreateBillingCheckout = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | ServiceUnavailableResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createBillingCheckout>>,
+    TError,
+    { data: BodyType<CreateBillingCheckoutBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createBillingCheckout>>,
+  TError,
+  { data: BodyType<CreateBillingCheckoutBody> },
+  TContext
+> => {
+  return useMutation(getCreateBillingCheckoutMutationOptions(options));
+};
+
+/**
+ * @summary Create a Stripe customer portal session
+ */
+export const getCreateBillingPortalUrl = () => {
+  return `/api/billing/portal`;
+};
+
+export const createBillingPortal = async (
+  createBillingPortalBody: CreateBillingPortalBody,
+  options?: RequestInit,
+): Promise<BillingPortalResponse> => {
+  return customFetch<BillingPortalResponse>(getCreateBillingPortalUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createBillingPortalBody),
+  });
+};
+
+export const getCreateBillingPortalMutationOptions = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | ServiceUnavailableResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createBillingPortal>>,
+    TError,
+    { data: BodyType<CreateBillingPortalBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createBillingPortal>>,
+  TError,
+  { data: BodyType<CreateBillingPortalBody> },
+  TContext
+> => {
+  const mutationKey = ["createBillingPortal"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createBillingPortal>>,
+    { data: BodyType<CreateBillingPortalBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createBillingPortal(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateBillingPortalMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createBillingPortal>>
+>;
+export type CreateBillingPortalMutationBody = BodyType<CreateBillingPortalBody>;
+export type CreateBillingPortalMutationError = ErrorType<
+  | BadRequestResponse
+  | UnauthorizedResponse
+  | ForbiddenResponse
+  | ServiceUnavailableResponse
+>;
+
+/**
+ * @summary Create a Stripe customer portal session
+ */
+export const useCreateBillingPortal = <
+  TError = ErrorType<
+    | BadRequestResponse
+    | UnauthorizedResponse
+    | ForbiddenResponse
+    | ServiceUnavailableResponse
+  >,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createBillingPortal>>,
+    TError,
+    { data: BodyType<CreateBillingPortalBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createBillingPortal>>,
+  TError,
+  { data: BodyType<CreateBillingPortalBody> },
+  TContext
+> => {
+  return useMutation(getCreateBillingPortalMutationOptions(options));
+};
+
+/**
+ * @summary Handle Stripe webhook events
+ */
+export const getHandleStripeWebhookUrl = () => {
+  return `/api/billing/webhook`;
+};
+
+export const handleStripeWebhook = async (
+  handleStripeWebhookBody: HandleStripeWebhookBody,
+  options?: RequestInit,
+): Promise<StripeWebhookResponse> => {
+  return customFetch<StripeWebhookResponse>(getHandleStripeWebhookUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(handleStripeWebhookBody),
+  });
+};
+
+export const getHandleStripeWebhookMutationOptions = <
+  TError = ErrorType<BadRequestResponse | InternalServerErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof handleStripeWebhook>>,
+    TError,
+    { data: BodyType<HandleStripeWebhookBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof handleStripeWebhook>>,
+  TError,
+  { data: BodyType<HandleStripeWebhookBody> },
+  TContext
+> => {
+  const mutationKey = ["handleStripeWebhook"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof handleStripeWebhook>>,
+    { data: BodyType<HandleStripeWebhookBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return handleStripeWebhook(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type HandleStripeWebhookMutationResult = NonNullable<
+  Awaited<ReturnType<typeof handleStripeWebhook>>
+>;
+export type HandleStripeWebhookMutationBody = BodyType<HandleStripeWebhookBody>;
+export type HandleStripeWebhookMutationError = ErrorType<
+  BadRequestResponse | InternalServerErrorResponse
+>;
+
+/**
+ * @summary Handle Stripe webhook events
+ */
+export const useHandleStripeWebhook = <
+  TError = ErrorType<BadRequestResponse | InternalServerErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof handleStripeWebhook>>,
+    TError,
+    { data: BodyType<HandleStripeWebhookBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof handleStripeWebhook>>,
+  TError,
+  { data: BodyType<HandleStripeWebhookBody> },
+  TContext
+> => {
+  return useMutation(getHandleStripeWebhookMutationOptions(options));
 };

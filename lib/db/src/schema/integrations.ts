@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { pgTable, text, timestamp, boolean, pgEnum, jsonb, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -8,7 +9,7 @@ export const integrationProviderEnum = pgEnum("integration_provider", [
 ]);
 
 export const orgIntegrationsTable = pgTable("org_integrations", {
-  id: text("id").primaryKey().default("gen_random_uuid()"),
+  id: text("id").primaryKey().default(sql`gen_random_uuid()::text`),
   orgId: text("org_id")
     .notNull()
     .references(() => organizationsTable.id, { onDelete: "cascade" }),
@@ -24,7 +25,7 @@ export const orgIntegrationsTable = pgTable("org_integrations", {
 });
 
 export const orgWebhooksTable = pgTable("org_webhooks", {
-  id: text("id").primaryKey().default("gen_random_uuid()"),
+  id: text("id").primaryKey().default(sql`gen_random_uuid()::text`),
   orgId: text("org_id")
     .notNull()
     .references(() => organizationsTable.id, { onDelete: "cascade" }),

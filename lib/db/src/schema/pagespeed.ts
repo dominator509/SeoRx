@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { pgTable, text, timestamp, real, integer, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -6,7 +7,7 @@ import { auditsTable } from "./audits";
 export const deviceTypeEnum = pgEnum("device_type", ["mobile", "desktop"]);
 
 export const pageSpeedResultsTable = pgTable("page_speed_results", {
-  id: text("id").primaryKey().default("gen_random_uuid()"),
+  id: text("id").primaryKey().default(sql`gen_random_uuid()::text`),
   auditId: text("audit_id")
     .notNull()
     .references(() => auditsTable.id, { onDelete: "cascade" }),

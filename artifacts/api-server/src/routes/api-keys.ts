@@ -16,6 +16,10 @@ router.get("/api-keys", requireAuth, async (req, res) => {
       res.json([]);
       return;
     }
+    if (orgId && !allowedOrgIds.includes(orgId)) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
     const scopedOrgIds = orgId && allowedOrgIds.includes(orgId) ? [orgId] : allowedOrgIds;
     const keys =
       scopedOrgIds.length === 1

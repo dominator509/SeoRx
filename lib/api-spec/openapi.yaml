@@ -30,6 +30,10 @@ tags:
     description: PageSpeed Insights integration
   - name: integrations
     description: External integrations and outbound webhooks
+  - name: api-keys
+    description: Developer API key management
+  - name: billing
+    description: Billing plans, checkout, portal, and Stripe webhooks
   - name: approvals
     description: Human approval workflow
 
@@ -618,6 +622,30 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /reports/{id}/download:
+    get:
+      operationId: downloadReport
+      tags: [reports]
+      summary: Download a ready report PDF
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: PDF report stream
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
   /dashboard/stats:
     get:
       operationId: getDashboardStats
@@ -813,6 +841,118 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /api-keys:
+    get:
+      operationId: listApiKeys
+      tags: [api-keys]
+      summary: List developer API keys
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: orgId
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: API key metadata
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApiKey"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createApiKey
+      tags: [api-keys]
+      summary: Create a developer API key
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateApiKeyBody"
+      responses:
+        "201":
+          description: Created API key secret and metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateApiKeyResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api-keys/{id}:
+    patch:
+      operationId: updateApiKey
+      tags: [api-keys]
+      summary: Activate or deactivate a developer API key
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateApiKeyBody"
+      responses:
+        "200":
+          description: Updated API key metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiKey"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteApiKey
+      tags: [api-keys]
+      summary: Revoke a developer API key
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /developer/authorize:
+    get:
+      operationId: authorizeDeveloperApiKey
+      tags: [api-keys]
+      summary: Validate a developer API key
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: API key authorization context
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeveloperAuthorizeResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
   /integrations/gsc/connect:
     get:
       operationId: connectGoogleSearchConsole
@@ -837,6 +977,32 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+  /integrations/gsc/callback:
+    get:
+      operationId: handleGoogleSearchConsoleCallback
+      tags: [integrations]
+      summary: Handle Google Search Console OAuth callback
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirects back to the requested return URL
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 
   /integrations/gsc/properties:
     get:
@@ -969,6 +1135,103 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /billing/plans:
+    get:
+      operationId: listBillingPlans
+      tags: [billing]
+      summary: List billing plans and product limits
+      responses:
+        "200":
+          description: Billing plan limits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BillingPlan"
+
+  /billing/checkout:
+    post:
+      operationId: createBillingCheckout
+      tags: [billing]
+      summary: Create a Stripe checkout session
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBillingCheckoutBody"
+      responses:
+        "200":
+          description: Checkout session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingSessionResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /billing/portal:
+    post:
+      operationId: createBillingPortal
+      tags: [billing]
+      summary: Create a Stripe customer portal session
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBillingPortalBody"
+      responses:
+        "200":
+          description: Portal session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingPortalResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /billing/webhook:
+    post:
+      operationId: handleStripeWebhook
+      tags: [billing]
+      summary: Handle Stripe webhook events
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Webhook accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StripeWebhookResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -992,6 +1255,30 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     Unauthorized:
       description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ServiceUnavailable:
+      description: Service unavailable
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalServerError:
+      description: Internal server error
       content:
         application/json:
           schema:
@@ -1755,6 +2042,187 @@ components:
         - startDate
         - endDate
         - rows
+
+    ApiKey:
+      type: object
+      properties:
+        id:
+          type: string
+        orgId:
+          type: string
+        name:
+          type: string
+        keyPrefix:
+          type: string
+        isActive:
+          type: boolean
+        lastUsedAt:
+          type: string
+          format: date-time
+          nullable: true
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - orgId
+        - name
+        - keyPrefix
+        - isActive
+        - createdAt
+        - updatedAt
+
+    CreateApiKeyBody:
+      type: object
+      properties:
+        orgId:
+          type: string
+        name:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+        - orgId
+        - name
+
+    CreateApiKeyResponse:
+      type: object
+      properties:
+        key:
+          type: string
+        prefix:
+          type: string
+        name:
+          type: string
+        orgId:
+          type: string
+        message:
+          type: string
+      required:
+        - key
+        - prefix
+        - name
+        - orgId
+        - message
+
+    UpdateApiKeyBody:
+      type: object
+      properties:
+        isActive:
+          type: boolean
+      required:
+        - isActive
+
+    DeveloperAuthorizeResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        orgId:
+          type: string
+        orgName:
+          type: string
+        keyPrefix:
+          type: string
+        role:
+          type: string
+          enum: [developer]
+      required:
+        - ok
+        - orgId
+        - orgName
+        - keyPrefix
+        - role
+
+    BillingPlan:
+      type: object
+      properties:
+        plan:
+          type: string
+          enum: [free, starter, professional, enterprise]
+        auditsPerMonth:
+          type: integer
+          nullable: true
+        clientsMax:
+          type: integer
+          nullable: true
+        aiRecommendations:
+          type: boolean
+        whiteLabel:
+          type: boolean
+        apiAccess:
+          type: boolean
+      required:
+        - plan
+        - auditsPerMonth
+        - clientsMax
+        - aiRecommendations
+        - whiteLabel
+        - apiAccess
+
+    CreateBillingCheckoutBody:
+      type: object
+      properties:
+        orgId:
+          type: string
+        plan:
+          type: string
+          enum: [starter, professional, enterprise]
+        successUrl:
+          type: string
+        cancelUrl:
+          type: string
+      required:
+        - orgId
+        - plan
+        - successUrl
+        - cancelUrl
+
+    BillingSessionResponse:
+      type: object
+      properties:
+        url:
+          type: string
+        sessionId:
+          type: string
+      required:
+        - url
+        - sessionId
+
+    CreateBillingPortalBody:
+      type: object
+      properties:
+        orgId:
+          type: string
+        returnUrl:
+          type: string
+      required:
+        - orgId
+        - returnUrl
+
+    BillingPortalResponse:
+      type: object
+      properties:
+        url:
+          type: string
+      required:
+        - url
+
+    StripeWebhookResponse:
+      type: object
+      properties:
+        received:
+          type: boolean
+      required:
+        - received
 
     Webhook:
       type: object
