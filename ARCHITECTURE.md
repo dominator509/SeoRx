@@ -199,10 +199,10 @@ parallel.
 
 ## Production Boundary
 
-The product is being moved away from Replit-specific assumptions toward a
-host-agnostic production posture. Replit import artifacts may still exist in the
-repo, but product runtime behavior should not depend on Replit branding or
-Replit-only development affordances.
+The product has been moved away from Replit-specific assumptions toward a
+host-agnostic production posture. Replit import config files and Replit-only
+Vite development plugins have been removed; product runtime behavior should not
+depend on Replit branding or Replit-only development affordances.
 
 Production-critical environment variables:
 - `DATABASE_URL`

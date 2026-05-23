@@ -12,13 +12,14 @@ Related docs:
 
 ## Current Position
 
-Current phase: Phase 3, API and data contract hardening.
+Current phase: Phase 5, production operations.
 
-The imported Replit app has been cleaned into a buildable, testable monorepo.
-Core API, database, frontend, auth, generated clients, and browser test harness
-are in place. Primary business workflows now have browser coverage, and the
-next push is proving API behavior, RBAC, response shapes, and generated
-contract alignment more deeply.
+The imported app has been cleaned into a buildable, testable monorepo with
+Replit runtime artifacts removed. Core API, database, frontend, auth, generated
+clients, CI, and browser test harness are in place. Primary business workflows
+and integration contracts now have coverage, and the next push is production
+operations: hosting selection, database migration policy, and release smoke
+checks with real credentials.
 
 ## How To Advance This Roadmap
 
@@ -77,6 +78,8 @@ before final status.
 | API contract hardening slice 3 | Complete | Report creation generating-to-ready transitions, not-ready downloads, generated Zod response parity, and failed-generation state marking are covered. |
 | Live integration readiness | Complete | GSC, PageSpeed, AI provider, outbound webhook, and Stripe degraded/live-mocked paths are covered at the API layer. |
 | Production operations slice 1 | Complete | Deployment guide now documents host-agnostic assumptions, environment rules, health checks, DB push expectations, and CI gate sequencing. |
+| Production operations slice 2 | Complete | Replit import files, Replit Vite plugins, workspace catalog entries, and Replit-specific install allowlist entries have been removed. |
+| CI workflow | Complete | GitHub Actions runs typecheck, e2e, API tests, build, and diff check in release-gate order. |
 
 ## Active Roadmap
 
@@ -93,7 +96,7 @@ Acceptance:
 
 ### Phase 1: Import Cleanup And Baseline Stability
 
-Status: Mostly complete.
+Status: Complete.
 
 Completed:
 - App builds with workspace commands.
@@ -101,9 +104,12 @@ Completed:
 - Auth misconfiguration has a clear fallback state.
 - Typecheck, build, API tests, and e2e commands exist.
 
-Remaining:
-- Decide whether `.replit`, `.replitignore`, and Replit catalog package entries are still needed for the chosen host.
-- Remove or isolate remaining Replit-only development affordances if the production target is not Replit.
+Completed:
+- `.replit`, `.replitignore`, and stale Replit import notes were removed.
+- Replit-only Vite development plugins were removed from product and mockup
+  builds.
+- Replit catalog dependencies and install allowlist entries were removed from
+  workspace package management.
 
 ### Phase 2: Workflow Hardening
 
@@ -198,7 +204,6 @@ Next:
 - Confirm the final target hosting vendor.
 - Decide whether production DB changes will use direct Drizzle push or generated
   migrations.
-- Wire CI to run typecheck, API tests, e2e, build, and diff check in order.
 - Add environment-backed optional live smoke checks once production credentials
   exist.
 
@@ -206,7 +211,6 @@ Next:
 
 | Risk | Impact | Next action |
 | --- | --- | --- |
-| Replit-specific files remain | Deployment expectations may be unclear for non-Replit hosts. | Decide target host and remove or document remaining Replit files. |
 | Vite sourcemap warnings remain | Builds pass, but diagnostics are noisy. | Investigate after workflow coverage is broader. |
 | External API behavior depends on credentials | CI cannot rely on real providers by default. | Keep deterministic mocks in CI and add optional environment-backed smoke checks once production credentials exist. |
 | Production migration policy is not final | Direct schema pushes may not satisfy release governance. | Confirm whether to keep Drizzle push or add generated migrations before launch. |
@@ -215,7 +219,7 @@ Next:
 
 Implement the next Phase 5 production operations slice:
 1. Confirm the final target hosting vendor or keep documenting host-agnostic assumptions.
-2. Decide whether Replit-specific files should be removed or retained as non-production artifacts.
-3. Confirm production database migration policy.
-4. Wire or document CI sequencing for typecheck, API tests, e2e, build, and diff check.
+2. Confirm production database migration policy.
+3. Add environment-backed optional live smoke checks once production credentials exist.
+4. Investigate Vite sourcemap warnings after production operations basics are settled.
 5. Run the standard verification gate.

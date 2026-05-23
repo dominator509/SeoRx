@@ -182,7 +182,6 @@ Track completion in `ROADMAP_STATUS.md`.
 
 - Final target hosting vendor needs confirmation.
 - Production migration policy needs confirmation.
-- CI sequencing needs to be wired in the selected GitHub/hosting pipeline.
 - Optional provider live smoke checks need real production credentials and
   should stay outside default CI.
 - Vite sourcemap warnings are non-failing but still noisy.
