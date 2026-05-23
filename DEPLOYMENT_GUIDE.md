@@ -1,6 +1,6 @@
 # SEORx Deployment Guide
 
-Last updated: 2026-05-15
+Last updated: 2026-05-22
 
 This guide is the production release checklist. It should be read with
 `ARCHITECTURE.md` and `ROADMAP_STATUS.md`.
@@ -12,6 +12,20 @@ This guide is the production release checklist. It should be read with
 - PostgreSQL database
 - Clerk application keys
 - HTTPS-capable hosting/proxy
+
+## Target Hosting Model
+
+Until a specific vendor is selected, production readiness assumes a
+host-agnostic deployment:
+
+- The Express API runs as a long-lived Node service from
+  `artifacts/api-server`.
+- The React/Vite frontend is built from `artifacts/seorx` and served by the
+  selected platform or static asset layer.
+- `/api/*` traffic reaches the Express API.
+- Frontend routes fall back to `index.html`.
+- PostgreSQL is managed outside the app container/process.
+- TLS terminates at the platform, proxy, or load balancer.
 
 Optional services:
 - PageSpeed Insights API key
@@ -37,6 +51,14 @@ Strongly recommended:
 ENCRYPTION_KEY
 API_BASE_URL
 ```
+
+Production rules:
+- `ALLOWED_ORIGINS` must include the public frontend origin exactly.
+- `API_BASE_URL` should be the public API base URL used by OAuth callbacks and
+  webhook links.
+- `ENCRYPTION_KEY` should be stable across deploys; changing it can prevent
+  existing encrypted provider tokens/secrets from decrypting.
+- Clerk keys must come from the same Clerk application/environment.
 
 Optional integration variables:
 
@@ -86,6 +108,10 @@ corepack pnpm --filter @workspace/db run push
 Use the production team's migration policy if it differs from direct Drizzle
 pushes.
 
+Rollback note: direct schema pushes should be reviewed before production use.
+If the selected host requires auditable migrations, add a migration generation
+step before first production release.
+
 ## App Build Outputs
 
 API:
@@ -113,6 +139,15 @@ After deployment:
 9. Issue approval/dismissal updates visible state.
 10. Report generation and download are verified before launch signoff.
 
+Operational smoke checks:
+
+11. API logs show request IDs, status codes, and no startup errors.
+12. A protected API route returns `401` when unauthenticated.
+13. CORS rejects an origin that is not in `ALLOWED_ORIGINS`.
+14. Billing checkout returns a safe disabled response if Stripe is not
+    configured.
+15. Optional integrations degrade clearly when credentials are absent.
+
 ## Integration Smoke Checks
 
 For optional services, verify both configured and unconfigured states.
@@ -134,6 +169,8 @@ AI providers:
 Stripe:
 - Billing endpoints are disabled or safe when Stripe env vars are absent.
 - Webhook signature verification is required when Stripe is enabled.
+- Billing checkout and portal routes must only act on organizations the user
+  can access.
 
 Webhooks:
 - Outbound webhook registrations persist.
@@ -143,7 +180,9 @@ Webhooks:
 
 Track completion in `ROADMAP_STATUS.md`.
 
-- Organizations and onboarding need the next browser-level hardening pass.
-- Optional integrations need stronger mocked-contract and live-key smoke tests.
-- Final target hosting model needs confirmation.
+- Final target hosting vendor needs confirmation.
+- Production migration policy needs confirmation.
+- CI sequencing needs to be wired in the selected GitHub/hosting pipeline.
+- Optional provider live smoke checks need real production credentials and
+  should stay outside default CI.
 - Vite sourcemap warnings are non-failing but still noisy.

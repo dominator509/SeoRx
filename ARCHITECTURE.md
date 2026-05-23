@@ -168,9 +168,18 @@ Current API coverage includes:
 - Issue approve/dismiss mutation authorization.
 - Report list/detail/download contracts, including PDF generation.
 - Dashboard stats, recent audits, issue breakdown, score trends, and empty
-  aggregate states.
+  aggregate states parsed through generated response schemas.
+- Report creation generating-to-ready transitions, not-ready download behavior,
+  generated response-schema parity, and failed-generation state marking.
 - Concurrent first-login user provisioning.
-- Integration disabled/unavailable paths for webhooks and Google Search Console.
+- Google Search Console unavailable, OAuth redirect, connected properties,
+  analytics, and token refresh paths.
+- PageSpeed unavailable, live-key, cache, and API-failure fallback paths.
+- AI provider audit recommendation success and failure fallback behavior.
+- Outbound webhook registration, test delivery success/failure, safe secret
+  handling, and delivery status persistence.
+- Stripe plans, disabled checkout, billing org authorization, portal guardrails,
+  and webhook signature failure states.
 
 Current e2e coverage includes:
 - Production auth misconfiguration fallback.
@@ -216,9 +225,7 @@ Optional integration variables:
 
 These are not necessarily broken, but they are still production-readiness risks:
 
-1. Report creation async behavior and generated-client parity need broader
-   route-level regression coverage beyond browser workflows.
-2. Real external integrations need environment-backed smoke checks or clear
-   mocked-contract tests.
-3. Production deployment runbooks need validation against the target host.
-4. Some Vite builds still emit non-failing sourcemap warnings for UI components.
+1. Production deployment runbooks need validation against the target host.
+2. Optional live provider smoke checks still depend on real production
+   credentials and should remain outside default CI.
+3. Some Vite builds still emit non-failing sourcemap warnings for UI components.

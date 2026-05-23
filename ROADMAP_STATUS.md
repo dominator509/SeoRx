@@ -74,6 +74,9 @@ before final status.
 | Settings e2e | Complete | Profile load/update, refreshed visible state, and e2e-safe auth hook behavior are covered. |
 | API contract hardening slice 1 | Complete | Audit creation/list, issue mutation RBAC, report list/detail/download, and report PDF generation are covered. |
 | API contract hardening slice 2 | Complete | Dashboard stats, recent audits, issue breakdown, score trends, empty states, and concurrent first-login provisioning are covered. |
+| API contract hardening slice 3 | Complete | Report creation generating-to-ready transitions, not-ready downloads, generated Zod response parity, and failed-generation state marking are covered. |
+| Live integration readiness | Complete | GSC, PageSpeed, AI provider, outbound webhook, and Stripe degraded/live-mocked paths are covered at the API layer. |
+| Production operations slice 1 | Complete | Deployment guide now documents host-agnostic assumptions, environment rules, health checks, DB push expectations, and CI gate sequencing. |
 
 ## Active Roadmap
 
@@ -132,7 +135,7 @@ Next workflows:
 
 ### Phase 3: API And Data Contract Hardening
 
-Status: Partial.
+Status: Complete.
 
 Goal: Ensure API routes, database schema, OpenAPI, generated clients, and UI
 expectations stay aligned.
@@ -146,54 +149,73 @@ Completed:
 - API integration tests cover dashboard stats, recent audits, issue breakdown,
   score trends, empty aggregate states, and concurrent first-login user
   provisioning.
+- API integration tests parse dashboard/report responses through generated
+  OpenAPI/Zod schemas, including report creation async status transitions and
+  not-ready download behavior.
+- Report generation failures are recorded as `failed` instead of leaving
+  reports stuck in `generating`.
 
 Next:
-- Add API integration tests for report creation async status transitions and
-  dashboard/report OpenAPI response-shape parity.
 - Verify generated clients after every OpenAPI change.
+- Continue into Phase 5 production operations.
 
 ### Phase 4: Live Integration Readiness
 
-Status: Partial.
+Status: Complete.
 
 Goal: Make optional live integrations reliable, testable, and clearly degraded
 when credentials are absent.
 
-Next:
-- Google Search Console connect/properties/analytics contract tests.
-- PageSpeed live-key smoke path plus fallback assertions.
-- AI provider live/fallback behavior tests.
-- Outbound webhook registration and test delivery coverage.
-- Stripe disabled-state and webhook signature coverage.
+Completed:
+- Google Search Console connect, unavailable, connected properties, analytics,
+  and token refresh paths are covered with mocked-contract API tests.
+- PageSpeed unavailable, live-key, cache, and API-failure fallback paths are
+  covered with generated response-schema assertions.
+- AI provider success and failure paths are covered through the async audit
+  recommendation flow.
+- Outbound webhook registration, test delivery success/failure, safe secret
+  handling, and delivery status persistence are covered.
+- Stripe plans, disabled checkout, billing org authorization, portal guardrails,
+  and webhook signature failure states are covered.
 
 ### Phase 5: Production Operations
 
-Status: Pending.
+Status: Partial.
 
 Goal: Make the app deployable and operable outside the original import context.
 
 Next:
-- Confirm target hosting model.
-- Validate required environment variables.
-- Add deployment health-check runbook.
-- Confirm database migration/push path.
-- Add logging and error-handling expectations.
-- Decide on CI sequencing for typecheck, API tests, e2e, and build.
+Completed:
+- Host-agnostic deployment assumptions are documented in `DEPLOYMENT_GUIDE.md`.
+- Required and optional environment variables are documented with production
+  handling rules.
+- Release smoke checks include API health, OpenAPI/docs, auth, CORS, core
+  workflows, billing disabled state, and optional integration degradation.
+- Database push expectations and migration-policy caveat are documented.
+- Verification command sequencing is documented as the release gate.
+
+Next:
+- Confirm the final target hosting vendor.
+- Decide whether production DB changes will use direct Drizzle push or generated
+  migrations.
+- Wire CI to run typecheck, API tests, e2e, build, and diff check in order.
+- Add environment-backed optional live smoke checks once production credentials
+  exist.
 
 ## Known Risks
 
 | Risk | Impact | Next action |
 | --- | --- | --- |
-| Report creation async behavior has thinner route-level coverage than report list/detail/download | Report generation state changes could drift from frontend expectations. | Add report creation status transition and generated-client parity tests next. |
-| Optional integrations need stronger proof | Metrics may appear missing or stale when live keys are configured incorrectly. | Add mocked-contract and live-key smoke tests. |
 | Replit-specific files remain | Deployment expectations may be unclear for non-Replit hosts. | Decide target host and remove or document remaining Replit files. |
 | Vite sourcemap warnings remain | Builds pass, but diagnostics are noisy. | Investigate after workflow coverage is broader. |
-| External API behavior depends on credentials | CI cannot rely on real providers by default. | Use deterministic mocks plus optional live smoke checks. |
+| External API behavior depends on credentials | CI cannot rely on real providers by default. | Keep deterministic mocks in CI and add optional environment-backed smoke checks once production credentials exist. |
+| Production migration policy is not final | Direct schema pushes may not satisfy release governance. | Confirm whether to keep Drizzle push or add generated migrations before launch. |
 
 ## Next Best Step
 
-Implement the next Phase 3 API and data contract hardening slice:
-1. Inspect report creation, async generation, OpenAPI schemas, and generated client response expectations.
-2. Add API integration tests for report creation state transitions and contract parity.
-3. Fix any response-shape, authorization, or stale contract issue uncovered.
-4. Run focused API tests, then the standard verification gate.
+Implement the next Phase 5 production operations slice:
+1. Confirm the final target hosting vendor or keep documenting host-agnostic assumptions.
+2. Decide whether Replit-specific files should be removed or retained as non-production artifacts.
+3. Confirm production database migration policy.
+4. Wire or document CI sequencing for typecheck, API tests, e2e, build, and diff check.
+5. Run the standard verification gate.

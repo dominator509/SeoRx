@@ -1,7 +1,7 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { db, organizationsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireAuth } from "../lib/rbac";
+import { getUserOrgIds, requireAuth } from "../lib/rbac";
 import {
   createCheckoutSession,
   createPortalSession,
@@ -12,6 +12,10 @@ import {
 import { logger } from "../lib/logger";
 
 const router = Router();
+
+function canAccessOrg(req: Request, orgId: string): boolean {
+  return req.seorxUser?.role === "superadmin" || getUserOrgIds(req).includes(orgId);
+}
 
 // ─── Plan info (public) ───────────────────────────────────────────────────────
 router.get("/billing/plans", (_req, res) => {
@@ -40,6 +44,13 @@ router.post("/billing/checkout", requireAuth, async (req, res) => {
       return;
     }
 
+    const org = await db.query.organizationsTable.findFirst({ where: eq(organizationsTable.id, orgId) });
+    if (!org) { res.status(404).json({ error: "Organization not found" }); return; }
+    if (!canAccessOrg(req, orgId)) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
     const email = req.seorxUser?.email ?? "";
     const session = await createCheckoutSession({ orgId, plan, customerEmail: email, successUrl, cancelUrl });
 
@@ -62,6 +73,10 @@ router.post("/billing/portal", requireAuth, async (req, res) => {
 
     const org = await db.query.organizationsTable.findFirst({ where: eq(organizationsTable.id, orgId) });
     if (!org) { res.status(404).json({ error: "Organization not found" }); return; }
+    if (!canAccessOrg(req, orgId)) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
 
     const customerId = (org as any).stripeCustomerId as string | undefined;
     if (!customerId) {

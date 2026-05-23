@@ -63,8 +63,16 @@ router.post("/reports", requireAuth, async (req, res) => {
       includeAiSummary,
     });
 
-    generateReport(id, audit.id).catch((err) => {
+    generateReport(id, audit.id).catch(async (err) => {
       logger.error({ err, reportId: id }, "Report generation failed");
+      try {
+        await db
+          .update(reportsTable)
+          .set({ status: "failed", updatedAt: new Date() })
+          .where(eq(reportsTable.id, id));
+      } catch (updateErr) {
+        logger.error({ err: updateErr, reportId: id }, "Failed to mark report generation as failed");
+      }
     });
 
     const report = await db.query.reportsTable.findFirst({ where: eq(reportsTable.id, id) });

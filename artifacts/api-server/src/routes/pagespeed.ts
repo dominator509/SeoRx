@@ -5,6 +5,19 @@ import { requireAuth, assertAuditAccess } from "../lib/rbac";
 import { fetchRealPageSpeed, syntheticPageSpeed } from "../lib/pagespeed";
 
 const router = Router();
+const optionalMetricFields = ["fcp", "lcp", "cls", "tbt", "ttfb"] as const;
+
+function pageSpeedResponse(result: typeof pageSpeedResultsTable.$inferSelect | undefined, isReal: boolean) {
+  if (!result) return { isReal };
+
+  const response: Record<string, unknown> = { ...result, isReal };
+  for (const field of optionalMetricFields) {
+    if (response[field] == null) {
+      delete response[field];
+    }
+  }
+  return response;
+}
 
 router.get("/pagespeed/:auditId", requireAuth, async (req, res) => {
   try {
@@ -23,7 +36,7 @@ router.get("/pagespeed/:auditId", requireAuth, async (req, res) => {
     });
 
     if (existing) {
-      res.json({ ...existing, isReal: false });
+      res.json(pageSpeedResponse(existing, false));
       return;
     }
 
@@ -55,7 +68,7 @@ router.get("/pagespeed/:auditId", requireAuth, async (req, res) => {
       where: eq(pageSpeedResultsTable.id, id),
     });
 
-    res.json({ ...saved, isReal });
+    res.json(pageSpeedResponse(saved, isReal));
   } catch (err) {
     req.log.error({ err }, "Failed to get PageSpeed results");
     res.status(500).json({ error: "Internal server error" });

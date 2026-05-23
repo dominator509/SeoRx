@@ -1,7 +1,22 @@
 import { execFileSync } from "node:child_process";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { eq } from "drizzle-orm";
+import {
+  GetDashboardStatsResponse,
+  GetGoogleSearchConsoleAnalyticsResponse,
+  GetIssueBreakdownResponse,
+  GetPageSpeedResultsResponse,
+  GetRecentAuditsResponse,
+  GetReportResponse,
+  GetScoreTrendsResponse,
+  ListGoogleSearchConsolePropertiesResponse,
+  ListReportsResponse,
+  ListReportsResponseItem,
+  ListWebhooksResponse,
+  TestWebhookResponse,
+} from "@workspace/api-zod";
+import { encryptSecret } from "../lib/crypto";
 
 const TEST_USER_ID = "test-user-1";
 const OTHER_USER_ID = "test-user-2";
@@ -161,6 +176,79 @@ async function seedReport(auditId: string, clientId: string, title: string, stat
   return reportId;
 }
 
+async function seedGscIntegration(orgId: string, options: { accessToken?: string; refreshToken?: string; expiresAt?: Date } = {}) {
+  const integrationId = crypto.randomUUID();
+  await dbModule.db.insert(dbModule.orgIntegrationsTable).values({
+    id: integrationId,
+    orgId,
+    provider: "google_search_console",
+    encryptedAccessToken: encryptSecret(options.accessToken ?? "gsc-access-token"),
+    encryptedRefreshToken: options.refreshToken ? encryptSecret(options.refreshToken) : null,
+    tokenExpiresAt: options.expiresAt ?? new Date(Date.now() + 60 * 60 * 1000),
+    scopes: "https://www.googleapis.com/auth/webmasters.readonly",
+    metadata: { tokenType: "Bearer" },
+    isActive: true,
+  });
+  return integrationId;
+}
+
+async function seedAiProvider(
+  orgId: string,
+  options: { provider?: "openai" | "anthropic" | "gemini" | "ollama" | "custom"; model?: string; apiKey?: string; baseUrl?: string; isDefault?: boolean } = {},
+) {
+  const providerId = crypto.randomUUID();
+  await dbModule.db.insert(dbModule.aiProvidersTable).values({
+    id: providerId,
+    orgId,
+    name: `${options.provider ?? "ollama"} test provider`,
+    provider: options.provider ?? "ollama",
+    model: options.model ?? "llama3",
+    encryptedApiKey: options.apiKey ? encryptSecret(options.apiKey) : null,
+    baseUrl: options.baseUrl ?? "http://localhost:11434",
+    isActive: true,
+    isDefault: options.isDefault ?? true,
+  });
+  return providerId;
+}
+
+async function waitForAuditCompleted(auditId: string, userId = TEST_USER_ID) {
+  const deadline = Date.now() + 5000;
+  let lastRes: request.Response | null = null;
+
+  while (Date.now() < deadline) {
+    lastRes = await request(app)
+      .get(`/api/audits/${auditId}`)
+      .set("x-test-user-id", userId);
+
+    if (lastRes.status === 200 && ["completed", "failed"].includes(lastRes.body.status)) {
+      return lastRes;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  throw new Error(`Audit ${auditId} did not finish. Last response: ${JSON.stringify(lastRes?.body)}`);
+}
+
+async function waitForReportReady(reportId: string, userId = TEST_USER_ID) {
+  const deadline = Date.now() + 5000;
+  let lastRes: request.Response | null = null;
+
+  while (Date.now() < deadline) {
+    lastRes = await request(app)
+      .get(`/api/reports/${reportId}`)
+      .set("x-test-user-id", userId);
+
+    if (lastRes.status === 200 && lastRes.body.status === "ready") {
+      return lastRes;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+
+  throw new Error(`Report ${reportId} did not become ready. Last response: ${JSON.stringify(lastRes?.body)}`);
+}
+
 beforeAll(async () => {
   process.env.NODE_ENV = "test";
   process.env.CLERK_PUBLISHABLE_KEY = "pk_test_local";
@@ -204,6 +292,14 @@ afterAll(async () => {
     run("docker", ["rm", "-f", containerName]);
   }
 }, 30_000);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  delete process.env.GOOGLE_CLIENT_ID;
+  delete process.env.GOOGLE_CLIENT_SECRET;
+  delete process.env.PAGESPEED_API_KEY;
+  delete process.env.STRIPE_WEBHOOK_SECRET;
+});
 
 describe("production-critical API behavior", () => {
   it("requires auth for protected client routes", async () => {
@@ -485,6 +581,76 @@ describe("production-critical API behavior", () => {
     expect(downloadRes.headers["content-disposition"]).toContain("Allowed-Report.pdf");
   });
 
+  it("creates reports with generating-to-ready transitions matching the generated contract", async () => {
+    const { auditId, clientId } = await seedAudit(`report-create-${crypto.randomUUID()}`);
+    await seedIssue(auditId, "Critical report finding", "critical");
+    await seedIssue(auditId, "Approved report finding", "high", "approved");
+
+    const createRes = await request(app)
+      .post("/api/reports")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        auditId,
+        title: "Async Report Contract",
+        format: "pdf",
+        includeAiSummary: false,
+      });
+
+    expect(createRes.status).toBe(201);
+    const created = ListReportsResponseItem.parse(createRes.body);
+    expect(created).toMatchObject({
+      auditId,
+      clientId,
+      clientName: expect.any(String),
+      title: "Async Report Contract",
+      format: "pdf",
+      status: "generating",
+      downloadUrl: null,
+    });
+
+    const notReadyDownloadRes = await request(app)
+      .get(`/api/reports/${created.id}/download`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(notReadyDownloadRes.status).toBe(409);
+    expect(notReadyDownloadRes.body).toEqual({ error: "Report not ready yet" });
+
+    const generatingListRes = await request(app)
+      .get(`/api/reports?auditId=${auditId}`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(generatingListRes.status).toBe(200);
+    const generatingReports = ListReportsResponse.parse(generatingListRes.body);
+    expect(generatingReports).toHaveLength(1);
+    expect(generatingReports[0]).toMatchObject({ id: created.id, status: "generating", downloadUrl: null });
+
+    const readyDetailRes = await waitForReportReady(created.id);
+    const readyDetail = GetReportResponse.parse(readyDetailRes.body);
+    expect(readyDetail).toMatchObject({
+      id: created.id,
+      auditId,
+      clientId,
+      clientName: expect.any(String),
+      title: "Async Report Contract",
+      format: "pdf",
+      status: "ready",
+      downloadUrl: `/api/reports/${created.id}/download`,
+      issueCount: 2,
+      topIssues: expect.any(Array),
+    });
+    expect(readyDetail.summary).toContain("2 total issues");
+    expect(readyDetail.summary).toContain("1 critical");
+    expect(readyDetail.summary).toContain("1 issue has been approved");
+    expect(readyDetail.topIssues?.[0]).toMatchObject({ title: "Critical report finding", severity: "critical" });
+
+    const readyDownloadRes = await request(app)
+      .get(`/api/reports/${created.id}/download`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(readyDownloadRes.status).toBe(200);
+    expect(readyDownloadRes.headers["content-type"]).toContain("application/pdf");
+  });
+
   it("returns empty dashboard aggregate shapes for users with no organizations", async () => {
     const emptyUserId = `dashboard-empty-${crypto.randomUUID()}`;
 
@@ -496,7 +662,7 @@ describe("production-critical API behavior", () => {
     ]);
 
     expect(statsRes.status).toBe(200);
-    expect(statsRes.body).toEqual({
+    expect(GetDashboardStatsResponse.parse(statsRes.body)).toEqual({
       totalClients: 0,
       totalAudits: 0,
       totalIssues: 0,
@@ -507,11 +673,11 @@ describe("production-critical API behavior", () => {
       pendingApprovals: 0,
     });
     expect(recentRes.status).toBe(200);
-    expect(recentRes.body).toEqual([]);
+    expect(GetRecentAuditsResponse.parse(recentRes.body)).toEqual([]);
     expect(breakdownRes.status).toBe(200);
-    expect(breakdownRes.body).toEqual({ bySeverity: [], byCategory: [] });
+    expect(GetIssueBreakdownResponse.parse(breakdownRes.body)).toEqual({ bySeverity: [], byCategory: [] });
     expect(trendsRes.status).toBe(200);
-    expect(trendsRes.body).toEqual([]);
+    expect(GetScoreTrendsResponse.parse(trendsRes.body)).toEqual([]);
   });
 
   it("returns dashboard aggregate response shapes scoped to the user's organizations", async () => {
@@ -539,7 +705,8 @@ describe("production-critical API behavior", () => {
       .set("x-test-user-id", dashboardUserId);
 
     expect(statsRes.status).toBe(200);
-    expect(statsRes.body).toEqual({
+    const stats = GetDashboardStatsResponse.parse(statsRes.body);
+    expect(stats).toEqual({
       totalClients: 2,
       totalAudits: 2,
       totalIssues: 4,
@@ -555,9 +722,10 @@ describe("production-critical API behavior", () => {
       .set("x-test-user-id", dashboardUserId);
 
     expect(recentRes.status).toBe(200);
-    expect(recentRes.body).toHaveLength(1);
-    expect([allowedOne.auditId, allowedTwo.auditId]).toContain(recentRes.body[0].id);
-    expect(recentRes.body[0]).toMatchObject({
+    const recentAudits = GetRecentAuditsResponse.parse(recentRes.body);
+    expect(recentAudits).toHaveLength(1);
+    expect([allowedOne.auditId, allowedTwo.auditId]).toContain(recentAudits[0].id);
+    expect(recentAudits[0]).toMatchObject({
       clientName: expect.any(String),
       issueCount: expect.any(Number),
       criticalCount: expect.any(Number),
@@ -565,38 +733,239 @@ describe("production-critical API behavior", () => {
       mediumCount: expect.any(Number),
       lowCount: expect.any(Number),
     });
-    expect(recentRes.body.some((audit: { id: string }) => audit.id === blocked.auditId)).toBe(false);
+    expect(recentAudits.some((audit) => audit.id === blocked.auditId)).toBe(false);
 
     const breakdownRes = await request(app)
       .get("/api/dashboard/issue-breakdown")
       .set("x-test-user-id", dashboardUserId);
 
     expect(breakdownRes.status).toBe(200);
-    expect(Object.fromEntries(breakdownRes.body.bySeverity.map((item: { severity: string; count: number }) => [item.severity, item.count]))).toMatchObject({
+    const issueBreakdown = GetIssueBreakdownResponse.parse(breakdownRes.body);
+    expect(Object.fromEntries(issueBreakdown.bySeverity.map((item) => [item.severity, item.count]))).toMatchObject({
       critical: 1,
       high: 1,
       medium: 1,
       low: 1,
     });
-    expect(Object.fromEntries(breakdownRes.body.byCategory.map((item: { category: string; count: number }) => [item.category, item.count]))).toMatchObject({
+    expect(Object.fromEntries(issueBreakdown.byCategory.map((item) => [item.category, item.count]))).toMatchObject({
       meta: 1,
       content: 1,
       performance: 1,
       links: 1,
     });
-    expect(breakdownRes.body.byCategory.some((item: { category: string }) => item.category === "security")).toBe(false);
+    expect(issueBreakdown.byCategory.some((item) => item.category === "security")).toBe(false);
 
     const trendsRes = await request(app)
       .get("/api/dashboard/score-trends?days=30")
       .set("x-test-user-id", dashboardUserId);
 
     expect(trendsRes.status).toBe(200);
-    expect(trendsRes.body).toHaveLength(1);
     expect(trendsRes.body[0]).toMatchObject({
       date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       avgScore: 85,
       auditCount: 2,
     });
+    const scoreTrends = GetScoreTrendsResponse.parse(trendsRes.body);
+    expect(scoreTrends).toHaveLength(1);
+    expect(scoreTrends[0]).toMatchObject({
+      date: expect.any(Date),
+      avgScore: 85,
+      auditCount: 2,
+    });
+  });
+
+  it("returns cached or synthetic PageSpeed shapes without a live API key", async () => {
+    const { auditId } = await seedAudit(`pagespeed-fallback-${crypto.randomUUID()}`);
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+
+    const res = await request(app)
+      .get(`/api/pagespeed/${auditId}?device=mobile`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      auditId,
+      url: expect.stringMatching(/^https:\/\//),
+      isReal: false,
+      performanceScore: expect.any(Number),
+      accessibilityScore: expect.any(Number),
+      bestPracticesScore: expect.any(Number),
+      seoScore: expect.any(Number),
+    });
+    expect(GetPageSpeedResultsResponse.parse(res.body)).toMatchObject({
+      auditId,
+      fetchedAt: expect.any(Date),
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    const cachedRes = await request(app)
+      .get(`/api/pagespeed/${auditId}?device=mobile`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(cachedRes.status).toBe(200);
+    expect(cachedRes.body.id).toBe(res.body.id);
+    expect(cachedRes.body.isReal).toBe(false);
+    expect(GetPageSpeedResultsResponse.parse(cachedRes.body)).toMatchObject({ auditId });
+  });
+
+  it("fetches live PageSpeed metrics when a key is configured and preserves contract shape", async () => {
+    const { auditId } = await seedAudit(`pagespeed-live-${crypto.randomUUID()}`);
+    process.env.PAGESPEED_API_KEY = "pagespeed-test-key";
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = new URL(String(input));
+      expect(url.origin + url.pathname).toBe("https://www.googleapis.com/pagespeedonline/v5/runPagespeed");
+      expect(url.searchParams.get("strategy")).toBe("desktop");
+      expect(url.searchParams.get("key")).toBe("pagespeed-test-key");
+      expect(url.searchParams.getAll("category")).toEqual(["performance", "accessibility", "best-practices", "seo"]);
+
+      return new Response(JSON.stringify({
+        lighthouseResult: {
+          categories: {
+            performance: { score: 0.91 },
+            accessibility: { score: 0.98 },
+            "best-practices": { score: 0.87 },
+            seo: { score: 0.93 },
+          },
+          audits: {
+            "first-contentful-paint": { numericValue: 1100 },
+            "largest-contentful-paint": { numericValue: 2400 },
+            "cumulative-layout-shift": { numericValue: 0.08 },
+            "total-blocking-time": { numericValue: 130 },
+            "speed-index": { numericValue: 1800 },
+          },
+        },
+        loadingExperience: {
+          metrics: {
+            FIRST_CONTENTFUL_PAINT_MS: { percentile: 1000 },
+            LARGEST_CONTENTFUL_PAINT_MS: { percentile: 2200 },
+            FIRST_INPUT_DELAY_MS: { percentile: 20 },
+            CUMULATIVE_LAYOUT_SHIFT_SCORE: { percentile: 7 },
+            EXPERIMENTAL_TIME_TO_FIRST_BYTE: { percentile: 450 },
+          },
+        },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+
+    const res = await request(app)
+      .get(`/api/pagespeed/${auditId}?device=desktop`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      auditId,
+      isReal: true,
+      performanceScore: 91,
+      accessibilityScore: 98,
+      bestPracticesScore: 87,
+      seoScore: 93,
+      fcp: 1,
+      lcp: 2.2,
+      cls: 0.07,
+      tbt: 130,
+      ttfb: 0.45,
+    });
+    expect(GetPageSpeedResultsResponse.parse(res.body)).toMatchObject({
+      auditId,
+      performanceScore: 91,
+      fetchedAt: expect.any(Date),
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const cachedRes = await request(app)
+      .get(`/api/pagespeed/${auditId}?device=desktop`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(cachedRes.status).toBe(200);
+    expect(cachedRes.body.id).toBe(res.body.id);
+    expect(cachedRes.body.isReal).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to synthetic PageSpeed metrics when the live API fails", async () => {
+    const { auditId } = await seedAudit(`pagespeed-api-fail-${crypto.randomUUID()}`);
+    process.env.PAGESPEED_API_KEY = "pagespeed-test-key";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: { message: "quota exceeded" } }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const res = await request(app)
+      .get(`/api/pagespeed/${auditId}?device=mobile`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      auditId,
+      isReal: false,
+      performanceScore: expect.any(Number),
+      seoScore: expect.any(Number),
+    });
+    expect(GetPageSpeedResultsResponse.parse(res.body)).toMatchObject({ auditId });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("adds AI recommendations during audits when an active provider succeeds", async () => {
+    const { orgId, clientId } = await seedClient(`ai-live-${crypto.randomUUID()}`);
+    await seedAiProvider(orgId, { provider: "ollama", model: "llama3", baseUrl: "http://ollama.test" });
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      expect(String(input)).toBe("http://ollama.test/api/chat");
+      expect(init?.method).toBe("POST");
+      const body = JSON.parse(String(init?.body));
+      expect(body).toMatchObject({ model: "llama3", stream: false });
+      expect(body.messages[1].content).toContain("Missing meta description");
+
+      return new Response(JSON.stringify({
+        message: {
+          content: "Add a unique, keyword-aligned meta description and validate it in the next crawl.",
+        },
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    });
+
+    const createRes = await request(app)
+      .post("/api/audits")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ clientId, url: "ai-live.example", maxPages: 3, includePageSpeed: false });
+
+    expect(createRes.status).toBe(201);
+    const detailRes = await waitForAuditCompleted(createRes.body.id);
+    expect(detailRes.body.status).toBe("completed");
+    expect(detailRes.body.aiProviderUsed).toBe("ollama/llama3");
+    expect(detailRes.body.issues[0]).toMatchObject({
+      title: "Missing meta description",
+      aiRecommendation: "Add a unique, keyword-aligned meta description and validate it in the next crawl.",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("completes audits without AI recommendations when provider calls fail", async () => {
+    const { orgId, clientId } = await seedClient(`ai-fallback-${crypto.randomUUID()}`);
+    await seedAiProvider(orgId, { provider: "ollama", model: "llama3", baseUrl: "http://ollama.test" });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: "model unavailable" }), {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const createRes = await request(app)
+      .post("/api/audits")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ clientId, url: "ai-fallback.example", maxPages: 3, includePageSpeed: false });
+
+    expect(createRes.status).toBe(201);
+    const detailRes = await waitForAuditCompleted(createRes.body.id);
+    expect(detailRes.body.status).toBe("completed");
+    expect(detailRes.body.aiProviderUsed).toBe("ollama/llama3");
+    expect(detailRes.body.issues[0]).toMatchObject({
+      title: "Missing meta description",
+      aiRecommendation: null,
+      recommendation: "Add a concise meta description.",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("persists outbound webhooks and hides encrypted secrets", async () => {
@@ -628,17 +997,300 @@ describe("production-critical API behavior", () => {
     expect(listRes.status).toBe(200);
     expect(listRes.body).toHaveLength(1);
     expect(listRes.body[0].encryptedSecret).toBeUndefined();
+    expect(ListWebhooksResponse.parse(listRes.body)[0]).toMatchObject({
+      id: createRes.body.id,
+      orgId,
+      url: "https://example.com/webhook",
+      events: ["audit.completed", "report.ready"],
+      isActive: true,
+    });
+  });
+
+  it("sends test webhooks and persists delivery status for registered targets", async () => {
+    const orgId = await seedOrg("webhook-test-org");
+    const createRes = await request(app)
+      .post("/api/integrations/webhooks")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        orgId,
+        url: "https://example.com/receive",
+        events: ["audit.completed"],
+      });
+
+    expect(createRes.status).toBe(201);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      expect(String(input)).toBe("https://example.com/receive");
+      expect(init?.method).toBe("POST");
+      expect(init?.headers).toMatchObject({
+        "Content-Type": "application/json",
+        "X-SEORx-Event": "audit.completed",
+        "X-SEORx-Test": "true",
+      });
+      expect(JSON.parse(String(init?.body))).toMatchObject({
+        event: "audit.completed",
+        data: { auditId: "test-audit-id", clientName: "Test Client" },
+      });
+      return new Response("accepted", { status: 202 });
+    });
+
+    const testRes = await request(app)
+      .post("/api/integrations/webhooks/test")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ webhookId: createRes.body.id });
+
+    expect(testRes.status).toBe(200);
+    expect(TestWebhookResponse.parse(testRes.body)).toMatchObject({
+      success: true,
+      statusCode: 202,
+      orgId,
+      message: "Webhook delivered successfully",
+    });
+
+    const listRes = await request(app)
+      .get(`/api/integrations/webhooks?orgId=${orgId}`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(listRes.status).toBe(200);
+    expect(ListWebhooksResponse.parse(listRes.body)[0]).toMatchObject({
+      id: createRes.body.id,
+      lastStatusCode: 202,
+      lastDeliveredAt: expect.any(Date),
+      lastError: null,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("records failed test webhook delivery without exposing secrets", async () => {
+    const orgId = await seedOrg("webhook-fail-org");
+    const createRes = await request(app)
+      .post("/api/integrations/webhooks")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        orgId,
+        url: "https://example.com/fail",
+        events: ["audit.completed"],
+        secret: "delivery-secret",
+      });
+
+    expect(createRes.status).toBe(201);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("bad", { status: 500 }));
+
+    const testRes = await request(app)
+      .post("/api/integrations/webhooks/test")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ webhookId: createRes.body.id });
+
+    expect(testRes.status).toBe(200);
+    expect(TestWebhookResponse.parse(testRes.body)).toMatchObject({
+      success: false,
+      statusCode: 500,
+      orgId,
+      message: "Target returned 500",
+    });
+
+    const listRes = await request(app)
+      .get(`/api/integrations/webhooks?orgId=${orgId}`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(listRes.status).toBe(200);
+    expect(listRes.body[0].encryptedSecret).toBeUndefined();
+    expect(ListWebhooksResponse.parse(listRes.body)[0]).toMatchObject({
+      lastStatusCode: 500,
+      lastDeliveredAt: expect.any(Date),
+      lastError: "Target returned 500",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("reports GSC as unavailable before OAuth tokens are connected", async () => {
     const orgId = await seedOrg("gsc-org");
+
+    const propertiesRes = await request(app)
+      .get(`/api/integrations/gsc/properties?orgId=${orgId}`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(propertiesRes.status).toBe(200);
+    expect(ListGoogleSearchConsolePropertiesResponse.parse(propertiesRes.body)).toMatchObject({
+      available: false,
+      properties: [],
+    });
+
+    const analyticsRes = await request(app)
+      .post("/api/integrations/gsc/analytics")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        orgId,
+        siteUrl: "https://example.com/",
+        startDate: "2026-05-01",
+        endDate: "2026-05-22",
+      });
+
+    expect(analyticsRes.status).toBe(200);
+    expect(analyticsRes.body).toMatchObject({
+      available: false,
+      siteUrl: "https://example.com/",
+      startDate: "2026-05-01",
+      endDate: "2026-05-22",
+      rows: [],
+    });
+    expect(GetGoogleSearchConsoleAnalyticsResponse.parse(analyticsRes.body)).toMatchObject({
+      available: false,
+      siteUrl: "https://example.com/",
+      startDate: expect.any(Date),
+      endDate: expect.any(Date),
+      rows: [],
+    });
+  });
+
+  it("builds GSC OAuth redirects only for configured and accessible organizations", async () => {
+    const orgId = await seedOrg("gsc-connect-org");
+
+    const unavailableRes = await request(app)
+      .get(`/api/integrations/gsc/connect?orgId=${orgId}`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(unavailableRes.status).toBe(503);
+    expect(unavailableRes.body).toMatchObject({ error: "Not configured" });
+
+    process.env.GOOGLE_CLIENT_ID = "google-client-id";
+    process.env.GOOGLE_CLIENT_SECRET = "google-client-secret";
+
+    const redirectRes = await request(app)
+      .get(`/api/integrations/gsc/connect?orgId=${orgId}&returnUrl=${encodeURIComponent("/integrations")}`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(redirectRes.status).toBe(302);
+    const location = new URL(redirectRes.headers.location);
+    expect(location.origin).toBe("https://accounts.google.com");
+    expect(location.searchParams.get("client_id")).toBe("google-client-id");
+    expect(location.searchParams.get("redirect_uri")).toBe("http://localhost:18080/api/integrations/gsc/callback");
+    expect(location.searchParams.get("scope")).toBe("https://www.googleapis.com/auth/webmasters.readonly");
+    expect(JSON.parse(location.searchParams.get("state") ?? "{}")).toEqual({ orgId, returnUrl: "/integrations" });
+
+    const blockedOrgId = await seedOrg("gsc-connect-private", OTHER_USER_ID);
+    const blockedRes = await request(app)
+      .get(`/api/integrations/gsc/connect?orgId=${blockedOrgId}`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(blockedRes.status).toBe(403);
+  });
+
+  it("returns connected GSC properties and analytics through generated response schemas", async () => {
+    const orgId = await seedOrg("gsc-connected-org");
+    await seedGscIntegration(orgId, { accessToken: "connected-gsc-token" });
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      expect(init?.headers).toMatchObject({ Authorization: "Bearer connected-gsc-token" });
+
+      if (url === "https://www.googleapis.com/webmasters/v3/sites") {
+        return new Response(JSON.stringify({
+          siteEntry: [
+            { siteUrl: "https://example.com/", permissionLevel: "siteFullUser" },
+            { siteUrl: "sc-domain:example.com", permissionLevel: "siteOwner" },
+          ],
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+
+      if (url.includes("/searchAnalytics/query")) {
+        expect(JSON.parse(String(init?.body))).toMatchObject({
+          startDate: "2026-05-01",
+          endDate: "2026-05-22",
+          dimensions: ["query"],
+        });
+        return new Response(JSON.stringify({
+          rows: [
+            { keys: ["seo audit"], clicks: 42, impressions: 1200, ctr: 0.035, position: 4.2 },
+          ],
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
+
+    const propertiesRes = await request(app)
+      .get(`/api/integrations/gsc/properties?orgId=${orgId}`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(propertiesRes.status).toBe(200);
+    expect(ListGoogleSearchConsolePropertiesResponse.parse(propertiesRes.body)).toEqual({
+      available: true,
+      properties: [
+        { siteUrl: "https://example.com/", permissionLevel: "siteFullUser" },
+        { siteUrl: "sc-domain:example.com", permissionLevel: "siteOwner" },
+      ],
+    });
+
+    const analyticsRes = await request(app)
+      .post("/api/integrations/gsc/analytics")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        orgId,
+        siteUrl: "https://example.com/",
+        startDate: "2026-05-01",
+        endDate: "2026-05-22",
+        dimensions: ["query"],
+      });
+
+    expect(analyticsRes.status).toBe(200);
+    expect(analyticsRes.body).toMatchObject({
+      available: true,
+      siteUrl: "https://example.com/",
+      startDate: "2026-05-01",
+      endDate: "2026-05-22",
+      rows: [{ keys: ["seo audit"], clicks: 42, impressions: 1200, ctr: 0.035, position: 4.2 }],
+    });
+    expect(GetGoogleSearchConsoleAnalyticsResponse.parse(analyticsRes.body)).toMatchObject({
+      available: true,
+      siteUrl: "https://example.com/",
+      startDate: expect.any(Date),
+      endDate: expect.any(Date),
+      rows: [{ keys: ["seo audit"], clicks: 42, impressions: 1200, ctr: 0.035, position: 4.2 }],
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("refreshes expired GSC tokens before requesting properties", async () => {
+    const orgId = await seedOrg("gsc-refresh-org");
+    await seedGscIntegration(orgId, {
+      accessToken: "expired-token",
+      refreshToken: "refresh-token",
+      expiresAt: new Date(Date.now() - 60_000),
+    });
+    process.env.GOOGLE_CLIENT_ID = "google-client-id";
+    process.env.GOOGLE_CLIENT_SECRET = "google-client-secret";
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "https://oauth2.googleapis.com/token") {
+        expect(String(init?.body)).toContain("refresh_token=refresh-token");
+        return new Response(JSON.stringify({
+          access_token: "refreshed-token",
+          expires_in: 3600,
+          scope: "https://www.googleapis.com/auth/webmasters.readonly",
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+
+      if (url === "https://www.googleapis.com/webmasters/v3/sites") {
+        expect(init?.headers).toMatchObject({ Authorization: "Bearer refreshed-token" });
+        return new Response(JSON.stringify({
+          siteEntry: [{ siteUrl: "https://refreshed.example/", permissionLevel: "siteFullUser" }],
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }
+
+      throw new Error(`Unexpected fetch URL: ${url}`);
+    });
 
     const res = await request(app)
       .get(`/api/integrations/gsc/properties?orgId=${orgId}`)
       .set("x-test-user-id", TEST_USER_ID);
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ available: false, properties: [] });
+    expect(ListGoogleSearchConsolePropertiesResponse.parse(res.body)).toMatchObject({
+      available: true,
+      properties: [{ siteUrl: "https://refreshed.example/", permissionLevel: "siteFullUser" }],
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("rejects integration access for organizations outside membership", async () => {
@@ -649,5 +1301,97 @@ describe("production-critical API behavior", () => {
       .set("x-test-user-id", TEST_USER_ID);
 
     expect(res.status).toBe(403);
+  });
+
+  it("returns billing plans and safe disabled checkout states", async () => {
+    const orgId = await seedOrg("billing-org");
+    const blockedOrgId = await seedOrg("billing-private-org", OTHER_USER_ID);
+
+    const plansRes = await request(app).get("/api/billing/plans");
+    expect(plansRes.status).toBe(200);
+    expect(plansRes.body).toEqual(expect.arrayContaining([
+      expect.objectContaining({ plan: "free", auditsPerMonth: 3, clientsMax: 2 }),
+      expect.objectContaining({ plan: "enterprise", auditsPerMonth: null, clientsMax: null }),
+    ]));
+
+    const invalidPlanRes = await request(app)
+      .post("/api/billing/checkout")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        orgId,
+        plan: "free",
+        successUrl: "https://example.com/success",
+        cancelUrl: "https://example.com/cancel",
+      });
+
+    expect(invalidPlanRes.status).toBe(400);
+    expect(invalidPlanRes.body).toEqual({ error: "Invalid plan" });
+
+    const blockedCheckoutRes = await request(app)
+      .post("/api/billing/checkout")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        orgId: blockedOrgId,
+        plan: "starter",
+        successUrl: "https://example.com/success",
+        cancelUrl: "https://example.com/cancel",
+      });
+
+    expect(blockedCheckoutRes.status).toBe(403);
+
+    const disabledCheckoutRes = await request(app)
+      .post("/api/billing/checkout")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        orgId,
+        plan: "starter",
+        successUrl: "https://example.com/success",
+        cancelUrl: "https://example.com/cancel",
+      });
+
+    expect(disabledCheckoutRes.status).toBe(503);
+    expect(disabledCheckoutRes.body).toMatchObject({
+      error: "Stripe not configured",
+      message: "Set STRIPE_SECRET_KEY to enable billing",
+    });
+  });
+
+  it("guards billing portal and Stripe webhook signature handling", async () => {
+    const orgId = await seedOrg("billing-portal-org");
+    const blockedOrgId = await seedOrg("billing-portal-private-org", OTHER_USER_ID);
+
+    const blockedPortalRes = await request(app)
+      .post("/api/billing/portal")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ orgId: blockedOrgId, returnUrl: "https://example.com/billing" });
+
+    expect(blockedPortalRes.status).toBe(403);
+
+    const noCustomerRes = await request(app)
+      .post("/api/billing/portal")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ orgId, returnUrl: "https://example.com/billing" });
+
+    expect(noCustomerRes.status).toBe(400);
+    expect(noCustomerRes.body).toEqual({ error: "No Stripe customer linked to this organization" });
+
+    const unconfiguredWebhookRes = await request(app)
+      .post("/api/billing/webhook")
+      .set("stripe-signature", "t=1,v1=bad")
+      .set("Content-Type", "application/json")
+      .send(JSON.stringify({ type: "checkout.session.completed" }));
+
+    expect(unconfiguredWebhookRes.status).toBe(400);
+    expect(unconfiguredWebhookRes.body).toEqual({ error: "Webhook secret not configured" });
+
+    process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
+    const invalidSignatureRes = await request(app)
+      .post("/api/billing/webhook")
+      .set("stripe-signature", "t=1,v1=bad")
+      .set("Content-Type", "application/json")
+      .send(JSON.stringify({ type: "checkout.session.completed" }));
+
+    expect(invalidSignatureRes.status).toBe(400);
+    expect(invalidSignatureRes.body).toEqual({ error: "Invalid webhook signature" });
   });
 });
