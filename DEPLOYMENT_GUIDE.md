@@ -89,6 +89,23 @@ Run the API test suite and broad build sequentially. The API integration tests
 create temporary database resources and should not be run in parallel with the
 workspace build.
 
+Optional live credential smoke checks can be run locally after
+`.env.production.local` is populated. This command does not print secret values
+and keeps paid-provider usage bounded to metadata checks plus one small
+PageSpeed request:
+
+```powershell
+corepack pnpm --filter @workspace/scripts run smoke:live
+```
+
+The live smoke command validates:
+- Postgres connectivity with a read-only query.
+- Clerk secret-key access to instance metadata.
+- Stripe account access, configured monthly price IDs, and webhook secret shape.
+- Google OAuth client credentials using an intentionally invalid auth code.
+- PageSpeed API access against a safe URL.
+- OpenAI, Anthropic, and Gemini model-list access without generation.
+
 ## Database
 
 Schema ownership lives in `lib/db/src/schema`.

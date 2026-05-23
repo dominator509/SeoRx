@@ -83,6 +83,7 @@ before final status.
 | Production migration policy | Complete | Generated Drizzle migrations are the production policy, with CI drift checks and an initial audited schema migration committed. |
 | Architecture e2e pass | Complete | Registered API surfaces were compared against OpenAPI/test coverage; developer API keys, billing, GSC callback, and report-download contracts were added or tightened. |
 | Vite diagnostic cleanup | Complete | Inert Next.js-only `"use client"` directives were removed from Vite UI wrappers; product builds no longer emit sourcemap warning noise. |
+| Optional live smoke runner | Complete | `@workspace/scripts smoke:live` validates host-agnostic live credentials without printing secrets; latest local run passed DB, Clerk, Google OAuth, Stripe account/prices/webhook secret, PageSpeed, OpenAI, Anthropic, and Gemini. |
 
 ## Active Roadmap
 
@@ -212,8 +213,8 @@ Completed:
 
 Next:
 - Confirm the final target hosting vendor.
-- Add environment-backed optional live smoke checks once production credentials
-  exist.
+- Keep `corepack pnpm --filter @workspace/scripts run smoke:live` as the
+  manual environment-backed integration gate outside default CI.
 - Product and mockup Vite builds no longer emit the previous UI wrapper
   sourcemap warning noise.
 
@@ -221,12 +222,12 @@ Next:
 
 | Risk | Impact | Next action |
 | --- | --- | --- |
-| External API behavior depends on credentials | CI cannot rely on real providers by default. | Keep deterministic mocks in CI and add optional environment-backed smoke checks once production credentials exist. |
+| External API behavior depends on credentials | CI cannot rely on real providers by default. | Keep deterministic mocks in CI; use `@workspace/scripts smoke:live` manually for environment-backed checks. |
 | Existing direct-pushed databases may not have migration history | Applying generated migrations to those databases without reconciliation can fail or duplicate objects. | Treat new production databases as migration-managed from day one; reconcile any existing environment before promotion. |
 
 ## Next Best Step
 
 Implement the next Phase 5 production operations slice:
 1. Confirm the final target hosting vendor or keep documenting host-agnostic assumptions.
-2. Add environment-backed optional live smoke checks once production credentials exist.
+2. Correct the live smoke env issues and re-run `@workspace/scripts smoke:live`.
 3. Run the standard verification gate.
