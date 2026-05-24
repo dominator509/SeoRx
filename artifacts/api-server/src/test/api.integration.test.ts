@@ -420,6 +420,46 @@ describe("production-critical API behavior", () => {
     });
   });
 
+  it("allows superadmins to manage API keys across organizations without membership rows", async () => {
+    const superadminUserId = `superadmin-${crypto.randomUUID()}`;
+    await dbModule.db.insert(dbModule.usersTable).values({
+      id: crypto.randomUUID(),
+      clerkId: superadminUserId,
+      email: `${superadminUserId}@example.com`,
+      role: "superadmin",
+    });
+
+    const orgId = await seedOrg(`superadmin-api-key-org-${crypto.randomUUID()}`, OTHER_USER_ID);
+
+    const createRes = await request(app)
+      .post("/api/api-keys")
+      .set("x-test-user-id", superadminUserId)
+      .send({ orgId, name: "Superadmin automation key" });
+
+    expect(createRes.status).toBe(201);
+    expect(createRes.body).toMatchObject({
+      orgId,
+      name: "Superadmin automation key",
+    });
+    expect(createRes.body.key).toMatch(/^srx_/);
+
+    const scopedListRes = await request(app)
+      .get(`/api/api-keys?orgId=${orgId}`)
+      .set("x-test-user-id", superadminUserId);
+
+    expect(scopedListRes.status).toBe(200);
+    const scopedKeys = ListApiKeysResponse.parse(scopedListRes.body);
+    expect(scopedKeys.some((key) => key.orgId === orgId && key.name === "Superadmin automation key")).toBe(true);
+
+    const globalListRes = await request(app)
+      .get("/api/api-keys")
+      .set("x-test-user-id", superadminUserId);
+
+    expect(globalListRes.status).toBe(200);
+    const globalKeys = ListApiKeysResponse.parse(globalListRes.body);
+    expect(globalKeys.some((key) => key.orgId === orgId && key.name === "Superadmin automation key")).toBe(true);
+  });
+
   it("scopes clients to the authenticated user's organizations", async () => {
     const allowedOrgId = await seedOrg("allowed-org");
     const blockedOrgId = await seedOrg("blocked-org", OTHER_USER_ID);

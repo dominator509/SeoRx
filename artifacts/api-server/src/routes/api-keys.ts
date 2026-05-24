@@ -11,20 +11,30 @@ const router = Router();
 router.get("/api-keys", requireAuth, async (req, res) => {
   try {
     const { orgId } = req.query as { orgId?: string };
+    const isSuperadmin = req.seorxUser?.role === "superadmin";
     const allowedOrgIds = getUserOrgIds(req);
-    if (allowedOrgIds.length === 0) {
+    if (!isSuperadmin && allowedOrgIds.length === 0) {
       res.json([]);
       return;
     }
-    if (orgId && !allowedOrgIds.includes(orgId)) {
+    if (orgId && !isSuperadmin && !allowedOrgIds.includes(orgId)) {
       res.status(403).json({ error: "Access denied" });
       return;
     }
-    const scopedOrgIds = orgId && allowedOrgIds.includes(orgId) ? [orgId] : allowedOrgIds;
-    const keys =
-      scopedOrgIds.length === 1
-        ? await db.query.apiKeysTable.findMany({ where: eq(apiKeysTable.orgId, scopedOrgIds[0]) })
-        : await db.query.apiKeysTable.findMany({ where: or(...scopedOrgIds.map((id) => eq(apiKeysTable.orgId, id))) });
+    const scopedOrgIds = orgId
+      ? [orgId]
+      : isSuperadmin
+        ? []
+        : allowedOrgIds;
+    const keys = orgId
+      ? await db.query.apiKeysTable.findMany({ where: eq(apiKeysTable.orgId, orgId) })
+      : isSuperadmin
+        ? await db.query.apiKeysTable.findMany()
+        : scopedOrgIds.length === 1
+          ? await db.query.apiKeysTable.findMany({ where: eq(apiKeysTable.orgId, scopedOrgIds[0]) })
+          : await db.query.apiKeysTable.findMany({
+              where: or(...scopedOrgIds.map((id) => eq(apiKeysTable.orgId, id))),
+            });
     res.json(keys.map(({ keyHash: _, ...k }) => k));
   } catch (err) {
     req.log.error({ err }, "Failed to list API keys");
@@ -39,8 +49,9 @@ router.post("/api-keys", requireAuth, async (req, res) => {
       name: string;
       expiresAt?: string;
     };
+    const isSuperadmin = req.seorxUser?.role === "superadmin";
     const allowedOrgIds = getUserOrgIds(req);
-    if (!allowedOrgIds.includes(orgId)) {
+    if (!isSuperadmin && !allowedOrgIds.includes(orgId)) {
       res.status(403).json({ error: "Not a member of the specified organization" });
       return;
     }
@@ -70,8 +81,9 @@ router.delete("/api-keys/:id", requireAuth, async (req, res) => {
       res.status(404).json({ error: "Not found" });
       return;
     }
+    const isSuperadmin = req.seorxUser?.role === "superadmin";
     const allowedOrgIds = getUserOrgIds(req);
-    if (!allowedOrgIds.includes(apiKey.orgId)) {
+    if (!isSuperadmin && !allowedOrgIds.includes(apiKey.orgId)) {
       res.status(403).json({ error: "Access denied" });
       return;
     }
@@ -93,8 +105,9 @@ router.patch("/api-keys/:id", requireAuth, async (req, res) => {
       res.status(404).json({ error: "Not found" });
       return;
     }
+    const isSuperadmin = req.seorxUser?.role === "superadmin";
     const allowedOrgIds = getUserOrgIds(req);
-    if (!allowedOrgIds.includes(apiKey.orgId)) {
+    if (!isSuperadmin && !allowedOrgIds.includes(apiKey.orgId)) {
       res.status(403).json({ error: "Access denied" });
       return;
     }
