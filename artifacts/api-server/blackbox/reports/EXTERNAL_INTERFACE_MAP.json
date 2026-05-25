@@ -1,0 +1,817 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/ai-providers",
+    "operationId": "listAiProviders",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "ai-providers"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/ai-providers",
+    "operationId": "createAiProvider",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "201",
+      "401"
+    ],
+    "tags": [
+      "ai-providers"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/ai-providers/{id}",
+    "operationId": "deleteAiProvider",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "204",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "ai-providers"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/ai-providers/{id}",
+    "operationId": "updateAiProvider",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "200",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "ai-providers"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/api-keys",
+    "operationId": "listApiKeys",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401",
+      "403"
+    ],
+    "tags": [
+      "api-keys"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/api-keys",
+    "operationId": "createApiKey",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "201",
+      "401",
+      "403"
+    ],
+    "tags": [
+      "api-keys"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/api-keys/{id}",
+    "operationId": "deleteApiKey",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "204",
+      "401",
+      "403",
+      "404"
+    ],
+    "tags": [
+      "api-keys"
+    ]
+  },
+  {
+    "method": "PATCH",
+    "path": "/api/api-keys/{id}",
+    "operationId": "updateApiKey",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "200",
+      "401",
+      "403",
+      "404"
+    ],
+    "tags": [
+      "api-keys"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/audits",
+    "operationId": "listAudits",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "audits"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/audits",
+    "operationId": "createAudit",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "201",
+      "401"
+    ],
+    "tags": [
+      "audits"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/audits/{id}",
+    "operationId": "deleteAudit",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "204",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "audits"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/audits/{id}",
+    "operationId": "getAudit",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "audits"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/audits/{id}/issues",
+    "operationId": "listAuditIssues",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "issues"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/auth/me",
+    "operationId": "getMe",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "auth"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/auth/me",
+    "operationId": "updateMe",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "auth"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/billing/checkout",
+    "operationId": "createBillingCheckout",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "503"
+    ],
+    "tags": [
+      "billing"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/billing/plans",
+    "operationId": "listBillingPlans",
+    "auth": "none",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200"
+    ],
+    "tags": [
+      "billing"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/billing/portal",
+    "operationId": "createBillingPortal",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "200",
+      "400",
+      "401",
+      "403",
+      "503"
+    ],
+    "tags": [
+      "billing"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/billing/webhook",
+    "operationId": "handleStripeWebhook",
+    "auth": "none",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "200",
+      "400",
+      "500"
+    ],
+    "tags": [
+      "billing"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/clients",
+    "operationId": "listClients",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "clients"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/clients",
+    "operationId": "createClient",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "201",
+      "401"
+    ],
+    "tags": [
+      "clients"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/clients/{id}",
+    "operationId": "deleteClient",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "204",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "clients"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/clients/{id}",
+    "operationId": "getClient",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "clients"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/clients/{id}",
+    "operationId": "updateClient",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "200",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "clients"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/dashboard/issue-breakdown",
+    "operationId": "getIssueBreakdown",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "dashboard"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/dashboard/recent-audits",
+    "operationId": "getRecentAudits",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "dashboard"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/dashboard/score-trends",
+    "operationId": "getScoreTrends",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "dashboard"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/dashboard/stats",
+    "operationId": "getDashboardStats",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "dashboard"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/developer/authorize",
+    "operationId": "authorizeDeveloperApiKey",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "api-keys"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/healthz",
+    "operationId": "healthCheck",
+    "auth": "none",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200"
+    ],
+    "tags": [
+      "health"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/integrations/gsc/analytics",
+    "operationId": "getGoogleSearchConsoleAnalytics",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "integrations"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/integrations/gsc/callback",
+    "operationId": "handleGoogleSearchConsoleCallback",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "302",
+      "400",
+      "401",
+      "403"
+    ],
+    "tags": [
+      "integrations"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/integrations/gsc/connect",
+    "operationId": "connectGoogleSearchConsole",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "302",
+      "400",
+      "401"
+    ],
+    "tags": [
+      "integrations"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/integrations/gsc/properties",
+    "operationId": "listGoogleSearchConsoleProperties",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "integrations"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/integrations/webhooks",
+    "operationId": "listWebhooks",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "integrations"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/integrations/webhooks",
+    "operationId": "createWebhook",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "201",
+      "401"
+    ],
+    "tags": [
+      "integrations"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/integrations/webhooks/{id}",
+    "operationId": "deleteWebhook",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "204",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "integrations"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/integrations/webhooks/test",
+    "operationId": "testWebhook",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "integrations"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/issues/{id}/approve",
+    "operationId": "approveIssue",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "200",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "approvals"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/issues/{id}/dismiss",
+    "operationId": "dismissIssue",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "200",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "approvals"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/organizations",
+    "operationId": "listOrganizations",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "organizations"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/organizations",
+    "operationId": "createOrganization",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "201",
+      "401"
+    ],
+    "tags": [
+      "organizations"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/organizations/{id}",
+    "operationId": "deleteOrganization",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "204",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "organizations"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/organizations/{id}",
+    "operationId": "getOrganization",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "organizations"
+    ]
+  },
+  {
+    "method": "PUT",
+    "path": "/api/organizations/{id}",
+    "operationId": "updateOrganization",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "200",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "organizations"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/organizations/{orgId}/members",
+    "operationId": "listOrgMembers",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "organizations"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/organizations/{orgId}/members",
+    "operationId": "inviteOrgMember",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "201",
+      "401"
+    ],
+    "tags": [
+      "organizations"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/pagespeed/{auditId}",
+    "operationId": "getPageSpeedResults",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "pagespeed"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/reports",
+    "operationId": "listReports",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401"
+    ],
+    "tags": [
+      "reports"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/reports",
+    "operationId": "createReport",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [
+      "application/json"
+    ],
+    "responses": [
+      "201",
+      "401"
+    ],
+    "tags": [
+      "reports"
+    ]
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/reports/{id}",
+    "operationId": "deleteReport",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "204",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "reports"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/reports/{id}",
+    "operationId": "getReport",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401",
+      "404"
+    ],
+    "tags": [
+      "reports"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/reports/{id}/download",
+    "operationId": "downloadReport",
+    "auth": "bearerAuth",
+    "requestBodyContentTypes": [],
+    "responses": [
+      "200",
+      "401",
+      "404",
+      "409"
+    ],
+    "tags": [
+      "reports"
+    ]
+  }
+]
