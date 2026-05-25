@@ -1580,4 +1580,57 @@ describe("production-critical API behavior", () => {
     expect(invalidSignatureRes.body).toEqual({ error: "Invalid webhook signature" });
   });
 
+  it("handles high-concurrency developer key authorization requests consistently", async () => {
+    const orgId = await seedOrg(`api-key-concurrency-${crypto.randomUUID()}`);
+    const createRes = await request(app)
+      .post("/api/api-keys")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ orgId, name: "Concurrent auth key" });
+
+    expect(createRes.status).toBe(201);
+    const key = createRes.body.key as string;
+
+    const responses = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        request(app).get("/api/developer/authorize").set("Authorization", `Bearer ${key}`),
+      ),
+    );
+
+    for (const res of responses) {
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        ok: true,
+        orgId,
+        keyPrefix: createRes.body.prefix,
+      });
+    }
+
+    const listed = await dbModule.db.query.apiKeysTable.findFirst({
+      where: eq(dbModule.apiKeysTable.keyPrefix, createRes.body.prefix),
+    });
+    expect(listed?.lastUsedAt).toBeTruthy();
+  });
+
+  it("preserves valid terminal issue state under concurrent triage mutations", async () => {
+    const seeded = await seedAudit(`issue-concurrency-${crypto.randomUUID()}`);
+    const issueId = await seedIssue(seeded.auditId, "Concurrent triage issue", "high", "open");
+
+    const [approveRes, dismissRes] = await Promise.all([
+      request(app)
+        .put(`/api/issues/${issueId}/approve`)
+        .set("x-test-user-id", TEST_USER_ID),
+      request(app)
+        .put(`/api/issues/${issueId}/dismiss`)
+        .set("x-test-user-id", TEST_USER_ID),
+    ]);
+
+    expect([approveRes.status, dismissRes.status]).toEqual([200, 200]);
+
+    const finalIssue = await dbModule.db.query.auditIssuesTable.findFirst({
+      where: eq(dbModule.auditIssuesTable.id, issueId),
+    });
+    expect(finalIssue).toBeTruthy();
+    expect(["approved", "dismissed"]).toContain(finalIssue?.status);
+  });
+
 });
