@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "status": 400,
+    "elapsedMs": 166,
+    "leaked": false,
+    "bodyPreview": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Bad Request</pre>\n</body>\n</html>\n"
+  },
+  {
+    "id": 2,
+    "status": 500,
+    "elapsedMs": 27,
+    "leaked": false,
+    "bodyPreview": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Internal Server Error</pre>\n</body>\n</html>\n"
+  },
+  {
+    "id": 3,
+    "status": 500,
+    "elapsedMs": 60,
+    "leaked": false,
+    "bodyPreview": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Internal Server Error</pre>\n</body>\n</html>\n"
+  },
+  {
+    "id": 4,
+    "status": 500,
+    "elapsedMs": 47,
+    "leaked": false,
+    "bodyPreview": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>Error</title>\n</head>\n<body>\n<pre>Internal Server Error</pre>\n</body>\n</html>\n"
+  }
+]
