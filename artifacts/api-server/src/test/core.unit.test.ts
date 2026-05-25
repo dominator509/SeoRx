@@ -256,5 +256,98 @@ describe("core deterministic utilities", () => {
       expect(desktop.fid).toBeLessThan(mobile.fid!);
       expect(desktop.performanceScore).toBeGreaterThanOrEqual(mobile.performanceScore);
     });
+
+    it("forces threshold branches for meta severity and canonical/schema gates", () => {
+      const pages: CrawledPage[] = [
+        makePage({
+          url: "https://example.com/1",
+          metaDescription: undefined,
+          canonicalUrl: undefined,
+          structuredData: [],
+        }),
+        makePage({
+          url: "https://example.com/2",
+          metaDescription: undefined,
+          canonicalUrl: undefined,
+          structuredData: [],
+        }),
+        makePage({
+          url: "https://example.com/3",
+          canonicalUrl: undefined,
+          structuredData: [],
+        }),
+      ];
+      const result: CrawlResult = {
+        pages,
+        crawledUrls: new Set(pages.map((p) => p.url)),
+        blockedByRobots: [],
+        errors: [],
+        durationMs: 50,
+      };
+
+      const analysis = analyzeCrawlResult(result);
+      const missingMetaIssue = analysis.issues.find((i) => i.title.startsWith("Missing meta description"));
+      expect(missingMetaIssue?.severity).toBe("critical");
+      expect(analysis.issues.some((i) => i.title.startsWith("Missing canonical tags"))).toBe(true);
+      expect(analysis.issues.some((i) => i.title.startsWith("No structured data"))).toBe(true);
+    });
+
+    it("triggers duplicate title, broken-link, and performance critical branches", () => {
+      const pages: CrawledPage[] = [
+        makePage({
+          url: "https://example.com/a",
+          title: "Duplicate title",
+          loadTimeMs: 6500,
+          links: [{ href: "https://example.com/404", text: "Broken", isInternal: true, isBroken: true }],
+        }),
+        makePage({
+          url: "https://example.com/b",
+          title: "Duplicate title",
+          loadTimeMs: 7000,
+          links: [{ href: "https://example.com/ok", text: "OK", isInternal: true, isBroken: false }],
+        }),
+      ];
+
+      const analysis = analyzeCrawlResult({
+        pages,
+        crawledUrls: new Set(pages.map((p) => p.url)),
+        blockedByRobots: [],
+        errors: [],
+        durationMs: 100,
+      });
+
+      expect(analysis.issues.some((i) => i.title.startsWith("Duplicate title tags found"))).toBe(true);
+      expect(analysis.issues.some((i) => i.title.includes("broken link"))).toBe(true);
+      expect(analysis.issues.some((i) => i.title.includes("critically slow"))).toBe(true);
+    });
+
+    it("exercises false branches by returning a clean near-perfect crawl", () => {
+      const pages: CrawledPage[] = [
+        makePage({
+          url: "https://example.com/ok-1",
+          title: "A clean SEO title with useful intent signals",
+          metaDescription: "This page has a well-sized and descriptive meta description for search engines.",
+          h1Tags: ["Clean heading"],
+          links: [{ href: "https://example.com/ok-2", text: "Next", isInternal: true, isBroken: false }],
+          imgAlts: [{ src: "/ok.jpg", alt: "Descriptive alt" }],
+          canonicalUrl: "https://example.com/ok-1",
+          structuredData: ["{\"@type\":\"WebPage\"}"],
+          loadTimeMs: 900,
+          hasHttps: true,
+          hasViewport: true,
+        }),
+      ];
+
+      const analysis = analyzeCrawlResult({
+        pages,
+        crawledUrls: new Set(["https://example.com/ok-1"]),
+        blockedByRobots: [],
+        errors: [],
+        durationMs: 10,
+      });
+
+      expect(analysis.issues).toHaveLength(0);
+      expect(analysis.seoScore).toBe(100);
+    });
   });
 });
