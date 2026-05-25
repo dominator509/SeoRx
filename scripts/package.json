@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "env:check": "tsx ./src/env-check.ts",
     "hello": "tsx ./src/hello.ts",
     "smoke:live": "tsx ./src/live-smoke.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

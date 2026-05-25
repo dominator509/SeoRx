@@ -1,6 +1,6 @@
 # SEORx Production Readiness Roadmap
 
-Last updated: 2026-05-22
+Last updated: 2026-05-24
 
 This file is the delivery source of truth. When asked to "proceed", pick the
 highest priority item in this roadmap that is not complete, implement it, run
@@ -84,6 +84,7 @@ before final status.
 | Architecture e2e pass | Complete | Registered API surfaces were compared against OpenAPI/test coverage; developer API keys, billing, GSC callback, and report-download contracts were added or tightened. |
 | Vite diagnostic cleanup | Complete | Inert Next.js-only `"use client"` directives were removed from Vite UI wrappers; product builds no longer emit sourcemap warning noise. |
 | Optional live smoke runner | Complete | `@workspace/scripts smoke:live` validates host-agnostic live credentials without printing secrets; latest local run passed DB, Clerk, Google OAuth, Stripe account/prices/webhook secret, PageSpeed, OpenAI, Anthropic, and Gemini. |
+| Deployment env guardrail | Complete | `.env.example` and `@workspace/scripts env:check` provide an offline, no-secret-output validation gate for required production env names, URLs, Clerk key consistency, Stripe price IDs, and common alias mistakes. |
 
 ## Active Roadmap
 
@@ -202,6 +203,8 @@ Completed:
 - Host-agnostic deployment assumptions are documented in `DEPLOYMENT_GUIDE.md`.
 - Required and optional environment variables are documented with production
   handling rules.
+- A safe `.env.example` template and offline env validator are available before
+  deploy or live smoke runs.
 - Release smoke checks include API health, OpenAPI/docs, auth, CORS, core
   workflows, billing disabled state, and optional integration degradation.
 - Generated migration expectations and direct-push restrictions are documented.
@@ -229,5 +232,6 @@ Next:
 
 Implement the next Phase 5 production operations slice:
 1. Confirm the final target hosting vendor or keep documenting host-agnostic assumptions.
-2. Correct the live smoke env issues and re-run `@workspace/scripts smoke:live`.
+2. Validate the chosen host runbook with `@workspace/scripts env:check`,
+   migrations, deployment health checks, and `@workspace/scripts smoke:live`.
 3. Run the standard verification gate.

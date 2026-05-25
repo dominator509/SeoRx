@@ -1,6 +1,6 @@
 # SEORx Deployment Guide
 
-Last updated: 2026-05-22
+Last updated: 2026-05-24
 
 This guide is the production release checklist. It should be read with
 `ARCHITECTURE.md` and `ROADMAP_STATUS.md`.
@@ -78,6 +78,7 @@ STRIPE_PRICE_ENTERPRISE_MONTHLY
 Run these before a release candidate is marked ready:
 
 ```powershell
+corepack pnpm --filter @workspace/scripts run env:check -- .env.production.local
 corepack pnpm --filter @workspace/seorx run typecheck
 corepack pnpm --filter @workspace/seorx run test:e2e
 corepack pnpm test
@@ -87,7 +88,18 @@ git diff --check
 
 Run the API test suite and broad build sequentially. The API integration tests
 create temporary database resources and should not be run in parallel with the
-workspace build.
+workspace build. Use `.env.example` as the safe template for deployment
+configuration; never commit populated `.env*` files.
+
+Offline environment validation:
+
+```powershell
+corepack pnpm --filter @workspace/scripts run env:check -- .env.production.local
+```
+
+The env check does not make network calls or print secret values. It validates
+required names, URL shape, Clerk publishable-key consistency, Stripe `price_`
+IDs, and common alias mistakes before a deploy or live smoke run.
 
 Optional live credential smoke checks can be run locally after
 `.env.production.local` is populated. This command does not print secret values
@@ -214,6 +226,5 @@ Webhooks:
 Track completion in `ROADMAP_STATUS.md`.
 
 - Final target hosting vendor needs confirmation.
-- Optional provider live smoke checks need real production credentials and
-  should stay outside default CI.
-- Vite sourcemap warnings are non-failing but still noisy.
+- Existing direct-pushed databases need migration-history reconciliation before
+  promotion if they were created before generated migrations became policy.

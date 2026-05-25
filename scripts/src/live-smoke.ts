@@ -11,7 +11,8 @@ interface SmokeResult {
 }
 
 const workspaceRoot = process.env.INIT_CWD ?? process.cwd();
-const envFile = resolve(workspaceRoot, process.argv[2] ?? ".env.production.local");
+const envFileArg = process.argv.slice(2).find((arg) => arg !== "--");
+const envFile = resolve(workspaceRoot, envFileArg ?? ".env.production.local");
 const results: SmokeResult[] = [];
 
 function loadEnvFile(path: string): void {
