@@ -1789,3 +1789,38 @@ describe("Ad hoc exploratory chaos - phase 4 persona workflow derailment", () =>
     expect(replayRes.status).toBe(401);
   });
 });
+
+describe("Whitebox phase 4 - security and exception boundaries", () => {
+  it("executes OAuth callback catch path and returns sanitized 500 response on malformed state", async () => {
+    process.env.GOOGLE_CLIENT_ID = "g-client";
+    process.env.GOOGLE_CLIENT_SECRET = "g-secret";
+
+    const res = await request(app)
+      .get("/api/integrations/gsc/callback")
+      .set("x-test-user-id", TEST_USER_ID)
+      .query({
+        code: "oauth-code",
+        state: "{\"orgId\":",
+      });
+
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: "Internal server error" });
+    expect(JSON.stringify(res.body).toLowerCase()).not.toContain("syntaxerror");
+  });
+
+  it("rejects non-string webhook secret before sink write with deterministic 400", async () => {
+    const orgId = await seedOrg(`webhook-secret-${crypto.randomUUID()}`);
+    const res = await request(app)
+      .post("/api/integrations/webhooks")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        orgId,
+        url: "https://example.com/hook",
+        events: ["audit.completed"],
+        secret: { nested: "not-allowed" },
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Invalid secret: expected string when provided." });
+  });
+});
