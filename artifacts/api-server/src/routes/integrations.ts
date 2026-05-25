@@ -8,6 +8,23 @@ import { decryptSecret, encryptSecret } from "../lib/crypto";
 const router = Router();
 const GSC_PROVIDER = "google_search_console" as const;
 const VALID_WEBHOOK_EVENTS = ["audit.completed", "issue.approved", "issue.dismissed", "report.ready"];
+const VALID_GSC_DIMENSIONS = ["query", "page", "country", "device", "date"] as const;
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isIsoDate(value: unknown): value is string {
+  if (!isNonEmptyString(value) || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
+}
+
+function isValidGscDimensions(value: unknown): value is string[] {
+  return Array.isArray(value)
+    && value.length > 0
+    && value.every((dimension) => typeof dimension === "string" && VALID_GSC_DIMENSIONS.includes(dimension as (typeof VALID_GSC_DIMENSIONS)[number]));
+}
 
 function canAccessOrg(req: Request, orgId: string): boolean {
   return req.seorxUser?.role === "superadmin" || getUserOrgIds(req).includes(orgId);
@@ -235,14 +252,34 @@ router.get("/integrations/gsc/properties", requireAuth, async (req, res) => {
 router.post("/integrations/gsc/analytics", requireAuth, async (req, res) => {
   const { orgId, siteUrl, startDate, endDate, dimensions = ["query", "page"] } = req.body as {
     orgId?: string;
-    siteUrl: string;
-    startDate: string;
-    endDate: string;
-    dimensions?: string[];
+    siteUrl?: string;
+    startDate?: string;
+    endDate?: string;
+    dimensions?: unknown;
   };
 
-  if (!orgId) {
+  if (!isNonEmptyString(orgId)) {
     res.status(400).json({ error: "Missing orgId" });
+    return;
+  }
+  if (!isNonEmptyString(siteUrl)) {
+    res.status(400).json({ error: "Invalid siteUrl" });
+    return;
+  }
+  try {
+    new URL(siteUrl);
+  } catch {
+    res.status(400).json({ error: "Invalid siteUrl" });
+    return;
+  }
+  if (!isIsoDate(startDate) || !isIsoDate(endDate)) {
+    res.status(400).json({ error: "Invalid date range. startDate and endDate must be YYYY-MM-DD." });
+    return;
+  }
+  if (!isValidGscDimensions(dimensions)) {
+    res.status(400).json({
+      error: `Invalid dimensions. Use one or more of: ${VALID_GSC_DIMENSIONS.join(", ")}`,
+    });
     return;
   }
   if (!canAccessOrg(req, orgId)) {
@@ -306,18 +343,37 @@ router.get("/integrations/webhooks", requireAuth, async (req, res) => {
 
 router.post("/integrations/webhooks", requireAuth, async (req, res) => {
   const { orgId, url, events, secret } = req.body as {
-    orgId: string;
-    url: string;
-    events: string[];
-    secret?: string;
+    orgId?: string;
+    url?: string;
+    events?: unknown;
+    secret?: unknown;
   };
+
+  if (!isNonEmptyString(orgId)) {
+    res.status(400).json({ error: "Missing orgId" });
+    return;
+  }
+  if (!isNonEmptyString(url)) {
+    res.status(400).json({ error: "Missing webhook URL" });
+    return;
+  }
+  if (!Array.isArray(events) || events.length === 0 || events.some((event) => typeof event !== "string")) {
+    res.status(400).json({ error: "Invalid events: expected a non-empty array of event names." });
+    return;
+  }
+  if (secret !== undefined && secret !== null && typeof secret !== "string") {
+    res.status(400).json({ error: "Invalid secret: expected string when provided." });
+    return;
+  }
 
   if (!canAccessOrg(req, orgId)) {
     res.status(403).json({ error: "Not a member of the specified organization" });
     return;
   }
 
-  const invalidEvents = events.filter((event) => !VALID_WEBHOOK_EVENTS.includes(event));
+  const safeEvents = events as string[];
+  const safeSecret = typeof secret === "string" ? secret : null;
+  const invalidEvents = safeEvents.filter((event) => !VALID_WEBHOOK_EVENTS.includes(event));
   if (invalidEvents.length > 0) {
     res.status(400).json({ error: `Invalid events: ${invalidEvents.join(", ")}. Valid events: ${VALID_WEBHOOK_EVENTS.join(", ")}` });
     return;
@@ -335,8 +391,8 @@ router.post("/integrations/webhooks", requireAuth, async (req, res) => {
     id,
     orgId,
     url,
-    events,
-    encryptedSecret: secret ? encryptSecret(secret) : null,
+    events: safeEvents,
+    encryptedSecret: safeSecret ? encryptSecret(safeSecret) : null,
     isActive: true,
   });
 
@@ -347,7 +403,7 @@ router.post("/integrations/webhooks", requireAuth, async (req, res) => {
   }
 
   const { encryptedSecret: _, ...safe } = webhook;
-  logger.info({ orgId, url, events }, "Webhook registered");
+  logger.info({ orgId, url, events: safeEvents }, "Webhook registered");
   res.status(201).json(safe);
 });
 

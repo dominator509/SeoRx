@@ -95,6 +95,42 @@ function run(command: string, args: string[], env?: NodeJS.ProcessEnv) {
   });
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForPostgresReady(container: string, attempts = 20, intervalMs = 1000) {
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      run("docker", ["exec", container, "pg_isready", "-U", "seorx", "-d", "seorx"]);
+      return;
+    } catch {
+      if (attempt === attempts) {
+        throw new Error(`Postgres in container ${container} did not become ready after ${attempts} attempts`);
+      }
+      await sleep(intervalMs);
+    }
+  }
+}
+
+async function runMigrationWithRetry(maxAttempts = 5, intervalMs = 1500) {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      run("corepack", ["pnpm", "--filter", "@workspace/db", "run", "migrate"], {
+        DATABASE_URL: process.env.DATABASE_URL,
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxAttempts) {
+        await sleep(intervalMs * attempt);
+      }
+    }
+  }
+  throw lastError;
+}
+
 async function seedOrg(slug: string, userId = TEST_USER_ID) {
   const orgId = crypto.randomUUID();
   await dbModule.db.insert(dbModule.organizationsTable).values({
@@ -275,13 +311,11 @@ beforeAll(async () => {
       "-d",
       "postgres:16",
     ]);
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    await waitForPostgresReady(containerName);
     process.env.DATABASE_URL = "postgres://seorx:seorx@localhost:55433/seorx";
   }
 
-  run("corepack", ["pnpm", "--filter", "@workspace/db", "run", "migrate"], {
-    DATABASE_URL: process.env.DATABASE_URL,
-  });
+  await runMigrationWithRetry();
 
   dbModule = await import("@workspace/db");
   app = (await import("../app")).default;
@@ -1661,7 +1695,10 @@ describe("Ad hoc exploratory chaos - phase 2 data mutation", () => {
         events: "audit.completed",
       });
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({
+      error: "Invalid events: expected a non-empty array of event names.",
+    });
   });
 
   it("rejects malformed extreme analytics payloads with deterministic client or server error", async () => {
@@ -1677,8 +1714,8 @@ describe("Ad hoc exploratory chaos - phase 2 data mutation", () => {
         dimensions: ["query", { bad: "shape" }, null],
       });
 
-    expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("rows");
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("Invalid date range");
   });
 });
 
