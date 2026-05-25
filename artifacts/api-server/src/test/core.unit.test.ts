@@ -2,6 +2,8 @@ import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { decryptSecret, encryptSecret, generateApiKey, hashApiKey } from "../lib/crypto";
 import { fetchRealPageSpeed, syntheticPageSpeed } from "../lib/pagespeed";
 import { logger } from "../lib/logger";
+import { analyzeCrawlResult } from "../lib/seo-analyzer";
+import type { CrawlResult, CrawledPage } from "../lib/crawler";
 
 describe("core deterministic utilities", () => {
   const originalEncryptionKey = process.env.ENCRYPTION_KEY;
@@ -164,6 +166,95 @@ describe("core deterministic utilities", () => {
         expect(metrics.ttfb).not.toBeNull();
         expect(metrics.tbt).not.toBeNull();
       }
+    });
+  });
+
+  describe("whitebox data flow and state tracking", () => {
+    function makePage(overrides: Partial<CrawledPage> = {}): CrawledPage {
+      return {
+        url: "https://example.com/",
+        statusCode: 200,
+        h1Tags: ["Heading"],
+        h2Tags: ["Subhead"],
+        imgAlts: [{ src: "/hero.jpg", alt: "Hero image" }],
+        links: [{ href: "https://example.com/about", text: "About", isInternal: true, isBroken: false }],
+        structuredData: ["{\"@type\":\"WebPage\"}"],
+        wordCount: 600,
+        loadTimeMs: 1200,
+        hasHttps: true,
+        hasViewport: true,
+        html: "<html><body>ok</body></html>",
+        title: "A reasonably sized SEO title",
+        metaDescription: "A complete and useful meta description for search snippets.",
+        canonicalUrl: "https://example.com/",
+        ogTitle: "OG title",
+        ogImage: "https://example.com/og.png",
+        ...overrides,
+      };
+    }
+
+    it("tracks intermediate issue aggregation and enforces minimum score floor for extreme degraded crawls", () => {
+      const degradedPages: CrawledPage[] = [
+        makePage({
+          url: "http://example.com/a",
+          title: "",
+          metaDescription: "",
+          h1Tags: [],
+          imgAlts: [{ src: "/a.jpg", alt: "" }],
+          links: [{ href: "https://example.com/missing", text: "Missing", isInternal: true, isBroken: true }],
+          structuredData: [],
+          wordCount: 120,
+          loadTimeMs: 7500,
+          hasHttps: false,
+          hasViewport: false,
+        }),
+        makePage({
+          url: "http://example.com/b",
+          title: "",
+          metaDescription: "",
+          h1Tags: [],
+          imgAlts: [{ src: "/b.jpg", alt: null }],
+          links: [{ href: "https://example.com/missing2", text: "Missing2", isInternal: true, isBroken: true }],
+          structuredData: [],
+          wordCount: 0,
+          loadTimeMs: 8200,
+          hasHttps: false,
+          hasViewport: false,
+          statusCode: 503,
+          error: "timeout",
+        }),
+      ];
+
+      const result: CrawlResult = {
+        pages: degradedPages,
+        crawledUrls: new Set(degradedPages.map((p) => p.url)),
+        blockedByRobots: ["https://example.com/private"],
+        errors: ["http://example.com/b: timeout"],
+        durationMs: 2000,
+      };
+
+      const analysis = analyzeCrawlResult(result);
+      const titles = analysis.issues.map((i) => i.title);
+      expect(titles).toContain("Missing title tag on 1 page");
+      expect(titles).toContain("Missing H1 tag on 1 page");
+      expect(titles.some((t) => t.includes("returned errors"))).toBe(true);
+      expect(titles.some((t) => t.includes("blocked by robots.txt"))).toBe(true);
+      expect(analysis.seoScore).toBe(5);
+    });
+
+    it("applies deterministic device-specific metric transformations from shared random stream", () => {
+      const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.5);
+
+      const mobile = syntheticPageSpeed("mobile");
+      const desktop = syntheticPageSpeed("desktop");
+
+      expect(randomSpy).toHaveBeenCalled();
+      expect(desktop.lcp).toBeLessThan(mobile.lcp!);
+      expect(desktop.fcp).toBeLessThan(mobile.fcp!);
+      expect(desktop.ttfb).toBeLessThan(mobile.ttfb!);
+      expect(desktop.tbt).toBeLessThan(mobile.tbt!);
+      expect(desktop.fid).toBeLessThan(mobile.fid!);
+      expect(desktop.performanceScore).toBeGreaterThanOrEqual(mobile.performanceScore);
     });
   });
 });
