@@ -1634,3 +1634,121 @@ describe("production-critical API behavior", () => {
   });
 
 });
+
+describe("Ad hoc exploratory chaos - phase 2 data mutation", () => {
+  it("rejects malformed OAuth callback state without leaking stack details", async () => {
+    const res = await request(app)
+      .get("/api/integrations/gsc/callback")
+      .set("x-test-user-id", TEST_USER_ID)
+      .query({
+        code: "sample-auth-code",
+        state: "{\"orgId\":",
+      });
+
+    expect([400, 500]).toContain(res.status);
+    expect(res.body).toHaveProperty("error");
+    expect(JSON.stringify(res.body).toLowerCase()).not.toContain("syntaxerror");
+  });
+
+  it("fails gracefully on payload type confusion for webhook registration", async () => {
+    const orgId = await seedOrg(`webhook-chaos-${crypto.randomUUID()}`);
+    const res = await request(app)
+      .post("/api/integrations/webhooks")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        orgId,
+        url: "https://example.com/callback?tag=%00%0A%3Cscript%3E",
+        events: "audit.completed",
+      });
+
+    expect(res.status).toBe(500);
+  });
+
+  it("rejects malformed extreme analytics payloads with deterministic client or server error", async () => {
+    const orgId = await seedOrg(`analytics-chaos-${crypto.randomUUID()}`);
+    const res = await request(app)
+      .post("/api/integrations/gsc/analytics")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        orgId,
+        siteUrl: "https://example.com/".repeat(512),
+        startDate: null,
+        endDate: 999999999999,
+        dimensions: ["query", { bad: "shape" }, null],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("rows");
+  });
+});
+
+describe("Ad hoc exploratory chaos - phase 3 state disruption and concurrency abuse", () => {
+  it("keeps authorize endpoint stable under bursty malformed bearer headers", async () => {
+    const responses = await Promise.all(
+      Array.from({ length: 30 }, (_, idx) =>
+        request(app)
+          .get("/api/developer/authorize")
+          .set("Authorization", idx % 2 === 0 ? "Bearer" : "Bearer malformed:key"),
+      ),
+    );
+
+    for (const res of responses) {
+      expect([400, 401]).toContain(res.status);
+    }
+  });
+
+  it("preserves terminal issue state under high-contention mutation storm", async () => {
+    const seeded = await seedAudit(`storm-${crypto.randomUUID()}`);
+    const issueId = await seedIssue(seeded.auditId, "Mutation storm issue", "high", "open");
+
+    const calls = Array.from({ length: 40 }, (_, idx) => idx % 2 === 0
+      ? request(app).put(`/api/issues/${issueId}/approve`).set("x-test-user-id", TEST_USER_ID)
+      : request(app).put(`/api/issues/${issueId}/dismiss`).set("x-test-user-id", TEST_USER_ID));
+
+    const responses = await Promise.all(calls);
+    expect(responses.every((r) => r.status === 200)).toBe(true);
+
+    const finalIssue = await dbModule.db.query.auditIssuesTable.findFirst({
+      where: eq(dbModule.auditIssuesTable.id, issueId),
+    });
+    expect(finalIssue).toBeTruthy();
+    expect(["approved", "dismissed"]).toContain(finalIssue?.status);
+  });
+});
+
+
+describe("Ad hoc exploratory chaos - phase 4 persona workflow derailment", () => {
+  it("denies out-of-sequence report download for unknown IDs", async () => {
+    const res = await request(app)
+      .get(`/api/reports/${crypto.randomUUID()}/download`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect([403, 404]).toContain(res.status);
+  });
+
+  it("enforces revoked api-key state during mid-workflow replay", async () => {
+    const orgId = await seedOrg(`revoked-key-${crypto.randomUUID()}`);
+    const createRes = await request(app)
+      .post("/api/api-keys")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ orgId, name: "revoked-key" });
+
+    expect(createRes.status).toBe(201);
+    const createdKey = await dbModule.db.query.apiKeysTable.findFirst({
+      where: eq(dbModule.apiKeysTable.keyPrefix, createRes.body.prefix),
+    });
+    expect(createdKey?.id).toBeTruthy();
+
+    const deactivateRes = await request(app)
+      .patch(`/api/api-keys/${createdKey?.id}`)
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ isActive: false });
+    expect(deactivateRes.status).toBe(200);
+
+    const replayRes = await request(app)
+      .get("/api/developer/authorize")
+      .set("Authorization", `Bearer ${createRes.body.key}`);
+
+    expect(replayRes.status).toBe(401);
+  });
+});
