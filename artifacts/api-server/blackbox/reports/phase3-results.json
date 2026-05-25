@@ -1,0 +1,14 @@
+[
+  {
+    "step": "GET /auth/me",
+    "status": 500
+  },
+  {
+    "step": "POST /organizations",
+    "status": 500
+  },
+  {
+    "step": "POST /clients",
+    "status": 500
+  }
+]
