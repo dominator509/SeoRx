@@ -1419,6 +1419,65 @@ describe("production-critical API behavior", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("returns 502 when GSC analytics upstream responds with a failure status", async () => {
+    const orgId = await seedOrg("gsc-upstream-fail-org");
+    await seedGscIntegration(orgId, { accessToken: "failing-gsc-token" });
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: "quota exceeded" }), {
+        status: 429,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const analyticsRes = await request(app)
+      .post("/api/integrations/gsc/analytics")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        orgId,
+        siteUrl: "https://example.com/",
+        startDate: "2026-05-01",
+        endDate: "2026-05-22",
+        dimensions: ["query"],
+      });
+
+    expect(analyticsRes.status).toBe(502);
+    expect(analyticsRes.body).toMatchObject({
+      error: "Google Search Console analytics request failed",
+      statusCode: 429,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 500 on internal database query failure while preserving API contract shape", async () => {
+    const { clientId } = await seedClient(`client-db-failure-${crypto.randomUUID()}`);
+    const findFirstSpy = vi
+      .spyOn(dbModule.db.query.clientsTable, "findFirst")
+      .mockRejectedValueOnce(new Error("synthetic db timeout"));
+
+    const res = await request(app)
+      .get(`/api/clients/${clientId}`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(res.status).toBe(500);
+    expect(res.body).toEqual({ error: "Internal server error" });
+    expect(findFirstSpy).toHaveBeenCalled();
+  });
+
+  it("rejects malformed webhook registration payloads with deterministic 400 responses", async () => {
+    const orgId = await seedOrg("webhook-validation-org");
+    const res = await request(app)
+      .post("/api/integrations/webhooks")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        orgId,
+        url: "https://example.com/webhook",
+        events: ["audit.completed", "not-a-real-event"],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("Invalid events:");
+  });
+
   it("rejects integration access for organizations outside membership", async () => {
     const blockedOrgId = await seedOrg("private-org", OTHER_USER_ID);
 
@@ -1520,4 +1579,5 @@ describe("production-critical API behavior", () => {
     expect(invalidSignatureRes.status).toBe(400);
     expect(invalidSignatureRes.body).toEqual({ error: "Invalid webhook signature" });
   });
+
 });
