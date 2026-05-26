@@ -5,6 +5,14 @@ import { assertClientAccess, getUserOrgIds, requireAuth, requireOrgMember } from
 
 const router = Router();
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isValidDomain(value: string): boolean {
+  return /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(value);
+}
+
 router.get("/clients", requireAuth, async (req, res) => {
   try {
     const { search, orgId } = req.query as { search?: string; orgId?: string };
@@ -51,6 +59,26 @@ router.get("/clients", requireAuth, async (req, res) => {
 router.post("/clients", requireAuth, async (req, res) => {
   try {
     const { orgId, name, domain, industry, contactEmail, logoUrl } = req.body;
+    if (!isNonEmptyString(name)) {
+      res.status(400).json({ error: "Invalid name" });
+      return;
+    }
+    if (!isNonEmptyString(domain) || !isValidDomain(domain)) {
+      res.status(400).json({ error: "Invalid domain" });
+      return;
+    }
+    if (contactEmail !== undefined && contactEmail !== null && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(contactEmail))) {
+      res.status(400).json({ error: "Invalid contactEmail" });
+      return;
+    }
+    if (logoUrl !== undefined && logoUrl !== null) {
+      try {
+        new URL(String(logoUrl));
+      } catch {
+        res.status(400).json({ error: "Invalid logoUrl" });
+        return;
+      }
+    }
     const userOrgIds = getUserOrgIds(req);
     const targetOrgId = orgId ?? userOrgIds[0];
     if (!targetOrgId) {
@@ -97,13 +125,37 @@ router.put("/clients/:id", requireAuth, async (req, res) => {
     if (!client) { res.status(403).json({ error: "Access denied" }); return; }
 
     const { name, domain, industry, contactEmail, logoUrl } = req.body;
+    if (name !== undefined && !isNonEmptyString(name)) {
+      res.status(400).json({ error: "Invalid name" });
+      return;
+    }
+    if (domain !== undefined && (!isNonEmptyString(domain) || !isValidDomain(domain))) {
+      res.status(400).json({ error: "Invalid domain" });
+      return;
+    }
+    if (contactEmail !== undefined && contactEmail !== null && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(contactEmail))) {
+      res.status(400).json({ error: "Invalid contactEmail" });
+      return;
+    }
+    if (logoUrl !== undefined && logoUrl !== null) {
+      try {
+        new URL(String(logoUrl));
+      } catch {
+        res.status(400).json({ error: "Invalid logoUrl" });
+        return;
+      }
+    }
     await db
       .update(clientsTable)
       .set({ name, domain, industry, contactEmail, logoUrl, updatedAt: new Date() })
       .where(eq(clientsTable.id, id));
     const updated = await db.query.clientsTable.findFirst({ where: eq(clientsTable.id, id) });
     const auditCount = await db.$count(auditsTable, eq(auditsTable.clientId, id));
-    res.json({ ...updated, auditCount, issueCount: 0 });
+    const issueCount = await db.$count(
+      auditIssuesTable,
+      sql`${auditIssuesTable.auditId} IN (SELECT id FROM audits WHERE client_id = ${id})`,
+    );
+    res.json({ ...updated, auditCount, issueCount });
   } catch (err) {
     req.log.error({ err }, "Failed to update client");
     res.status(500).json({ error: "Internal server error" });

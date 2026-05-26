@@ -5,6 +5,11 @@ import { getUserOrgIds, requireAuth } from "../lib/rbac";
 import { encryptSecret } from "../lib/crypto";
 
 const router = Router();
+const VALID_PROVIDER_TYPES = new Set(["openai", "anthropic", "gemini", "ollama", "custom"]);
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
 
 router.get("/ai-providers", requireAuth, async (req, res) => {
   try {
@@ -25,6 +30,22 @@ router.get("/ai-providers", requireAuth, async (req, res) => {
 router.post("/ai-providers", requireAuth, async (req, res) => {
   try {
     const { orgId, name, provider, model, apiKey, baseUrl, isDefault = false } = req.body;
+    if (!isNonEmptyString(orgId) || !isNonEmptyString(name) || !isNonEmptyString(provider) || !isNonEmptyString(model)) {
+      res.status(400).json({ error: "Invalid provider payload" });
+      return;
+    }
+    if (!VALID_PROVIDER_TYPES.has(provider)) {
+      res.status(400).json({ error: "Invalid provider type" });
+      return;
+    }
+    if (baseUrl !== undefined && baseUrl !== null) {
+      try {
+        new URL(String(baseUrl));
+      } catch {
+        res.status(400).json({ error: "Invalid baseUrl" });
+        return;
+      }
+    }
     const orgIds = getUserOrgIds(req);
     if (!orgId || (req.seorxUser?.role !== "superadmin" && !orgIds.includes(orgId))) {
       res.status(403).json({ error: "Access denied" });
@@ -57,6 +78,30 @@ router.put("/ai-providers/:id", requireAuth, async (req, res) => {
       return;
     }
     const { name, model, apiKey, baseUrl, isActive, isDefault } = req.body;
+    if (name !== undefined && !isNonEmptyString(name)) {
+      res.status(400).json({ error: "Invalid name" });
+      return;
+    }
+    if (model !== undefined && !isNonEmptyString(model)) {
+      res.status(400).json({ error: "Invalid model" });
+      return;
+    }
+    if (baseUrl !== undefined && baseUrl !== null) {
+      try {
+        new URL(String(baseUrl));
+      } catch {
+        res.status(400).json({ error: "Invalid baseUrl" });
+        return;
+      }
+    }
+    if (isActive !== undefined && typeof isActive !== "boolean") {
+      res.status(400).json({ error: "Invalid isActive flag" });
+      return;
+    }
+    if (isDefault !== undefined && typeof isDefault !== "boolean") {
+      res.status(400).json({ error: "Invalid isDefault flag" });
+      return;
+    }
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
     if (name !== undefined) updateData.name = name;
     if (model !== undefined) updateData.model = model;

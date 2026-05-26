@@ -47,5 +47,8 @@ export async function getOrCreateUser(clerkId: string, email: string, firstName?
       });
     }
   }
-  return user!;
+  if (!user) {
+    throw new Error(`Failed to materialize user for clerkId=${clerkId}`);
+  }
+  return user;
 }

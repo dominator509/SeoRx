@@ -4,6 +4,11 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { requireAuth, getMembershipForOrg, getUserOrgIds, requireOrgRole } from "../lib/rbac";
 
 const router = Router();
+const VALID_MEMBER_ROLES = new Set(["admin", "agency", "client", "viewer"]);
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
 
 router.get("/organizations", requireAuth, async (req, res) => {
   try {
@@ -40,6 +45,18 @@ router.post("/organizations", requireAuth, async (req, res) => {
   const clerkId = (req as any).clerkUserId as string;
   try {
     const { name, slug, logoUrl } = req.body;
+    if (!isNonEmptyString(name) || !isNonEmptyString(slug)) {
+      res.status(400).json({ error: "Invalid name or slug" });
+      return;
+    }
+    if (logoUrl !== undefined && logoUrl !== null) {
+      try {
+        new URL(String(logoUrl));
+      } catch {
+        res.status(400).json({ error: "Invalid logoUrl" });
+        return;
+      }
+    }
     const id = crypto.randomUUID();
     await db.insert(organizationsTable).values({ id, name, slug, logoUrl });
     const memberId = crypto.randomUUID();
@@ -94,6 +111,18 @@ router.put("/organizations/:id", requireAuth, requireOrgRole("admin", "id"), asy
   try {
     const id = req.params.id as string;
     const { name, logoUrl, plan } = req.body;
+    if (name !== undefined && !isNonEmptyString(name)) {
+      res.status(400).json({ error: "Invalid name" });
+      return;
+    }
+    if (logoUrl !== undefined && logoUrl !== null) {
+      try {
+        new URL(String(logoUrl));
+      } catch {
+        res.status(400).json({ error: "Invalid logoUrl" });
+        return;
+      }
+    }
     await db.update(organizationsTable).set({ name, logoUrl, plan, updatedAt: new Date() }).where(eq(organizationsTable.id, id));
     const org = await db.query.organizationsTable.findFirst({
       where: eq(organizationsTable.id, id),
@@ -102,7 +131,15 @@ router.put("/organizations/:id", requireAuth, requireOrgRole("admin", "id"), asy
       res.status(404).json({ error: "Not found" });
       return;
     }
-    res.json({ ...org, memberCount: 0, clientCount: 0, auditCount: 0 });
+    const [memberCount, clientCount] = await Promise.all([
+      db.$count(orgMembersTable, eq(orgMembersTable.orgId, org.id)),
+      db.$count(clientsTable, eq(clientsTable.orgId, org.id)),
+    ]);
+    const auditCount = await db.$count(
+      auditsTable,
+      sql`${auditsTable.clientId} IN (SELECT id FROM clients WHERE org_id = ${org.id})`,
+    );
+    res.json({ ...org, memberCount, clientCount, auditCount });
   } catch (err) {
     req.log.error({ err }, "Failed to update organization");
     res.status(500).json({ error: "Internal server error" });
@@ -141,6 +178,14 @@ router.post("/organizations/:orgId/members", requireAuth, requireOrgRole("admin"
   try {
     const orgId = req.params.orgId as string;
     const { email, role } = req.body;
+    if (!isNonEmptyString(email) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      res.status(400).json({ error: "Invalid email" });
+      return;
+    }
+    if (!isNonEmptyString(role) || !VALID_MEMBER_ROLES.has(role)) {
+      res.status(400).json({ error: "Invalid role" });
+      return;
+    }
     const id = crypto.randomUUID();
     await db.insert(orgMembersTable).values({
       id,
