@@ -15,5 +15,12 @@
   "devDependencies": {
     "typescript": "~5.9.2",
     "prettier": "^3.8.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@clerk/shared",
+      "@scarf/scarf",
+      "esbuild"
+    ]
   }
 }
