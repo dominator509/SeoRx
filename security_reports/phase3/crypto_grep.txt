@@ -1,0 +1,74 @@
+artifacts/api-server/src/test/api.integration.test.ts:22:import { encryptSecret } from "../lib/crypto";
+artifacts/api-server/src/test/api.integration.test.ts:135:  const orgId = crypto.randomUUID();
+artifacts/api-server/src/test/api.integration.test.ts:142:    id: crypto.randomUUID(),
+artifacts/api-server/src/test/api.integration.test.ts:153:  const clientId = crypto.randomUUID();
+artifacts/api-server/src/test/api.integration.test.ts:165:  const auditId = crypto.randomUUID();
+artifacts/api-server/src/test/api.integration.test.ts:185:  const issueId = crypto.randomUUID();
+artifacts/api-server/src/test/api.integration.test.ts:204:  const reportId = crypto.randomUUID();
+artifacts/api-server/src/test/api.integration.test.ts:219:  const integrationId = crypto.randomUUID();
+artifacts/api-server/src/test/api.integration.test.ts:238:  const providerId = crypto.randomUUID();
+artifacts/api-server/src/test/api.integration.test.ts:458:    const superadminUserId = `superadmin-${crypto.randomUUID()}`;
+artifacts/api-server/src/test/api.integration.test.ts:460:      id: crypto.randomUUID(),
+artifacts/api-server/src/test/api.integration.test.ts:466:    const orgId = await seedOrg(`superadmin-api-key-org-${crypto.randomUUID()}`, OTHER_USER_ID);
+artifacts/api-server/src/test/api.integration.test.ts:502:      id: crypto.randomUUID(),
+artifacts/api-server/src/test/api.integration.test.ts:508:      id: crypto.randomUUID(),
+artifacts/api-server/src/test/api.integration.test.ts:524:    const slug = `created-org-${crypto.randomUUID()}`;
+artifacts/api-server/src/test/api.integration.test.ts:570:    const blockedOrgId = await seedOrg(`member-private-${crypto.randomUUID()}`, OTHER_USER_ID);
+artifacts/api-server/src/test/api.integration.test.ts:585:    const { clientId } = await seedClient(`audit-allowed-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/api.integration.test.ts:586:    const blocked = await seedClient(`audit-blocked-${crypto.randomUUID()}`, OTHER_USER_ID);
+artifacts/api-server/src/test/api.integration.test.ts:623:    const allowed = await seedAudit(`audit-list-allowed-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/api.integration.test.ts:624:    const blocked = await seedAudit(`audit-list-blocked-${crypto.randomUUID()}`, OTHER_USER_ID);
+artifacts/api-server/src/test/api.integration.test.ts:655:    const allowed = await seedAudit(`issue-allowed-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/api.integration.test.ts:656:    const blocked = await seedAudit(`issue-blocked-${crypto.randomUUID()}`, OTHER_USER_ID);
+artifacts/api-server/src/test/api.integration.test.ts:690:    const allowed = await seedAudit(`report-allowed-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/api.integration.test.ts:691:    const blocked = await seedAudit(`report-blocked-${crypto.randomUUID()}`, OTHER_USER_ID);
+artifacts/api-server/src/test/api.integration.test.ts:745:    const { auditId, clientId } = await seedAudit(`report-create-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/api.integration.test.ts:815:    const emptyUserId = `dashboard-empty-${crypto.randomUUID()}`;
+artifacts/api-server/src/test/api.integration.test.ts:844:    const dashboardUserId = `dashboard-user-${crypto.randomUUID()}`;
+artifacts/api-server/src/test/api.integration.test.ts:845:    const blockedUserId = `dashboard-blocked-${crypto.randomUUID()}`;
+artifacts/api-server/src/test/api.integration.test.ts:846:    const allowedOne = await seedAudit(`dashboard-allowed-one-${crypto.randomUUID()}`, dashboardUserId);
+artifacts/api-server/src/test/api.integration.test.ts:847:    const allowedTwo = await seedAudit(`dashboard-allowed-two-${crypto.randomUUID()}`, dashboardUserId);
+artifacts/api-server/src/test/api.integration.test.ts:848:    const blocked = await seedAudit(`dashboard-blocked-${crypto.randomUUID()}`, blockedUserId);
+artifacts/api-server/src/test/api.integration.test.ts:938:    const { auditId } = await seedAudit(`pagespeed-fallback-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/api.integration.test.ts:972:    const { auditId } = await seedAudit(`pagespeed-live-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/api.integration.test.ts:1046:    const { auditId } = await seedAudit(`pagespeed-api-fail-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/api.integration.test.ts:1071:    const { orgId, clientId } = await seedClient(`ai-live-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/api.integration.test.ts:1105:    const { orgId, clientId } = await seedClient(`ai-fallback-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/api.integration.test.ts:1486:    const { clientId } = await seedClient(`client-db-failure-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/api.integration.test.ts:1618:    const orgId = await seedOrg(`api-key-concurrency-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/api.integration.test.ts:1649:    const seeded = await seedAudit(`issue-concurrency-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/api.integration.test.ts:1688:    const orgId = await seedOrg(`webhook-chaos-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/api.integration.test.ts:1705:    const orgId = await seedOrg(`analytics-chaos-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/api.integration.test.ts:1738:    const seeded = await seedAudit(`storm-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/api.integration.test.ts:1760:      .get(`/api/reports/${crypto.randomUUID()}/download`)
+artifacts/api-server/src/test/api.integration.test.ts:1767:    const orgId = await seedOrg(`revoked-key-${crypto.randomUUID()}`);
+artifacts/api-server/src/test/core.unit.test.ts:2:import { decryptSecret, encryptSecret, generateApiKey, hashApiKey } from "../lib/crypto";
+artifacts/api-server/src/test/core.unit.test.ts:22:  describe("crypto secret handling", () => {
+artifacts/api-server/src/test/core.unit.test.ts:69:      expect(generated.hash).toBe(hashApiKey(generated.key));
+artifacts/api-server/src/routes/audits.ts:91:    const id = crypto.randomUUID();
+artifacts/api-server/src/routes/audits.ts:207:        id: crypto.randomUUID(),
+artifacts/api-server/src/routes/audits.ts:250:    id: crypto.randomUUID(),
+artifacts/api-server/src/routes/integrations.ts:6:import { decryptSecret, encryptSecret } from "../lib/crypto";
+artifacts/api-server/src/routes/integrations.ts:202:        id: crypto.randomUUID(),
+artifacts/api-server/src/routes/integrations.ts:389:  const id = crypto.randomUUID();
+artifacts/api-server/src/routes/pagespeed.ts:47:    const id = crypto.randomUUID();
+artifacts/api-server/src/routes/reports.ts:55:    const id = crypto.randomUUID();
+artifacts/api-server/src/routes/organizations.ts:43:    const id = crypto.randomUUID();
+artifacts/api-server/src/routes/organizations.ts:45:    const memberId = crypto.randomUUID();
+artifacts/api-server/src/routes/organizations.ts:144:    const id = crypto.randomUUID();
+artifacts/api-server/src/routes/ai-providers.ts:5:import { encryptSecret } from "../lib/crypto";
+artifacts/api-server/src/routes/ai-providers.ts:33:    const id = crypto.randomUUID();
+artifacts/api-server/src/routes/api-keys.ts:6:import { generateApiKey } from "../lib/crypto";
+artifacts/api-server/src/routes/api-keys.ts:58:    const { key, prefix, hash } = generateApiKey();
+artifacts/api-server/src/routes/api-keys.ts:60:      id: crypto.randomUUID(),
+artifacts/api-server/src/routes/api-keys.ts:63:      keyHash: hash,
+artifacts/api-server/src/routes/clients.ts:65:    const id = crypto.randomUUID();
+artifacts/api-server/src/lib/crawler.ts:41:    u.hash = "";
+artifacts/api-server/src/lib/auth.ts:22:    const id = crypto.randomUUID();
+artifacts/api-server/src/lib/rbac.ts:48:      const id = crypto.randomUUID();
+artifacts/api-server/src/lib/api-key-auth.ts:4:import { createHash } from "node:crypto";
+artifacts/api-server/src/lib/ai-adapter.ts:8:import { decryptSecret } from "./crypto";
+artifacts/api-server/src/lib/crypto.ts:1:import { createCipheriv, createDecipheriv, randomBytes, createHash } from "node:crypto";
+artifacts/api-server/src/lib/crypto.ts:86:export function generateApiKey(): { key: string; prefix: string; hash: string } {
+artifacts/api-server/src/lib/crypto.ts:90:  const hash = hashApiKey(key);
+artifacts/api-server/src/lib/crypto.ts:91:  return { key, prefix, hash };

@@ -1,0 +1,67 @@
+artifacts/api-server/src/test/core.unit.test.ts:4:import { logger } from "../lib/logger";
+artifacts/api-server/src/test/core.unit.test.ts:34:      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => logger);
+artifacts/api-server/src/test/core.unit.test.ts:51:      const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
+artifacts/api-server/src/test/core.unit.test.ts:59:      const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
+artifacts/api-server/src/test/core.unit.test.ts:83:      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => logger);
+artifacts/api-server/src/test/core.unit.test.ts:143:      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => logger);
+artifacts/api-server/src/index.ts:2:import { logger } from "./lib/logger";
+artifacts/api-server/src/index.ts:20:    logger.error({ err }, "Error listening on port");
+artifacts/api-server/src/index.ts:24:  logger.info({ port }, "Server listening");
+artifacts/api-server/src/app.ts:4:import pinoHttp from "pino-http";
+artifacts/api-server/src/app.ts:14:import { logger } from "./lib/logger";
+artifacts/api-server/src/app.ts:85:    logger,
+artifacts/api-server/src/routes/audits.ts:15:import { logger } from "../lib/logger";
+artifacts/api-server/src/routes/audits.ts:103:      logger.error({ err, auditId: id }, "Real audit failed");
+artifacts/api-server/src/routes/audits.ts:173:    logger.info({ auditId, url }, "Starting real SEO crawl");
+artifacts/api-server/src/routes/audits.ts:182:        logger.info({ auditId, crawled, queued, currentUrl }, "Crawl progress");
+artifacts/api-server/src/routes/audits.ts:186:    logger.info({ auditId, pages: crawlResult.pages.length, errors: crawlResult.errors.length }, "Crawl complete");
+artifacts/api-server/src/routes/audits.ts:189:    logger.info({ auditId, issueCount: issues.length, seoScore }, "SEO analysis complete");
+artifacts/api-server/src/routes/audits.ts:196:        logger.info({ auditId, provider: aiProvider.provider }, "Generating AI recommendations");
+artifacts/api-server/src/routes/audits.ts:201:      logger.warn({ auditId, err: aiErr }, "AI phase failed, continuing without");
+artifacts/api-server/src/routes/audits.ts:236:    logger.info({ auditId, seoScore, scanDurationMs }, "Audit complete");
+artifacts/api-server/src/routes/audits.ts:238:    logger.error({ auditId, err }, "Audit failed");
+artifacts/api-server/src/routes/integrations.ts:5:import { logger } from "../lib/logger";
+artifacts/api-server/src/routes/integrations.ts:65:    logger.warn({ orgId, status: tokenRes.status }, "GSC token refresh failed");
+artifacts/api-server/src/routes/integrations.ts:168:      logger.error({ status: tokenRes.status }, "GSC token exchange failed");
+artifacts/api-server/src/routes/integrations.ts:209:    logger.info({ orgId: parsed.orgId }, "GSC OAuth tokens stored");
+artifacts/api-server/src/routes/integrations.ts:212:    logger.error({ err }, "GSC callback error");
+artifacts/api-server/src/routes/integrations.ts:406:  logger.info({ orgId, url, events: safeEvents }, "Webhook registered");
+artifacts/api-server/src/routes/reports.ts:5:import { logger } from "../lib/logger";
+artifacts/api-server/src/routes/reports.ts:67:      logger.error({ err, reportId: id }, "Report generation failed");
+artifacts/api-server/src/routes/reports.ts:74:        logger.error({ err: updateErr, reportId: id }, "Failed to mark report generation as failed");
+artifacts/api-server/src/routes/stripe.ts:12:import { logger } from "../lib/logger";
+artifacts/api-server/src/routes/stripe.ts:106:    logger.warn("STRIPE_WEBHOOK_SECRET not set — webhook rejected");
+artifacts/api-server/src/routes/stripe.ts:127:          logger.info({ orgId, plan }, "Plan upgraded via Stripe checkout");
+artifacts/api-server/src/routes/stripe.ts:139:          logger.info({ orgId }, "Plan downgraded to free on subscription cancellation");
+artifacts/api-server/src/routes/stripe.ts:144:        logger.info({ type: event.type }, "Unhandled Stripe webhook event");
+artifacts/api-server/src/routes/stripe.ts:149:    logger.error({ err, eventType: event.type }, "Webhook handler error");
+artifacts/api-server/src/routes/api-keys.ts:7:import { logger } from "../lib/logger";
+artifacts/api-server/src/routes/api-keys.ts:68:    logger.info({ orgId, prefix }, "API key created");
+artifacts/api-server/src/routes/api-keys.ts:91:    logger.info({ id, prefix: apiKey.keyPrefix }, "API key revoked");
+artifacts/api-server/src/lib/pagespeed.ts:1:import { logger } from "./logger";
+artifacts/api-server/src/lib/pagespeed.ts:63:      logger.warn({ status: resp.status, url, strategy }, "PageSpeed API returned non-200");
+artifacts/api-server/src/lib/pagespeed.ts:102:    logger.warn({ err, url, strategy }, "PageSpeed API request failed");
+artifacts/api-server/src/lib/crawler.ts:3:import { logger } from "./logger";
+artifacts/api-server/src/lib/crawler.ts:230:      logger.info({ url }, "Blocked by robots.txt");
+artifacts/api-server/src/lib/logger.ts:1:import pino from "pino";
+artifacts/api-server/src/lib/logger.ts:5:export const logger = pino({
+artifacts/api-server/src/lib/logger.ts:16:          target: "pino-pretty",
+artifacts/api-server/src/lib/stripe.ts:2:import { logger } from "./logger";
+artifacts/api-server/src/lib/stripe.ts:10:    logger.warn("STRIPE_SECRET_KEY not set — Stripe integration disabled");
+artifacts/api-server/src/lib/stripe.ts:58:    logger.warn({ plan: opts.plan }, "No Stripe price ID configured for plan");
+artifacts/api-server/src/lib/stripe.ts:96:    logger.warn({ err }, "Stripe webhook signature verification failed");
+artifacts/api-server/src/lib/ai-adapter.ts:6:import { logger } from "./logger";
+artifacts/api-server/src/lib/ai-adapter.ts:131:    logger.error({ err, provider: config.provider }, "AI recommendation failed");
+artifacts/api-server/src/lib/ai-adapter.ts:155:      logger.warn({ err, issueTitle: issue.title }, "Skipping AI recommendation for issue");
+artifacts/api-server/src/lib/crypto.ts:2:import { logger } from "./logger";
+artifacts/api-server/src/lib/crypto.ts:28:    logger.warn("ENCRYPTION_KEY not set — API keys stored with base64 encoding only. Set ENCRYPTION_KEY for production.");
+artifacts/api-server/src/lib/crypto.ts:57:      logger.error("ENCRYPTION_KEY required to decrypt a GCM-encrypted value but is not set");
+artifacts/api-server/src/lib/crypto.ts:70:    logger.error({ err }, "Failed to decrypt secret");
+artifacts/api-server/package.json:36:    "pino": "^9",
+artifacts/api-server/package.json:37:    "pino-http": "^10",
+artifacts/api-server/package.json:49:    "esbuild-plugin-pino": "^2.3.3",
+artifacts/api-server/package.json:50:    "pino-pretty": "^13",
+artifacts/api-server/build.mjs:5:import esbuildPluginPino from "esbuild-plugin-pino";
+artifacts/api-server/build.mjs:8:// Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
+artifacts/api-server/build.mjs:116:      // pino relies on workers to handle logging, instead of externalizing it we use a plugin to handle it
+artifacts/api-server/build.mjs:117:      esbuildPluginPino({ transports: ["pino-pretty"] })

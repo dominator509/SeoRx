@@ -1,0 +1,8 @@
+
+> workspace@0.0.0 typecheck /app
+> corepack pnpm run typecheck:libs && corepack pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck
+
+[ELIFECYCLE] Command failed.
+[WARN]  Local package.json exists, but node_modules missing, did you mean to install?
+ ELIFECYCLE  Command failed with exit code 1.
+ WARN   Local package.json exists, but node_modules missing, did you mean to install?
