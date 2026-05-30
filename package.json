@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "preinstall": "node -e \"const fs=require('fs'); for (const file of ['package-lock.json','yarn.lock']) fs.rmSync(file,{force:true}); if (!/^(pnpm|corepack)\\//.test(process.env.npm_config_user_agent||'')) { console.error('Use pnpm instead'); process.exit(1); }\"",
+    "preinstall": "node -e \"const fs=require('fs'); for (const file of ['package-lock.json','yarn.lock']) fs.rmSync(file,{force:true}); if (process.env.npm_config_user_agent && !process.env.npm_config_user_agent.includes('pnpm') && !process.env.npm_config_user_agent.includes('corepack')) { console.error('Use pnpm instead'); process.exit(1); }\"",
     "build": "corepack pnpm run typecheck && corepack pnpm -r --if-present run build",
     "test": "corepack pnpm -r --if-present run test",
     "test:e2e:install": "corepack pnpm -r --if-present run test:e2e:install",
