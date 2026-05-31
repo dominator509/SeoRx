@@ -1,6 +1,6 @@
 # SEORx Production Readiness Roadmap
 
-Last updated: 2026-05-24
+Last updated: 2026-05-27
 
 This file is the delivery source of truth. When asked to "proceed", pick the
 highest priority item in this roadmap that is not complete, implement it, run
@@ -85,6 +85,7 @@ before final status.
 | Vite diagnostic cleanup | Complete | Inert Next.js-only `"use client"` directives were removed from Vite UI wrappers; product builds no longer emit sourcemap warning noise. |
 | Optional live smoke runner | Complete | `@workspace/scripts smoke:live` validates host-agnostic live credentials without printing secrets; latest local run passed DB, Clerk, Google OAuth, Stripe account/prices/webhook secret, PageSpeed, OpenAI, Anthropic, and Gemini. |
 | Deployment env guardrail | Complete | `.env.example` and `@workspace/scripts env:check` provide an offline, no-secret-output validation gate for required production env names, URLs, Clerk key consistency, Stripe price IDs, and common alias mistakes. |
+| OAuth callback contract reconciliation | Complete | Malformed `state` payloads on `/integrations/gsc/callback` now return deterministic `400` (matching OpenAPI) instead of bubbling to generic `500`. |
 
 ## Active Roadmap
 

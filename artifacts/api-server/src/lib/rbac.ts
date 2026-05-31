@@ -30,14 +30,17 @@ function roleAtLeast(actual: OrgRole, required: OrgRole): boolean {
 // ─── Core middleware: attach user + memberships to every authenticated request ─
 
 export async function loadUserContext(req: Request, res: Response, next: NextFunction) {
-  const auth = getAuth(req);
-  const clerkId = auth?.userId;
-  if (!clerkId) {
-    // Not authenticated — skip (requireAuth will catch this separately)
-    return next();
-  }
-
   try {
+    const auth = getAuth(req);
+    const clerkId = auth?.userId;
+    if (!clerkId) {
+      // Not authenticated — skip (requireAuth will catch this separately)
+      return next();
+    }
+
+    // Make auth context available even if downstream DB reads fail.
+    (req as any).clerkUserId = clerkId;
+
     let user = await db.query.usersTable.findFirst({
       where: eq(usersTable.clerkId, clerkId),
     });
@@ -61,14 +64,18 @@ export async function loadUserContext(req: Request, res: Response, next: NextFun
     if (!user) return next();
 
     req.seorxUser = user;
-    (req as any).clerkUserId = clerkId;
     req.orgMemberships = await db.query.orgMembersTable.findMany({
       where: or(eq(orgMembersTable.userId, clerkId), eq(orgMembersTable.userId, user.id)),
     });
 
     next();
   } catch (err) {
-    req.log?.error({ err }, "loadUserContext failed");
+    const message = err instanceof Error ? err.message : "";
+    if (message.includes('The "clerkMiddleware" should be registered before using "getAuth"')) {
+      req.log?.debug?.("loadUserContext skipped: clerk middleware not active");
+    } else {
+      req.log?.error({ err }, "loadUserContext failed");
+    }
     next(); // non-fatal — routes will still auth-check
   }
 }

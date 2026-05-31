@@ -4,16 +4,17 @@
 - Runtime: `artifacts/api-server`
 - Command: `corepack pnpm exec vitest run --coverage --coverage.reporter=json-summary --coverage.reporter=text-summary`
 - Coverage artifact: `artifacts/api-server/coverage/coverage-summary.json`
+- Last run: 2026-05-27
 
 ## Achieved Coverage
-- Statements: **65.00%** (1031/1586)
-- Branches: **54.79%** (497/907)
-- Functions: **78.86%** (153/194)
-- Lines: **66.45%** (955/1437)
+- Statements: **61.73%** (1055/1709)
+- Branches: **50.48%** (517/1024)
+- Functions: **77.72%** (157/202)
+- Lines: **62.70%** (977/1558)
 
 ## White Box Findings
 - Highest-complexity logic (`seo-analyzer`) now has significantly expanded path coverage, including threshold pivots and false-branch clean paths.
-- Security/exception paths were explicitly forced for integration boundaries (`gsc callback` parse failure catch, webhook secret/events validation, malformed analytics payload rejection).
+- Security/exception paths were explicitly forced for integration boundaries (GSC callback malformed-state `400` path, webhook secret/events validation, malformed analytics payload rejection).
 - Test bootstrap race around DB readiness/migration was stabilized through readiness polling + migration retry backoff.
 
 ## Remaining Gaps (Not Dead Code)

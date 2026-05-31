@@ -13,6 +13,7 @@ import {
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { loadUserContext } from "./lib/rbac";
+import { shouldEnableClerkAuth } from "./lib/clerk-config";
 
 const app: Express = express();
 
@@ -104,14 +105,22 @@ app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
 // ─── Clerk auth middleware ─────────────────────────────────────────────────────
-app.use(
-  clerkMiddleware((req) => ({
-    publishableKey: publishableKeyFromHost(
-      getClerkProxyHost(req) ?? "",
-      process.env.CLERK_PUBLISHABLE_KEY,
-    ),
-  })),
-);
+const clerkAuthEnabled = shouldEnableClerkAuth(process.env);
+
+if (clerkAuthEnabled) {
+  app.use(
+    clerkMiddleware((req) => ({
+      publishableKey: publishableKeyFromHost(
+        getClerkProxyHost(req) ?? "",
+        process.env.CLERK_PUBLISHABLE_KEY,
+      ),
+    })),
+  );
+} else {
+  logger.warn(
+    "Clerk auth middleware disabled: missing/invalid CLERK_PUBLISHABLE_KEY or CLERK_SECRET_KEY. Protected routes will return 401.",
+  );
+}
 
 // ─── Load user context (RBAC) for every request ───────────────────────────────
 app.use(loadUserContext);
@@ -123,5 +132,24 @@ app.use("/api/billing/webhook", webhookRateLimit);
 
 // ─── Routes ────────────────────────────────────────────────────────────────────
 app.use("/api", router);
+
+// ─── API error normalization ───────────────────────────────────────────────────
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  logger.error({ err }, "Unhandled API error");
+
+  // Malformed JSON/body payloads should return deterministic client errors.
+  if (err?.type === "entity.parse.failed" || err instanceof SyntaxError) {
+    res.status(400).json({ error: "Invalid JSON payload" });
+    return;
+  }
+
+  // Normalize auth middleware misconfiguration issues away from generic 500 HTML.
+  if (typeof err?.message === "string" && err.message.toLowerCase().includes("publishable key")) {
+    res.status(503).json({ error: "Authentication service misconfigured" });
+    return;
+  }
+
+  res.status(500).json({ error: "Internal server error" });
+});
 
 export default app;

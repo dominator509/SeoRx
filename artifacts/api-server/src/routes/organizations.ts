@@ -4,7 +4,8 @@ import { eq, inArray, sql } from "drizzle-orm";
 import { requireAuth, getMembershipForOrg, getUserOrgIds, requireOrgRole } from "../lib/rbac";
 
 const router = Router();
-const VALID_MEMBER_ROLES = new Set(["admin", "agency", "client", "viewer"]);
+const VALID_MEMBER_ROLES = ["admin", "agency", "client", "viewer"] as const;
+const VALID_MEMBER_ROLE_SET = new Set<string>(VALID_MEMBER_ROLES);
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -182,17 +183,18 @@ router.post("/organizations/:orgId/members", requireAuth, requireOrgRole("admin"
       res.status(400).json({ error: "Invalid email" });
       return;
     }
-    if (!isNonEmptyString(role) || !VALID_MEMBER_ROLES.has(role)) {
+    if (!isNonEmptyString(role) || !VALID_MEMBER_ROLE_SET.has(role)) {
       res.status(400).json({ error: "Invalid role" });
       return;
     }
+    const safeRole = role as (typeof VALID_MEMBER_ROLES)[number];
     const id = crypto.randomUUID();
     await db.insert(orgMembersTable).values({
       id,
       orgId,
       userId: id,
       email,
-      role,
+      role: safeRole,
     });
     const member = await db.query.orgMembersTable.findFirst({
       where: eq(orgMembersTable.id, id),

@@ -1791,7 +1791,7 @@ describe("Ad hoc exploratory chaos - phase 4 persona workflow derailment", () =>
 });
 
 describe("Whitebox phase 4 - security and exception boundaries", () => {
-  it("executes OAuth callback catch path and returns sanitized 500 response on malformed state", async () => {
+  it("rejects malformed OAuth callback state with deterministic 400 response", async () => {
     process.env.GOOGLE_CLIENT_ID = "g-client";
     process.env.GOOGLE_CLIENT_SECRET = "g-secret";
 
@@ -1803,8 +1803,8 @@ describe("Whitebox phase 4 - security and exception boundaries", () => {
         state: "{\"orgId\":",
       });
 
-    expect(res.status).toBe(500);
-    expect(res.body).toEqual({ error: "Internal server error" });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Invalid OAuth state payload" });
     expect(JSON.stringify(res.body).toLowerCase()).not.toContain("syntaxerror");
   });
 

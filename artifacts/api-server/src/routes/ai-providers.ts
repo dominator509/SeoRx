@@ -5,7 +5,8 @@ import { getUserOrgIds, requireAuth } from "../lib/rbac";
 import { encryptSecret } from "../lib/crypto";
 
 const router = Router();
-const VALID_PROVIDER_TYPES = new Set(["openai", "anthropic", "gemini", "ollama", "custom"]);
+const VALID_PROVIDER_TYPES = ["openai", "anthropic", "gemini", "ollama", "custom"] as const;
+const VALID_PROVIDER_TYPE_SET = new Set<string>(VALID_PROVIDER_TYPES);
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
@@ -34,10 +35,11 @@ router.post("/ai-providers", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Invalid provider payload" });
       return;
     }
-    if (!VALID_PROVIDER_TYPES.has(provider)) {
+    if (!VALID_PROVIDER_TYPE_SET.has(provider)) {
       res.status(400).json({ error: "Invalid provider type" });
       return;
     }
+    const safeProvider = provider as (typeof VALID_PROVIDER_TYPES)[number];
     if (baseUrl !== undefined && baseUrl !== null) {
       try {
         new URL(String(baseUrl));
@@ -56,7 +58,16 @@ router.post("/ai-providers", requireAuth, async (req, res) => {
     if (isDefault) {
       await db.update(aiProvidersTable).set({ isDefault: false }).where(eq(aiProvidersTable.orgId, orgId));
     }
-    await db.insert(aiProvidersTable).values({ id, orgId, name, provider, model, encryptedApiKey, baseUrl, isDefault });
+    await db.insert(aiProvidersTable).values({
+      id,
+      orgId,
+      name,
+      provider: safeProvider,
+      model,
+      encryptedApiKey,
+      baseUrl,
+      isDefault,
+    });
     const p = await db.query.aiProvidersTable.findFirst({ where: eq(aiProvidersTable.id, id) });
     if (!p) { res.status(500).json({ error: "Failed to create provider" }); return; }
     const { encryptedApiKey: _, ...safe } = p;

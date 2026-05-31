@@ -140,8 +140,18 @@ router.get("/integrations/gsc/callback", requireAuth, async (req, res) => {
     return;
   }
 
+  let parsedState: { orgId?: string; returnUrl?: string } = {};
+  if (state) {
+    try {
+      parsedState = JSON.parse(state) as { orgId?: string; returnUrl?: string };
+    } catch {
+      res.status(400).json({ error: "Invalid OAuth state payload" });
+      return;
+    }
+  }
+
   try {
-    const parsed = state ? JSON.parse(state) as { orgId?: string; returnUrl?: string } : {};
+    const parsed = parsedState;
     if (!parsed.orgId) {
       res.status(400).json({ error: "Missing orgId in OAuth state" });
       return;

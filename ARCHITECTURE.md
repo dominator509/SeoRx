@@ -1,6 +1,6 @@
 # SEORx Architecture
 
-Last updated: 2026-05-22
+Last updated: 2026-05-27
 
 This file is the architecture source of truth for the current repo. Use
 `ROADMAP_STATUS.md` for delivery sequencing and `DEPLOYMENT_GUIDE.md` for
@@ -184,6 +184,8 @@ Current API coverage includes:
   and webhook signature failure states.
 - Developer API key creation/list/update and key-based authorization, including
   inactive-key rejection and hidden key hashes.
+- Google Search Console callback malformed-state rejection with deterministic
+  `400` response (no internal parser error leakage).
 
 Current e2e coverage includes:
 - Production auth misconfiguration fallback.
