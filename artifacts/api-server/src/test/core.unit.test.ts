@@ -31,14 +31,12 @@ describe("core deterministic utilities", () => {
       expect(decryptSecret(encrypted)).toBe(plaintext);
     });
 
-    it("falls back to b64 format when ENCRYPTION_KEY is missing", () => {
+    it("fails fast when ENCRYPTION_KEY is missing", () => {
       delete process.env.ENCRYPTION_KEY;
-      const warnSpy = vi.spyOn(logger, "warn").mockImplementation(() => logger);
+      const errorSpy = vi.spyOn(logger, "error").mockImplementation(() => logger);
 
-      const encrypted = encryptSecret("fallback-secret");
-      expect(encrypted.startsWith("b64:")).toBe(true);
-      expect(decryptSecret(encrypted)).toBe("fallback-secret");
-      expect(warnSpy).toHaveBeenCalled();
+      expect(() => encryptSecret("fallback-secret")).toThrow("ENCRYPTION_KEY is required for secret encryption");
+      expect(errorSpy).toHaveBeenCalled();
     });
 
     it("decrypts legacy plain base64 payloads", () => {

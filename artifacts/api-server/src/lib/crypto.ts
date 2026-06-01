@@ -16,18 +16,22 @@ function getEncryptionKey(): Buffer | null {
   return createHash("sha256").update(raw).digest();
 }
 
+function requireEncryptionKey(): Buffer {
+  const key = getEncryptionKey();
+  if (!key) {
+    const message = "ENCRYPTION_KEY is required for secret encryption";
+    logger.error(message);
+    throw new Error(message);
+  }
+  return key;
+}
+
 /**
  * Encrypt plaintext using AES-256-GCM.
- * Falls back to base64 if ENCRYPTION_KEY is not set.
  * Output format: "gcm:<base64(iv:tag:ciphertext)>"
  */
 export function encryptSecret(plaintext: string): string {
-  const key = getEncryptionKey();
-  if (!key) {
-    // Graceful fallback — warn once, use base64 encoding
-    logger.warn("ENCRYPTION_KEY not set — API keys stored with base64 encoding only. Set ENCRYPTION_KEY for production.");
-    return `b64:${Buffer.from(plaintext).toString("base64")}`;
-  }
+  const key = requireEncryptionKey();
 
   const iv = randomBytes(IV_LENGTH);
   const cipher = createCipheriv(ALGORITHM, key, iv);
