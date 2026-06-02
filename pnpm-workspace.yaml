@@ -62,6 +62,8 @@ packageExtensions:
       zod: '*'
 
 onlyBuiltDependencies:
+  - '@clerk/shared'
+  - '@scarf/scarf'
   - '@swc/core'
   - esbuild
   - msw
