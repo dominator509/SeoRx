@@ -4,6 +4,9 @@ import {
   auditsTable,
   auditIssuesTable,
   clientsTable,
+  geoPageAssessmentsTable,
+  geoRecommendationsTable,
+  geoScoreSnapshotsTable,
   pageSpeedResultsTable,
 } from "@workspace/db";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
@@ -14,6 +17,7 @@ import { analyzeCrawlResult } from "../lib/seo-analyzer";
 import { getActiveProvider, generateBatchRecommendations } from "../lib/ai-adapter";
 import { logger } from "../lib/logger";
 import { fetchRealPageSpeed, syntheticPageSpeed, type PageSpeedMetrics } from "../lib/pagespeed";
+import { calculateGeoAeoScore, runGeoAeoScanners } from "../lib/geo-aeo";
 
 const router = Router();
 
@@ -72,7 +76,7 @@ router.get("/audits", requireAuth, async (req, res) => {
 
 router.post("/audits", requireAuth, enforceAuditLimit(), enforceAiLimit(), async (req, res) => {
   try {
-    const { clientId, url, maxPages = 50, includePageSpeed = false, aiProviderId } = req.body;
+    const { clientId, url, maxPages = 50, includePageSpeed = false, aiProviderId, auditType = "seo" } = req.body;
 
     // RBAC: user must have access to the client
     const client = await assertClientAccess(req, clientId as string);
@@ -88,18 +92,33 @@ router.post("/audits", requireAuth, enforceAuditLimit(), enforceAiLimit(), async
       return;
     }
 
+    if (!["seo", "geo_aeo", "hybrid"].includes(auditType as string)) {
+      res.status(400).json({ error: "Invalid audit type" });
+      return;
+    }
+
     const id = crypto.randomUUID();
     await db.insert(auditsTable).values({
       id,
       clientId,
       url: normalizedUrl,
+      auditType,
       maxPages,
       includePageSpeed,
       aiProviderId: aiProviderId || null,
       status: "pending",
     });
 
-    runRealAudit(id, clientId as string, client.orgId, normalizedUrl, maxPages as number, includePageSpeed as boolean).catch((err) => {
+    runRealAudit({
+      auditId: id,
+      clientId: clientId as string,
+      clientName: client.name,
+      orgId: client.orgId,
+      url: normalizedUrl,
+      maxPages: maxPages as number,
+      includePageSpeed: includePageSpeed as boolean,
+      auditType: auditType as "seo" | "geo_aeo" | "hybrid",
+    }).catch((err) => {
       logger.error({ err, auditId: id }, "Real audit failed");
     });
 
@@ -167,7 +186,17 @@ router.get("/audits/:id/issues", requireAuth, async (req, res) => {
 
 // ─── Real audit engine ────────────────────────────────────────────────────────
 
-async function runRealAudit(auditId: string, clientId: string, orgId: string | null, url: string, maxPages: number, includePageSpeed: boolean) {
+async function runRealAudit(input: {
+  auditId: string;
+  clientId: string;
+  clientName: string;
+  orgId: string | null;
+  url: string;
+  maxPages: number;
+  includePageSpeed: boolean;
+  auditType: "seo" | "geo_aeo" | "hybrid";
+}) {
+  const { auditId, clientId, clientName, orgId, url, maxPages, includePageSpeed, auditType } = input;
   const auditStart = Date.now();
   try {
     logger.info({ auditId, url }, "Starting real SEO crawl");
@@ -201,23 +230,33 @@ async function runRealAudit(auditId: string, clientId: string, orgId: string | n
       logger.warn({ auditId, err: aiErr }, "AI phase failed, continuing without");
     }
 
-    for (let i = 0; i < issues.length; i++) {
-      const issue = issues[i];
-      await db.insert(auditIssuesTable).values({
-        id: crypto.randomUUID(),
-        auditId,
-        url: issue.url,
-        category: issue.category,
-        severity: issue.severity,
-        title: issue.title,
-        description: issue.description,
-        recommendation: issue.recommendation,
-        aiRecommendation: aiRecommendationMap.get(i) || null,
-        priorityScore: issue.priorityScore,
-        affectedElement: issue.affectedElement || null,
-        status: "open",
-      });
+    if (auditType !== "geo_aeo") {
+      for (let i = 0; i < issues.length; i++) {
+        const issue = issues[i];
+        await db.insert(auditIssuesTable).values({
+          id: crypto.randomUUID(),
+          auditId,
+          url: issue.url,
+          category: issue.category,
+          severity: issue.severity,
+          title: issue.title,
+          description: issue.description,
+          recommendation: issue.recommendation,
+          aiRecommendation: aiRecommendationMap.get(i) || null,
+          priorityScore: issue.priorityScore,
+          affectedElement: issue.affectedElement || null,
+          status: "open",
+        });
+      }
     }
+
+    const aiVisibilityScore = await runGeoAuditPhase({
+      auditId,
+      auditType,
+      clientName,
+      url,
+      crawlResult,
+    });
 
     if (includePageSpeed) await seedPageSpeedData(auditId, url);
 
@@ -225,6 +264,7 @@ async function runRealAudit(auditId: string, clientId: string, orgId: string | n
     await db.update(auditsTable).set({
       status: "completed",
       seoScore,
+      aiVisibilityScore,
       crawledPages: crawlResult.pages.length,
       scanDurationMs,
       aiProviderUsed,
@@ -238,6 +278,108 @@ async function runRealAudit(auditId: string, clientId: string, orgId: string | n
     logger.error({ auditId, err }, "Audit failed");
     await db.update(auditsTable).set({ status: "failed", scanDurationMs: Date.now() - auditStart, updatedAt: new Date() }).where(eq(auditsTable.id, auditId));
   }
+}
+
+async function runGeoAuditPhase(input: {
+  auditId: string;
+  auditType: "seo" | "geo_aeo" | "hybrid";
+  clientName: string;
+  url: string;
+  crawlResult: Awaited<ReturnType<typeof crawlSite>>;
+}): Promise<number | null> {
+  if (process.env.GEO_AEO_ENABLED !== "true" || input.auditType === "seo") return null;
+
+  const scannerResult = runGeoAeoScanners({
+    crawlResult: input.crawlResult,
+    profile: {
+      businessName: input.clientName,
+      websiteUrl: input.url,
+      targetServices: [],
+      targetLocations: [],
+      competitors: [],
+      proofPoints: [],
+      packageTier: "standard",
+    },
+  });
+
+  for (const assessment of scannerResult.pageAssessments) {
+    await db.insert(geoPageAssessmentsTable).values({
+      id: crypto.randomUUID(),
+      auditId: input.auditId,
+      pageUrl: assessment.pageUrl,
+      aiCitableScore: assessment.aiCitableScore,
+      answerCoverageScore: assessment.answerCoverageScore,
+      entityClarityScore: assessment.entityClarityScore,
+      proofSignalScore: assessment.proofSignalScore,
+      structureScore: assessment.structureScore,
+      schemaReadinessScore: assessment.schemaReadinessScore,
+      citationReadinessScore: assessment.citationReadinessScore,
+      detectedGaps: assessment.detectedGaps,
+      recommendedFixes: assessment.recommendedFixes,
+      evidence: assessment.evidence,
+    });
+  }
+
+  for (const issue of scannerResult.issues) {
+    await db.insert(auditIssuesTable).values({
+      id: crypto.randomUUID(),
+      auditId: input.auditId,
+      url: issue.url,
+      category: issue.category,
+      issueType: issue.issueType,
+      severity: issue.severity,
+      title: issue.title,
+      description: issue.description,
+      evidence: issue.evidence,
+      recommendation: issue.recommendation,
+      aiVisibilityImpact: issue.aiVisibilityImpact,
+      businessImpact: issue.businessImpact,
+      estimatedEffort: issue.estimatedEffort,
+      recommendedOwner: issue.recommendedOwner,
+      priorityScore: issue.priorityScore,
+      status: "open",
+    });
+
+    await db.insert(geoRecommendationsTable).values({
+      id: crypto.randomUUID(),
+      auditId: input.auditId,
+      pageUrl: issue.url,
+      category: issue.category,
+      issueType: issue.issueType,
+      title: issue.title,
+      evidence: issue.evidence.signals.join("; "),
+      recommendation: issue.recommendation,
+      aiVisibilityImpact: issue.aiVisibilityImpact,
+      businessImpact: issue.businessImpact,
+      priorityScore: issue.priorityScore,
+      estimatedEffort: issue.estimatedEffort,
+      owner: issue.recommendedOwner,
+      fiverrPackageTier: "standard",
+      status: "draft",
+    });
+  }
+
+  const score = calculateGeoAeoScore({
+    profile: { businessName: input.clientName, websiteUrl: input.url, packageTier: "standard" },
+    pageAssessments: scannerResult.pageAssessments,
+    recommendations: scannerResult.issues.map((issue) => ({
+      issueType: issue.issueType,
+      priorityScore: issue.priorityScore,
+      title: issue.title,
+    })),
+  });
+
+  await db.insert(geoScoreSnapshotsTable).values({
+    id: crypto.randomUUID(),
+    auditId: input.auditId,
+    aiVisibilityScore: score.aiVisibilityScore,
+    grade: score.grade,
+    subScores: score.subScores,
+    topRisks: score.topRisks,
+    quickWins: score.quickWins,
+  });
+
+  return score.aiVisibilityScore;
 }
 
 async function insertPageSpeedResult(

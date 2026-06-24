@@ -66,7 +66,7 @@ const globalRateLimit = rateLimit({
 
 const auditRateLimit = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20,
+  max: process.env.NODE_ENV === "test" ? 1000 : 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many audits", message: "Audit rate limit exceeded — 20 per hour" },

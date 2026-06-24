@@ -51,14 +51,24 @@ vi.mock("../lib/crawler", () => ({
         url,
         title: "Test Page",
         metaDescription: "A deterministic test page for API contract tests.",
-        headings: { h1: ["Test Page"], h2: [] },
-        links: { internal: [], external: [] },
-        images: [],
         statusCode: 200,
+        h1Tags: ["Test Page"],
+        h2Tags: [],
+        imgAlts: [],
+        links: [],
+        canonicalUrl: url,
+        structuredData: [],
+        wordCount: 42,
         loadTimeMs: 25,
+        hasHttps: true,
+        hasViewport: true,
+        html: "<html><body>Test Page offers deterministic API contract content.</body></html>",
       },
     ],
+    crawledUrls: new Set([url]),
+    blockedByRobots: [],
     errors: [],
+    durationMs: 25,
   })),
 }));
 
@@ -618,6 +628,53 @@ describe("production-critical API behavior", () => {
       .send({ clientId, url: "not a real url" });
 
     expect(invalidRes.status).toBe(400);
+  });
+
+  it("runs GEO/AEO scanner output for geo audit types", async () => {
+    process.env.GEO_AEO_ENABLED = "true";
+    const { clientId } = await seedClient(`geo-create-${crypto.randomUUID()}`);
+
+    const createRes = await request(app)
+      .post("/api/audits")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        clientId,
+        url: "https://allowed.example/",
+        auditType: "geo_aeo",
+        maxPages: 1,
+      });
+
+    expect(createRes.status).toBe(201);
+    expect(createRes.body).toMatchObject({ auditType: "geo_aeo" });
+
+    const completedRes = await waitForAuditCompleted(createRes.body.id);
+    expect(completedRes.body).toMatchObject({
+      auditType: "geo_aeo",
+      status: "completed",
+      aiVisibilityScore: expect.any(Number),
+    });
+
+    const [geoIssues, assessments, recommendations, scoreSnapshots] = await Promise.all([
+      dbModule.db.query.auditIssuesTable.findMany({
+        where: eq(dbModule.auditIssuesTable.auditId, createRes.body.id),
+      }),
+      dbModule.db.query.geoPageAssessmentsTable.findMany({
+        where: eq(dbModule.geoPageAssessmentsTable.auditId, createRes.body.id),
+      }),
+      dbModule.db.query.geoRecommendationsTable.findMany({
+        where: eq(dbModule.geoRecommendationsTable.auditId, createRes.body.id),
+      }),
+      dbModule.db.query.geoScoreSnapshotsTable.findMany({
+        where: eq(dbModule.geoScoreSnapshotsTable.auditId, createRes.body.id),
+      }),
+    ]);
+
+    expect(geoIssues.some((issue) => issue.issueType === "WEAK_ENTITY_DEFINITION")).toBe(true);
+    expect(geoIssues.every((issue) => issue.category !== "meta")).toBe(true);
+    expect(assessments).toHaveLength(1);
+    expect(recommendations.length).toBeGreaterThan(0);
+    expect(scoreSnapshots).toHaveLength(1);
+    expect(scoreSnapshots[0]?.aiVisibilityScore).toBe(completedRes.body.aiVisibilityScore);
   });
 
   it("lists audits with issue counts and excludes other organizations", async () => {

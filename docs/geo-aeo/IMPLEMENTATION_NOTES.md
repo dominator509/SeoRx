@@ -58,6 +58,14 @@ Last updated: 2026-06-23
 - Recommendation approval creates a normal `audit_issues` row with GEO/AEO issue metadata while preserving the existing issue approval workflow.
 - Live AI-search platform checks remain disabled; observation capture is manual or deterministic until a compliant external adapter is added.
 
+## GEO/AEO audit execution behavior
+
+- `POST /api/audits` now persists `auditType`.
+- `geo_aeo` audits skip ordinary SEO issue insertion and persist deterministic GEO/AEO scanner findings instead.
+- `hybrid` audits retain ordinary SEO issues and also persist deterministic GEO/AEO scanner findings.
+- GEO/AEO audit execution writes page assessments, draft recommendations, audit issue metadata, and a score snapshot when `GEO_AEO_ENABLED=true`.
+- Test mode raises the audit route rate-limit ceiling so integration polling does not mask runtime behavior; production remains capped at 20 audit-route requests per hour.
+
 ## Phase 1 schema approach
 
 - Added `audit_type` with existing audits defaulting to `seo`.
