@@ -82,7 +82,7 @@ importers:
     dependencies:
       '@anthropic-ai/sdk':
         specifier: ^0.92.0
-        version: 0.92.0(zod@4.3.6)
+        version: 0.92.0(zod@3.25.76)
       '@clerk/express':
         specifier: ^2.1.12
         version: 2.1.12(express@5.2.1)(react-dom@19.1.4(react@19.1.4))(react@19.1.4)
@@ -142,7 +142,7 @@ importers:
         version: 4.1.1
       openai:
         specifier: ^6.35.0
-        version: 6.35.0(zod@4.3.6)
+        version: 6.35.0(zod@3.25.76)
       pdfkit:
         specifier: ^0.18.0
         version: 0.18.0
@@ -161,6 +161,9 @@ importers:
       swagger-ui-express:
         specifier: ^5.0.1
         version: 5.0.1(express@5.2.1)
+      zod:
+        specifier: 'catalog:'
+        version: 3.25.76
     devDependencies:
       '@types/cookie-parser':
         specifier: ^1.4.10
@@ -4235,11 +4238,11 @@ packages:
 
 snapshots:
 
-  '@anthropic-ai/sdk@0.92.0(zod@4.3.6)':
+  '@anthropic-ai/sdk@0.92.0(zod@3.25.76)':
     dependencies:
       json-schema-to-ts: 3.1.1
     optionalDependencies:
-      zod: 4.3.6
+      zod: 3.25.76
 
   '@babel/code-frame@7.29.0':
     dependencies:
@@ -6898,9 +6901,9 @@ snapshots:
     dependencies:
       wrappy: 1.0.2
 
-  openai@6.35.0(zod@4.3.6):
+  openai@6.35.0(zod@3.25.76):
     optionalDependencies:
-      zod: 4.3.6
+      zod: 3.25.76
 
   orval@8.5.3(prettier@3.8.1)(typescript@5.9.3):
     dependencies:

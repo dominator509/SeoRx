@@ -37,7 +37,8 @@
     "pino-http": "^10",
     "robots-parser": "^3.0.1",
     "stripe": "^22.1.0",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
