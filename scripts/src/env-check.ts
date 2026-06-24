@@ -112,6 +112,22 @@ function checkLength(name: string, minimum: number): void {
   }
 }
 
+function checkBooleanFlag(name: string): void {
+  const value = env(name);
+  if (!value) return;
+  if (value !== "true" && value !== "false") {
+    add("FAIL", name, "must be true or false");
+  }
+}
+
+function checkPositiveInteger(name: string): void {
+  const value = env(name);
+  if (!value) return;
+  if (!/^\d+$/.test(value) || Number(value) <= 0) {
+    add("FAIL", name, "must be a positive integer");
+  }
+}
+
 function checkKnownAliases(): void {
   const aliases = [
     ["STRIPE_PRICE_PRO_MONTHLY", "STRIPE_PRICE_PROFESSIONAL_MONTHLY"],
@@ -169,6 +185,24 @@ if (basePath && !basePath.startsWith("/")) {
 }
 
 checkOptionalPair("Google Search Console OAuth", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET");
+
+for (const name of [
+  "GEO_AEO_ENABLED",
+  "GEO_AEO_REAL_PLATFORM_CHECKS",
+  "GEO_AEO_MANUAL_OBSERVATIONS",
+]) {
+  checkBooleanFlag(name);
+}
+
+for (const name of [
+  "GEO_AEO_DEFAULT_PROMPT_COUNT",
+  "GEO_AEO_MAX_COMPETITORS",
+  "GEO_AEO_MAX_PAGES_BASIC",
+  "GEO_AEO_MAX_PAGES_STANDARD",
+  "GEO_AEO_MAX_PAGES_PREMIUM",
+]) {
+  checkPositiveInteger(name);
+}
 
 if (has("STRIPE_SECRET_KEY")) {
   checkPrefix("STRIPE_SECRET_KEY", ["sk_test_", "sk_live_"]);

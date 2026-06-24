@@ -164,13 +164,24 @@ export const AuditStatus = {
   failed: "failed",
 } as const;
 
+export type AuditAuditType =
+  (typeof AuditAuditType)[keyof typeof AuditAuditType];
+
+export const AuditAuditType = {
+  seo: "seo",
+  geo_aeo: "geo_aeo",
+  hybrid: "hybrid",
+} as const;
+
 export interface Audit {
   id: string;
   clientId: string;
   clientName: string;
   url: string;
   status: AuditStatus;
+  auditType: AuditAuditType;
   seoScore?: number | null;
+  aiVisibilityScore?: number | null;
   issueCount: number;
   criticalCount: number;
   highCount: number;
@@ -193,6 +204,13 @@ export const AuditIssueCategory = {
   mobile: "mobile",
   security: "security",
   crawlability: "crawlability",
+  ai_answer_coverage: "ai_answer_coverage",
+  entity_clarity: "entity_clarity",
+  ai_citable_structure: "ai_citable_structure",
+  proof_trust: "proof_trust",
+  competitor_gap: "competitor_gap",
+  service_location_gap: "service_location_gap",
+  citation_readiness: "citation_readiness",
 } as const;
 
 export type AuditIssueSeverity =
@@ -216,16 +234,24 @@ export const AuditIssueStatus = {
   fixed: "fixed",
 } as const;
 
+export type AuditIssueEvidence = { [key: string]: unknown } | null;
+
 export interface AuditIssue {
   id: string;
   auditId: string;
   url: string;
   category: AuditIssueCategory;
+  issueType?: string | null;
   severity: AuditIssueSeverity;
   title: string;
   description: string;
+  evidence?: AuditIssueEvidence;
   recommendation?: string | null;
   aiRecommendation?: string | null;
+  aiVisibilityImpact?: string | null;
+  businessImpact?: string | null;
+  estimatedEffort?: string | null;
+  recommendedOwner?: string | null;
   priorityScore: number;
   status: AuditIssueStatus;
   approvedBy?: string | null;
@@ -249,12 +275,22 @@ export interface AuditList {
   offset: number;
 }
 
+export type CreateAuditBodyAuditType =
+  (typeof CreateAuditBodyAuditType)[keyof typeof CreateAuditBodyAuditType];
+
+export const CreateAuditBodyAuditType = {
+  seo: "seo",
+  geo_aeo: "geo_aeo",
+  hybrid: "hybrid",
+} as const;
+
 export interface CreateAuditBody {
   clientId: string;
   url: string;
   maxPages?: number;
   includePageSpeed?: boolean;
   aiProviderId?: string | null;
+  auditType?: CreateAuditBodyAuditType;
 }
 
 export interface ApproveIssueBody {
@@ -264,6 +300,16 @@ export interface ApproveIssueBody {
 export interface DismissIssueBody {
   reason?: string;
 }
+
+export type ReportReportType =
+  (typeof ReportReportType)[keyof typeof ReportReportType];
+
+export const ReportReportType = {
+  seo_audit: "seo_audit",
+  geo_aeo_audit: "geo_aeo_audit",
+  hybrid_audit: "hybrid_audit",
+  retainer_proposal: "retainer_proposal",
+} as const;
 
 export type ReportFormat = (typeof ReportFormat)[keyof typeof ReportFormat];
 
@@ -287,6 +333,7 @@ export interface Report {
   clientId: string;
   clientName: string;
   title: string;
+  reportType: ReportReportType;
   format: ReportFormat;
   status: ReportStatus;
   downloadUrl?: string | null;
@@ -309,10 +356,21 @@ export const CreateReportBodyFormat = {
   json: "json",
 } as const;
 
+export type CreateReportBodyReportType =
+  (typeof CreateReportBodyReportType)[keyof typeof CreateReportBodyReportType];
+
+export const CreateReportBodyReportType = {
+  seo_audit: "seo_audit",
+  geo_aeo_audit: "geo_aeo_audit",
+  hybrid_audit: "hybrid_audit",
+  retainer_proposal: "retainer_proposal",
+} as const;
+
 export interface CreateReportBody {
   auditId: string;
   title: string;
   format?: CreateReportBodyFormat;
+  reportType?: CreateReportBodyReportType;
   includeAiSummary?: boolean;
 }
 

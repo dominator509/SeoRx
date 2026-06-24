@@ -1551,7 +1551,13 @@ components:
         status:
           type: string
           enum: [pending, running, completed, failed]
+        auditType:
+          type: string
+          enum: [seo, geo_aeo, hybrid]
         seoScore:
+          type: number
+          nullable: true
+        aiVisibilityScore:
           type: number
           nullable: true
         issueCount:
@@ -1580,6 +1586,7 @@ components:
         - clientName
         - url
         - status
+        - auditType
         - issueCount
         - criticalCount
         - highCount
@@ -1645,6 +1652,10 @@ components:
         aiProviderId:
           type: string
           nullable: true
+        auditType:
+          type: string
+          enum: [seo, geo_aeo, hybrid]
+          default: seo
       required:
         - clientId
         - url
@@ -1660,7 +1671,10 @@ components:
           type: string
         category:
           type: string
-          enum: [meta, content, performance, links, structured_data, mobile, security, crawlability]
+          enum: [meta, content, performance, links, structured_data, mobile, security, crawlability, ai_answer_coverage, entity_clarity, ai_citable_structure, proof_trust, competitor_gap, service_location_gap, citation_readiness]
+        issueType:
+          type: string
+          nullable: true
         severity:
           type: string
           enum: [critical, high, medium, low, info]
@@ -1668,10 +1682,26 @@ components:
           type: string
         description:
           type: string
+        evidence:
+          type: object
+          additionalProperties: true
+          nullable: true
         recommendation:
           type: string
           nullable: true
         aiRecommendation:
+          type: string
+          nullable: true
+        aiVisibilityImpact:
+          type: string
+          nullable: true
+        businessImpact:
+          type: string
+          nullable: true
+        estimatedEffort:
+          type: string
+          nullable: true
+        recommendedOwner:
           type: string
           nullable: true
         priorityScore:
@@ -1729,6 +1759,9 @@ components:
           type: string
         title:
           type: string
+        reportType:
+          type: string
+          enum: [seo_audit, geo_aeo_audit, hybrid_audit, retainer_proposal]
         format:
           type: string
           enum: [pdf, html, json]
@@ -1750,6 +1783,7 @@ components:
         - clientId
         - clientName
         - title
+        - reportType
         - format
         - status
         - createdAt
@@ -1781,6 +1815,10 @@ components:
           type: string
           enum: [pdf, html, json]
           default: pdf
+        reportType:
+          type: string
+          enum: [seo_audit, geo_aeo_audit, hybrid_audit, retainer_proposal]
+          default: seo_audit
         includeAiSummary:
           type: boolean
           default: true

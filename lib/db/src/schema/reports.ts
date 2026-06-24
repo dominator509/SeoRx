@@ -6,6 +6,12 @@ import { auditsTable } from "./audits";
 import { clientsTable } from "./clients";
 
 export const reportFormatEnum = pgEnum("report_format", ["pdf", "html", "json"]);
+export const reportTypeEnum = pgEnum("report_type", [
+  "seo_audit",
+  "geo_aeo_audit",
+  "hybrid_audit",
+  "retainer_proposal",
+]);
 export const reportStatusEnum = pgEnum("report_status", [
   "generating",
   "ready",
@@ -21,6 +27,7 @@ export const reportsTable = pgTable("reports", {
     .notNull()
     .references(() => clientsTable.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
+  reportType: reportTypeEnum("report_type").notNull().default("seo_audit"),
   format: reportFormatEnum("format").notNull().default("pdf"),
   status: reportStatusEnum("status").notNull().default("generating"),
   downloadUrl: text("download_url"),

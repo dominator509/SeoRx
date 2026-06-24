@@ -6,6 +6,7 @@ import {
   integer,
   real,
   boolean,
+  jsonb,
   pgEnum,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -17,6 +18,12 @@ export const auditStatusEnum = pgEnum("audit_status", [
   "running",
   "completed",
   "failed",
+]);
+
+export const auditTypeEnum = pgEnum("audit_type", [
+  "seo",
+  "geo_aeo",
+  "hybrid",
 ]);
 
 export const issueSeverityEnum = pgEnum("issue_severity", [
@@ -36,6 +43,13 @@ export const issueCategoryEnum = pgEnum("issue_category", [
   "mobile",
   "security",
   "crawlability",
+  "ai_answer_coverage",
+  "entity_clarity",
+  "ai_citable_structure",
+  "proof_trust",
+  "competitor_gap",
+  "service_location_gap",
+  "citation_readiness",
 ]);
 
 export const issueStatusEnum = pgEnum("issue_status", [
@@ -51,8 +65,10 @@ export const auditsTable = pgTable("audits", {
     .notNull()
     .references(() => clientsTable.id, { onDelete: "cascade" }),
   url: text("url").notNull(),
+  auditType: auditTypeEnum("audit_type").notNull().default("seo"),
   status: auditStatusEnum("status").notNull().default("pending"),
   seoScore: real("seo_score"),
+  aiVisibilityScore: real("ai_visibility_score"),
   pageSpeedScore: real("page_speed_score"),
   crawledPages: integer("crawled_pages").default(0),
   scanDurationMs: integer("scan_duration_ms"),
@@ -72,11 +88,17 @@ export const auditIssuesTable = pgTable("audit_issues", {
     .references(() => auditsTable.id, { onDelete: "cascade" }),
   url: text("url").notNull(),
   category: issueCategoryEnum("category").notNull(),
+  issueType: text("issue_type"),
   severity: issueSeverityEnum("severity").notNull(),
   title: text("title").notNull(),
   description: text("description").notNull(),
+  evidence: jsonb("evidence"),
   recommendation: text("recommendation"),
   aiRecommendation: text("ai_recommendation"),
+  aiVisibilityImpact: text("ai_visibility_impact"),
+  businessImpact: text("business_impact"),
+  estimatedEffort: text("estimated_effort"),
+  recommendedOwner: text("recommended_owner"),
   priorityScore: real("priority_score").notNull().default(0),
   status: issueStatusEnum("status").notNull().default("open"),
   approvedBy: text("approved_by"),
@@ -90,6 +112,7 @@ export const insertAuditSchema = createInsertSchema(auditsTable).omit({
   updatedAt: true,
   completedAt: true,
   seoScore: true,
+  aiVisibilityScore: true,
   pageSpeedScore: true,
   crawledPages: true,
   scanDurationMs: true,
