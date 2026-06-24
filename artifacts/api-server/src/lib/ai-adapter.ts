@@ -41,7 +41,7 @@ You provide concise, actionable, and technically precise recommendations for SEO
 Your responses are always specific to the issue at hand and include concrete next steps.
 Keep each recommendation under 200 words. Be direct — no generic advice.`;
 
-async function callOpenAI(config: AiProviderConfig, prompt: string): Promise<string> {
+async function callOpenAI(config: AiProviderConfig, prompt: string, systemPrompt = SYSTEM_PROMPT): Promise<string> {
   const client = new OpenAI({
     apiKey: config.apiKey,
     baseURL: config.baseUrl || undefined,
@@ -49,7 +49,7 @@ async function callOpenAI(config: AiProviderConfig, prompt: string): Promise<str
   const resp = await client.chat.completions.create({
     model: config.model,
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: systemPrompt },
       { role: "user", content: prompt },
     ],
     max_tokens: 300,
@@ -58,26 +58,26 @@ async function callOpenAI(config: AiProviderConfig, prompt: string): Promise<str
   return resp.choices[0]?.message?.content?.trim() ?? "";
 }
 
-async function callAnthropic(config: AiProviderConfig, prompt: string): Promise<string> {
+async function callAnthropic(config: AiProviderConfig, prompt: string, systemPrompt = SYSTEM_PROMPT): Promise<string> {
   const client = new Anthropic({ apiKey: config.apiKey });
   const resp = await client.messages.create({
     model: config.model,
     max_tokens: 300,
-    system: SYSTEM_PROMPT,
+    system: systemPrompt,
     messages: [{ role: "user", content: prompt }],
   });
   const block = resp.content[0];
   return block?.type === "text" ? block.text.trim() : "";
 }
 
-async function callGemini(config: AiProviderConfig, prompt: string): Promise<string> {
+async function callGemini(config: AiProviderConfig, prompt: string, systemPrompt = SYSTEM_PROMPT): Promise<string> {
   const genAI = new GoogleGenerativeAI(config.apiKey ?? "");
   const model = genAI.getGenerativeModel({ model: config.model });
-  const result = await model.generateContent(`${SYSTEM_PROMPT}\n\n${prompt}`);
+  const result = await model.generateContent(`${systemPrompt}\n\n${prompt}`);
   return result.response.text().trim();
 }
 
-async function callOllama(config: AiProviderConfig, prompt: string): Promise<string> {
+async function callOllama(config: AiProviderConfig, prompt: string, systemPrompt = SYSTEM_PROMPT): Promise<string> {
   const baseUrl = (config.baseUrl ?? "http://localhost:11434").replace(/\/$/, "");
   const resp = await fetch(`${baseUrl}/api/chat`, {
     method: "POST",
@@ -85,7 +85,7 @@ async function callOllama(config: AiProviderConfig, prompt: string): Promise<str
     body: JSON.stringify({
       model: config.model,
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         { role: "user", content: prompt },
       ],
       stream: false,
@@ -114,22 +114,30 @@ ${issue.affectedElement ? `Affected URLs/elements: ${issue.affectedElement}` : "
 Provide a specific, actionable AI-enhanced recommendation that builds on the current advice. Include any technical implementation details, specific code snippets if helpful, estimated impact, and effort level (Low/Medium/High).`;
 
   try {
-    switch (config.provider) {
-      case "openai":
-      case "custom":
-        return await callOpenAI(config, prompt);
-      case "anthropic":
-        return await callAnthropic(config, prompt);
-      case "gemini":
-        return await callGemini(config, prompt);
-      case "ollama":
-        return await callOllama(config, prompt);
-      default:
-        return await callOpenAI(config, prompt);
-    }
+    return await generateAiText(config, prompt);
   } catch (err) {
     logger.error({ err, provider: config.provider }, "AI recommendation failed");
     return "";
+  }
+}
+
+export async function generateAiText(
+  config: AiProviderConfig,
+  prompt: string,
+  systemPrompt = SYSTEM_PROMPT,
+): Promise<string> {
+  switch (config.provider) {
+    case "openai":
+    case "custom":
+      return await callOpenAI(config, prompt, systemPrompt);
+    case "anthropic":
+      return await callAnthropic(config, prompt, systemPrompt);
+    case "gemini":
+      return await callGemini(config, prompt, systemPrompt);
+    case "ollama":
+      return await callOllama(config, prompt, systemPrompt);
+    default:
+      return await callOpenAI(config, prompt, systemPrompt);
   }
 }
 

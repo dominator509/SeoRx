@@ -925,6 +925,13 @@ export const CreateGeoAeoRecommendationBody = zod.object({
 });
 
 /**
+ * @summary Generate approval-gated GEO/AEO recommendation drafts
+ */
+export const GenerateGeoAeoRecommendationDraftsParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
  * @summary Edit or hide a GEO/AEO recommendation
  */
 export const UpdateGeoAeoRecommendationParams = zod.object({

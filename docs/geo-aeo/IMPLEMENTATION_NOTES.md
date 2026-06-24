@@ -50,6 +50,17 @@ Last updated: 2026-06-23
 - `lib/api-client-react/src/generated/*`
 - `lib/api-zod/src/generated/*`
 
+## Phase 4 AI-assisted draft files added
+
+- `artifacts/api-server/src/lib/geo-aeo/ai-drafts.ts`
+- `artifacts/api-server/src/lib/ai-adapter.ts`
+- `artifacts/api-server/src/routes/geo-aeo.ts`
+- `artifacts/api-server/src/test/geo-aeo.unit.test.ts`
+- `artifacts/api-server/src/test/api.integration.test.ts`
+- `lib/api-spec/openapi.yaml`
+- `lib/api-client-react/src/generated/*`
+- `lib/api-zod/src/generated/*`
+
 ## Phase 5 report/export files added
 
 - `artifacts/api-server/src/lib/geo-aeo/report.ts`
@@ -90,10 +101,19 @@ Last updated: 2026-06-23
 ## GEO/AEO report/export behavior
 
 - `POST /api/reports` defaults `geo_aeo` audits to `reportType=geo_aeo_audit` and `format=markdown`.
-- `geo_aeo_audit` reports use a deterministic canonical payload built from the audit, client, profile, prompts, approved observations, page assessments, recommendations, approved issues, and latest score snapshot.
+- `geo_aeo_audit` reports use a deterministic canonical payload built from the audit, client, profile, prompts, approved observations, page assessments, approved recommendations, approved issues, and latest score snapshot.
 - `GET /api/reports/:id/download` returns `text/markdown` and a `.md` attachment for GEO/AEO reports.
 - GEO/AEO report generation rejects unsupported export formats instead of producing a misleading SEO PDF.
 - The Markdown export includes the required AI answer variability disclaimer and avoids live AI-platform checks.
+- Draft and hidden GEO/AEO recommendations are excluded from canonical report export until explicitly approved.
+
+## GEO/AEO AI draft behavior
+
+- `POST /api/audits/:id/geo/recommendations/draft` generates approval-gated draft recommendations from the audit's persisted evidence catalog.
+- If an active AI provider is configured, the route uses the existing AI provider abstraction through a structured GEO/AEO prompt and validates JSON output before saving.
+- If no provider is configured, the route creates deterministic fallback drafts from existing scanner recommendations or page-assessment evidence.
+- Invalid AI JSON, missing evidence references, or prohibited guarantee/placement language are rejected without saving drafts.
+- Prompt-injection text inside page/evidence data is treated as untrusted data, sanitized, and never executed as an instruction.
 
 ## GEO/AEO admin UI behavior
 

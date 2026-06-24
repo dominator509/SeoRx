@@ -93,7 +93,7 @@ export async function buildGeoAeoReportPayload(input: {
   const promptById = new Map(prompts.map((prompt) => [prompt.id, prompt.promptText]));
   const score = normalizeScore(input.audit.aiVisibilityScore, scoreSnapshot);
   const visibleRecommendations = recommendations
-    .filter((item) => item.status !== "hidden")
+    .filter((item) => item.status === "approved")
     .sort((a, b) => b.priorityScore - a.priorityScore);
 
   return {

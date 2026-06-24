@@ -44,6 +44,7 @@ import type {
   DashboardStats,
   DeveloperAuthorizeResponse,
   DismissIssueBody,
+  ErrorResponse,
   ForbiddenResponse,
   GenerateGeoAeoPromptsBody,
   GeoAeoApprovedRecommendation,
@@ -55,6 +56,7 @@ import type {
   GeoAeoPrompt,
   GeoAeoPromptList,
   GeoAeoRecommendation,
+  GeoAeoRecommendationDraftList,
   GeoAeoRecommendationInput,
   GeoAeoRecommendationUpdate,
   GeoAeoScoreSnapshot,
@@ -2542,6 +2544,97 @@ export const useCreateGeoAeoRecommendation = <
   TContext
 > => {
   return useMutation(getCreateGeoAeoRecommendationMutationOptions(options));
+};
+
+/**
+ * @summary Generate approval-gated GEO/AEO recommendation drafts
+ */
+export const getGenerateGeoAeoRecommendationDraftsUrl = (id: string) => {
+  return `/api/audits/${id}/geo/recommendations/draft`;
+};
+
+export const generateGeoAeoRecommendationDrafts = async (
+  id: string,
+  options?: RequestInit,
+): Promise<GeoAeoRecommendationDraftList> => {
+  return customFetch<GeoAeoRecommendationDraftList>(
+    getGenerateGeoAeoRecommendationDraftsUrl(id),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getGenerateGeoAeoRecommendationDraftsMutationOptions = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateGeoAeoRecommendationDrafts>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateGeoAeoRecommendationDrafts>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["generateGeoAeoRecommendationDrafts"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateGeoAeoRecommendationDrafts>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return generateGeoAeoRecommendationDrafts(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateGeoAeoRecommendationDraftsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateGeoAeoRecommendationDrafts>>
+>;
+
+export type GenerateGeoAeoRecommendationDraftsMutationError = ErrorType<
+  BadRequestResponse | UnauthorizedResponse | ErrorResponse
+>;
+
+/**
+ * @summary Generate approval-gated GEO/AEO recommendation drafts
+ */
+export const useGenerateGeoAeoRecommendationDrafts = <
+  TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ErrorResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateGeoAeoRecommendationDrafts>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateGeoAeoRecommendationDrafts>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(
+    getGenerateGeoAeoRecommendationDraftsMutationOptions(options),
+  );
 };
 
 /**

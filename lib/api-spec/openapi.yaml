@@ -679,6 +679,33 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /audits/{id}/geo/recommendations/draft:
+    post:
+      operationId: generateGeoAeoRecommendationDrafts
+      tags: [geo-aeo]
+      summary: Generate approval-gated GEO/AEO recommendation drafts
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "201":
+          description: Generated draft recommendations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeoAeoRecommendationDraftList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          description: AI draft response failed validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
   /audits/{id}/geo/recommendations/{recommendationId}:
     patch:
       operationId: updateGeoAeoRecommendation
@@ -2304,6 +2331,27 @@ components:
         status:
           type: string
           enum: [draft, approved, hidden]
+
+    GeoAeoRecommendationDraftList:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [ai_provider, deterministic_fallback]
+        providerUsed:
+          type: string
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeoAeoRecommendation"
+        total:
+          type: integer
+      required:
+        - mode
+        - providerUsed
+        - items
+        - total
 
     GeoAeoScoreSnapshot:
       type: object

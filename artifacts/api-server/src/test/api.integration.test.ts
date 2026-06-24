@@ -955,6 +955,17 @@ describe("production-critical API behavior", () => {
       estimatedEffort: "medium",
       owner: "content_writer",
       fiverrPackageTier: "standard",
+      status: "approved",
+    });
+    await dbModule.db.insert(dbModule.geoRecommendationsTable).values({
+      id: crypto.randomUUID(),
+      auditId,
+      category: "ai_answer_coverage",
+      issueType: "MISSING_DIRECT_ANSWER_BLOCKS",
+      title: "Unapproved draft answer block",
+      evidence: "This draft should not be exported until approval.",
+      recommendation: "Do not include this draft recommendation yet.",
+      priorityScore: 70,
       status: "draft",
     });
     await dbModule.db.insert(dbModule.geoRecommendationsTable).values({
@@ -1030,6 +1041,7 @@ describe("production-critical API behavior", () => {
     expect(downloadRes.text).toContain("Overall AI Visibility Score: 68/100");
     expect(downloadRes.text).toContain("Who is the best AI visibility consultant in Austin?");
     expect(downloadRes.text).toContain("Add direct answer blocks to service pages");
+    expect(downloadRes.text).not.toContain("Unapproved draft answer block");
     expect(downloadRes.text).not.toContain("Hidden weak proof draft");
     expect(downloadRes.text).toContain("AI-generated answers vary by model");
   });
@@ -1184,6 +1196,22 @@ describe("production-critical API behavior", () => {
       recommendation: "Add concise Q&A blocks with evidence-backed proof to priority service pages.",
       priorityScore: 91,
       status: "draft",
+    });
+
+    const draftRes = await request(app)
+      .post(`/api/audits/${auditId}/geo/recommendations/draft`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(draftRes.status).toBe(201);
+    expect(draftRes.body).toMatchObject({
+      mode: "deterministic_fallback",
+      providerUsed: null,
+      total: expect.any(Number),
+    });
+    expect(draftRes.body.items[0]).toMatchObject({
+      auditId,
+      status: "draft",
+      title: expect.stringContaining("Draft expansion"),
     });
 
     const hiddenRecommendationRes = await request(app)

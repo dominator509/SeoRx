@@ -542,6 +542,21 @@ export interface GeoAeoRecommendationUpdate {
   status?: GeoAeoRecommendationUpdateStatus;
 }
 
+export type GeoAeoRecommendationDraftListMode =
+  (typeof GeoAeoRecommendationDraftListMode)[keyof typeof GeoAeoRecommendationDraftListMode];
+
+export const GeoAeoRecommendationDraftListMode = {
+  ai_provider: "ai_provider",
+  deterministic_fallback: "deterministic_fallback",
+} as const;
+
+export interface GeoAeoRecommendationDraftList {
+  mode: GeoAeoRecommendationDraftListMode;
+  providerUsed: string | null;
+  items: GeoAeoRecommendation[];
+  total: number;
+}
+
 export type GeoAeoScoreSnapshotSubScores = { [key: string]: unknown };
 
 export interface GeoAeoScoreSnapshot {

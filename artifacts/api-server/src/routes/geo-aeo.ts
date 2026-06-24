@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   auditIssuesTable,
   auditsTable,
+  clientsTable,
   db,
   geoAuditProfilesTable,
   geoPageAssessmentsTable,
@@ -13,9 +14,12 @@ import {
 import { and, desc, eq } from "drizzle-orm";
 import { ZodError } from "zod";
 import { assertAuditAccess, requireAuth } from "../lib/rbac";
+import { generateAiText, getActiveProvider } from "../lib/ai-adapter";
 import {
   calculateGeoAeoScore,
+  generateGeoAeoDraftRecommendations,
   generateGeoPromptSet,
+  GeoAeoAiDraftError,
   geoAuditProfileInputSchema,
   geoRecommendationInputSchema,
   normalizeGeoObservation,
@@ -233,6 +237,74 @@ router.post("/audits/:id/geo/recommendations", async (req, res) => {
     res.status(201).json(saved);
   } catch (err) {
     handleRouteError(req, res, err, "Failed to create GEO/AEO recommendation");
+  }
+});
+
+router.post("/audits/:id/geo/recommendations/draft", async (req, res) => {
+  try {
+    const auditId = req.params.id as string;
+    const audit = res.locals.audit as typeof auditsTable.$inferSelect;
+    const [client, profile, prompts, observations, pageAssessments, recommendations, latestScore] = await Promise.all([
+      db.query.clientsTable.findFirst({ where: eq(clientsTable.id, audit.clientId) }),
+      latestProfile(auditId),
+      db.select().from(geoPromptsTable).where(eq(geoPromptsTable.auditId, auditId)).orderBy(desc(geoPromptsTable.priority)),
+      db.select().from(geoVisibilityObservationsTable).where(eq(geoVisibilityObservationsTable.auditId, auditId)).orderBy(desc(geoVisibilityObservationsTable.observedAt)),
+      db.select().from(geoPageAssessmentsTable).where(eq(geoPageAssessmentsTable.auditId, auditId)),
+      db.select().from(geoRecommendationsTable).where(eq(geoRecommendationsTable.auditId, auditId)).orderBy(desc(geoRecommendationsTable.priorityScore)),
+      latestScoreSnapshot(auditId),
+    ]);
+
+    const provider = await getActiveProvider(client?.orgId ?? undefined);
+    const draft = await generateGeoAeoDraftRecommendations({
+      context: {
+        auditUrl: audit.url,
+        profile: profile ?? null,
+        prompts,
+        observations,
+        pageAssessments,
+        recommendations,
+        score: latestScore ?? null,
+      },
+      provider,
+      generateText: provider
+        ? ({ provider: activeProvider, systemPrompt, prompt }) => generateAiText(activeProvider, prompt, systemPrompt)
+        : undefined,
+    });
+
+    const rows = draft.recommendations.map((recommendation) => ({
+      id: crypto.randomUUID(),
+      auditId,
+      pageUrl: recommendation.pageUrl ?? null,
+      category: normalizeIssueCategory(recommendation.category),
+      issueType: recommendation.issueType,
+      title: recommendation.title,
+      evidence: recommendation.evidence,
+      recommendation: recommendation.recommendation,
+      aiVisibilityImpact: recommendation.aiVisibilityImpact ?? null,
+      businessImpact: recommendation.businessImpact ?? null,
+      priorityScore: recommendation.priorityScore,
+      estimatedEffort: recommendation.estimatedEffort ?? null,
+      owner: recommendation.owner ?? null,
+      fiverrPackageTier: recommendation.fiverrPackageTier ?? null,
+      status: "draft",
+    }));
+
+    if (rows.length) {
+      await db.insert(geoRecommendationsTable).values(rows);
+    }
+
+    res.status(201).json({
+      mode: draft.mode,
+      providerUsed: draft.providerUsed,
+      items: rows,
+      total: rows.length,
+    });
+  } catch (err) {
+    if (err instanceof GeoAeoAiDraftError) {
+      res.status(err.message.includes("requires") ? 400 : 502).json({ error: err.message });
+      return;
+    }
+    handleRouteError(req, res, err, "Failed to generate GEO/AEO recommendation drafts");
   }
 });
 
