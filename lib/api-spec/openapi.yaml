@@ -2335,7 +2335,7 @@ components:
           enum: [seo_audit, geo_aeo_audit, hybrid_audit, retainer_proposal]
         format:
           type: string
-          enum: [pdf, html, json]
+          enum: [pdf, html, json, markdown]
         status:
           type: string
           enum: [generating, ready, failed]
@@ -2384,7 +2384,7 @@ components:
           type: string
         format:
           type: string
-          enum: [pdf, html, json]
+          enum: [pdf, html, json, markdown]
           default: pdf
         reportType:
           type: string

@@ -4,6 +4,11 @@ import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth, assertAuditAccess, getAllowedClientIds } from "../lib/rbac";
 import { logger } from "../lib/logger";
 import { generatePdfReport } from "../lib/pdf-report";
+import {
+  buildGeoAeoReportPayload,
+  renderGeoAeoMarkdownReport,
+  summarizeGeoAeoReport,
+} from "../lib/geo-aeo/report";
 
 const router = Router();
 
@@ -43,12 +48,20 @@ router.get("/reports", requireAuth, async (req, res) => {
 
 router.post("/reports", requireAuth, async (req, res) => {
   try {
-    const { auditId, title, format = "pdf", includeAiSummary = true } = req.body;
+    const { auditId, title, includeAiSummary = true } = req.body;
 
     // RBAC: verify user has access to this audit's org
     const audit = await assertAuditAccess(req, auditId as string);
     if (!audit) {
       res.status(404).json({ error: "Audit not found or access denied" });
+      return;
+    }
+
+    const reportType = req.body.reportType ?? defaultReportTypeForAudit(audit.auditType);
+    const format = req.body.format ?? (reportType === "geo_aeo_audit" ? "markdown" : "pdf");
+
+    if (reportType === "geo_aeo_audit" && format !== "markdown") {
+      res.status(400).json({ error: "GEO/AEO reports currently support markdown export only" });
       return;
     }
 
@@ -58,6 +71,7 @@ router.post("/reports", requireAuth, async (req, res) => {
       auditId,
       clientId: audit.clientId,
       title,
+      reportType,
       format,
       status: "generating",
       includeAiSummary,
@@ -135,6 +149,16 @@ router.get("/reports/:id/download", requireAuth, async (req, res) => {
 
     const safeTitle = (report.title ?? "SEO-Audit-Report").replace(/[^a-z0-9-_ ]/gi, "").replace(/\s+/g, "-");
 
+    if (report.reportType === "geo_aeo_audit" || report.format === "markdown") {
+      if (!client) { res.status(404).json({ error: "Client not found" }); return; }
+      const payload = await buildGeoAeoReportPayload({ audit, client });
+      const markdown = renderGeoAeoMarkdownReport(payload);
+      res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="${safeTitle}.md"`);
+      res.send(markdown);
+      return;
+    }
+
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${safeTitle}.pdf"`);
 
@@ -158,6 +182,27 @@ router.get("/reports/:id/download", requireAuth, async (req, res) => {
 // Async report generation
 async function generateReport(reportId: string, auditId: string) {
   await new Promise((r) => setTimeout(r, 2000));
+  const report = await db.query.reportsTable.findFirst({ where: eq(reportsTable.id, reportId) });
+  if (!report) return;
+
+  if (report.reportType === "geo_aeo_audit" || report.format === "markdown") {
+    const audit = await db.query.auditsTable.findFirst({ where: eq(auditsTable.id, auditId) });
+    if (!audit) throw new Error(`Audit ${auditId} not found for GEO/AEO report generation`);
+    const client = await db.query.clientsTable.findFirst({ where: eq(clientsTable.id, audit.clientId) });
+    if (!client) throw new Error(`Client ${audit.clientId} not found for GEO/AEO report generation`);
+    const payload = await buildGeoAeoReportPayload({ audit, client });
+    await db
+      .update(reportsTable)
+      .set({
+        status: "ready",
+        summary: summarizeGeoAeoReport(payload),
+        downloadUrl: `/api/reports/${reportId}/download`,
+        updatedAt: new Date(),
+      })
+      .where(eq(reportsTable.id, reportId));
+    return;
+  }
+
   const issues = await db.query.auditIssuesTable.findMany({ where: eq(auditIssuesTable.auditId, auditId) });
   const criticalCount = issues.filter((i) => i.severity === "critical").length;
   const highCount = issues.filter((i) => i.severity === "high").length;
@@ -167,6 +212,12 @@ async function generateReport(reportId: string, auditId: string) {
     .update(reportsTable)
     .set({ status: "ready", summary, downloadUrl: `/api/reports/${reportId}/download`, updatedAt: new Date() })
     .where(eq(reportsTable.id, reportId));
+}
+
+function defaultReportTypeForAudit(auditType: string): "seo_audit" | "geo_aeo_audit" | "hybrid_audit" {
+  if (auditType === "geo_aeo") return "geo_aeo_audit";
+  if (auditType === "hybrid") return "hybrid_audit";
+  return "seo_audit";
 }
 
 export default router;

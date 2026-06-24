@@ -170,15 +170,22 @@ async function seedClient(slug: string, userId = TEST_USER_ID) {
   return { orgId, clientId };
 }
 
-async function seedAudit(slug: string, userId = TEST_USER_ID, status: "pending" | "running" | "completed" | "failed" = "completed") {
+async function seedAudit(
+  slug: string,
+  userId = TEST_USER_ID,
+  status: "pending" | "running" | "completed" | "failed" = "completed",
+  auditType: "seo" | "geo_aeo" | "hybrid" = "seo",
+) {
   const seeded = await seedClient(slug, userId);
   const auditId = crypto.randomUUID();
   await dbModule.db.insert(dbModule.auditsTable).values({
     id: auditId,
     clientId: seeded.clientId,
     url: `https://${slug}.example/`,
+    auditType,
     status,
     seoScore: status === "completed" ? 86 : null,
+    aiVisibilityScore: auditType === "seo" ? null : 68,
     crawledPages: status === "completed" ? 3 : 0,
     completedAt: status === "completed" ? new Date() : null,
   });
@@ -210,14 +217,21 @@ async function seedIssue(
   return issueId;
 }
 
-async function seedReport(auditId: string, clientId: string, title: string, status: "generating" | "ready" | "failed" = "ready") {
+async function seedReport(
+  auditId: string,
+  clientId: string,
+  title: string,
+  status: "generating" | "ready" | "failed" = "ready",
+  options: { format?: "pdf" | "html" | "json" | "markdown"; reportType?: "seo_audit" | "geo_aeo_audit" | "hybrid_audit" | "retainer_proposal" } = {},
+) {
   const reportId = crypto.randomUUID();
   await dbModule.db.insert(dbModule.reportsTable).values({
     id: reportId,
     auditId,
     clientId,
     title,
-    format: "pdf",
+    format: options.format ?? "pdf",
+    reportType: options.reportType ?? "seo_audit",
     status,
     summary: status === "ready" ? `${title} summary` : null,
     downloadUrl: status === "ready" ? `/api/reports/${reportId}/download` : null,
@@ -867,6 +881,145 @@ describe("production-critical API behavior", () => {
 
     expect(readyDownloadRes.status).toBe(200);
     expect(readyDownloadRes.headers["content-type"]).toContain("application/pdf");
+  });
+
+  it("creates GEO/AEO markdown reports from the canonical report payload", async () => {
+    const { auditId, clientId } = await seedAudit(`geo-report-${crypto.randomUUID()}`, TEST_USER_ID, "completed", "geo_aeo");
+    const promptId = crypto.randomUUID();
+
+    await dbModule.db.insert(dbModule.geoAuditProfilesTable).values({
+      id: crypto.randomUUID(),
+      auditId,
+      businessName: "Allowed GEO Business",
+      websiteUrl: "https://allowed-geo.example/",
+      primaryOffer: "Technical SEO and AI visibility consulting",
+      targetLocations: ["Austin"],
+      targetServices: ["AI visibility audit"],
+      competitors: [{ name: "Visible Competitor", url: "https://competitor.example/" }],
+      proofPoints: ["10 years of search consulting experience"],
+      customerQuestions: ["Can AI answer systems understand my service pages?"],
+      packageTier: "standard",
+    });
+    await dbModule.db.insert(dbModule.geoPromptsTable).values({
+      id: promptId,
+      auditId,
+      promptText: "Who is the best AI visibility consultant in Austin?",
+      intent: "best_provider",
+      targetService: "AI visibility audit",
+      targetLocation: "Austin",
+      buyerStage: "consideration",
+      priority: 90,
+      approved: true,
+    });
+    await dbModule.db.insert(dbModule.geoVisibilityObservationsTable).values({
+      id: crypto.randomUUID(),
+      auditId,
+      promptId,
+      surface: "chatgpt",
+      brandMentioned: true,
+      brandCited: false,
+      answerSummary: "The brand was mentioned but not cited as a source.",
+      citedUrls: ["https://competitor.example/source"],
+      competitorsMentioned: ["Visible Competitor"],
+      confidenceScore: 80,
+      observationMode: "manual",
+      approved: true,
+    });
+    await dbModule.db.insert(dbModule.geoPageAssessmentsTable).values({
+      id: crypto.randomUUID(),
+      auditId,
+      pageUrl: "https://allowed-geo.example/services/ai-visibility",
+      aiCitableScore: 62,
+      answerCoverageScore: 58,
+      entityClarityScore: 70,
+      proofSignalScore: 45,
+      structureScore: 66,
+      schemaReadinessScore: 40,
+      citationReadinessScore: 42,
+      detectedGaps: ["Missing direct answer block", "Weak proof signals"],
+      recommendedFixes: ["Add concise answers", "Add evidence-backed testimonials"],
+      evidence: { source: "scanner" },
+    });
+    await dbModule.db.insert(dbModule.geoRecommendationsTable).values({
+      id: crypto.randomUUID(),
+      auditId,
+      pageUrl: "https://allowed-geo.example/services/ai-visibility",
+      category: "ai_answer_coverage",
+      issueType: "MISSING_DIRECT_ANSWER_BLOCKS",
+      title: "Add direct answer blocks to service pages",
+      evidence: "The assessed page does not answer the core buyer prompt near the top.",
+      recommendation: "Add a concise direct answer block that names the service, audience, location, proof, and next step.",
+      aiVisibilityImpact: "Makes the service page easier for AI answer systems to summarize.",
+      businessImpact: "Clarifies the offer for high-intent buyers.",
+      priorityScore: 92,
+      estimatedEffort: "medium",
+      owner: "content_writer",
+      fiverrPackageTier: "standard",
+      status: "draft",
+    });
+    await dbModule.db.insert(dbModule.geoScoreSnapshotsTable).values({
+      id: crypto.randomUUID(),
+      auditId,
+      aiVisibilityScore: 68,
+      grade: "Needs Work",
+      subScores: {
+        answerCoverage: 58,
+        entityClarity: 70,
+        aiCitableStructure: 64,
+        proofAndSourceability: 44,
+        schemaReadiness: 40,
+        crawlabilityIndexability: 85,
+        competitorGap: 55,
+        localOrCommerceCompleteness: 78,
+      },
+      topRisks: ["Proof and sourceability", "Schema readiness", "Competitor visibility gaps"],
+      quickWins: ["Add direct answer blocks", "Add FAQPage schema", "Add evidence-backed proof"],
+    });
+
+    const createRes = await request(app)
+      .post("/api/reports")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        auditId,
+        title: "GEO Markdown Report",
+        reportType: "geo_aeo_audit",
+      });
+
+    expect(createRes.status).toBe(201);
+    const created = ListReportsResponseItem.parse(createRes.body);
+    expect(created).toMatchObject({
+      auditId,
+      clientId,
+      title: "GEO Markdown Report",
+      reportType: "geo_aeo_audit",
+      format: "markdown",
+      status: "generating",
+    });
+
+    const readyDetailRes = await waitForReportReady(created.id);
+    const readyDetail = GetReportResponse.parse(readyDetailRes.body);
+    expect(readyDetail).toMatchObject({
+      id: created.id,
+      reportType: "geo_aeo_audit",
+      format: "markdown",
+      status: "ready",
+      downloadUrl: `/api/reports/${created.id}/download`,
+    });
+    expect(readyDetail.summary).toContain("68/100");
+    expect(readyDetail.summary).toContain("Needs Work");
+
+    const downloadRes = await request(app)
+      .get(`/api/reports/${created.id}/download`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(downloadRes.status).toBe(200);
+    expect(downloadRes.headers["content-type"]).toContain("text/markdown");
+    expect(downloadRes.headers["content-disposition"]).toContain("GEO-Markdown-Report.md");
+    expect(downloadRes.text).toContain("# AI Visibility Audit");
+    expect(downloadRes.text).toContain("Overall AI Visibility Score: 68/100");
+    expect(downloadRes.text).toContain("Who is the best AI visibility consultant in Austin?");
+    expect(downloadRes.text).toContain("Add direct answer blocks to service pages");
+    expect(downloadRes.text).toContain("AI-generated answers vary by model");
   });
 
   it("guards GEO/AEO routes behind the feature flag and audit access", async () => {

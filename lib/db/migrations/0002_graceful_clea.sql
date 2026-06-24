@@ -1,0 +1,1 @@
+ALTER TYPE "public"."report_format" ADD VALUE 'markdown';

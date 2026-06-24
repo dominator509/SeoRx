@@ -15,6 +15,13 @@
       "when": 1782192293333,
       "tag": "0001_add_geo_aeo_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782277199363,
+      "tag": "0002_graceful_clea",
+      "breakpoints": true
     }
   ]
 }

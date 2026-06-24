@@ -959,7 +959,7 @@ export const ListReportsResponseItem = zod.object({
     "hybrid_audit",
     "retainer_proposal",
   ]),
-  format: zod.enum(["pdf", "html", "json"]),
+  format: zod.enum(["pdf", "html", "json", "markdown"]),
   status: zod.enum(["generating", "ready", "failed"]),
   downloadUrl: zod.string().nullish(),
   createdAt: zod.coerce.date(),
@@ -978,7 +978,7 @@ export const CreateReportBody = zod.object({
   auditId: zod.string(),
   title: zod.string(),
   format: zod
-    .enum(["pdf", "html", "json"])
+    .enum(["pdf", "html", "json", "markdown"])
     .default(createReportBodyFormatDefault),
   reportType: zod
     .enum(["seo_audit", "geo_aeo_audit", "hybrid_audit", "retainer_proposal"])
@@ -1008,7 +1008,7 @@ export const GetReportResponse = zod
       "hybrid_audit",
       "retainer_proposal",
     ]),
-    format: zod.enum(["pdf", "html", "json"]),
+    format: zod.enum(["pdf", "html", "json", "markdown"]),
     status: zod.enum(["generating", "ready", "failed"]),
     downloadUrl: zod.string().nullish(),
     createdAt: zod.coerce.date(),

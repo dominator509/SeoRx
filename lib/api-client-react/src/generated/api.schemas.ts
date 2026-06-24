@@ -538,6 +538,7 @@ export const ReportFormat = {
   pdf: "pdf",
   html: "html",
   json: "json",
+  markdown: "markdown",
 } as const;
 
 export type ReportStatus = (typeof ReportStatus)[keyof typeof ReportStatus];
@@ -575,6 +576,7 @@ export const CreateReportBodyFormat = {
   pdf: "pdf",
   html: "html",
   json: "json",
+  markdown: "markdown",
 } as const;
 
 export type CreateReportBodyReportType =

@@ -16,7 +16,7 @@ Last updated: 2026-06-23
 - Current approval workflow is issue-level: `audit_issues.status` moves through `open`, `approved`, `dismissed`, and `fixed`.
 - Current report creation and download are in `artifacts/api-server/src/routes/reports.ts`.
 - Current PDF rendering is in `artifacts/api-server/src/lib/pdf-report.ts`.
-- There is no Markdown export adapter yet.
+- Markdown export is implemented for `geo_aeo_audit` reports; existing SEO PDF behavior remains separate.
 - There is no dedicated client dashboard route separate from the authenticated product app.
 
 ## Phase 1 files extended
@@ -50,6 +50,16 @@ Last updated: 2026-06-23
 - `lib/api-client-react/src/generated/*`
 - `lib/api-zod/src/generated/*`
 
+## Phase 5 report/export files added
+
+- `artifacts/api-server/src/lib/geo-aeo/report.ts`
+- `artifacts/api-server/src/routes/reports.ts`
+- `lib/db/src/schema/reports.ts`
+- `lib/db/migrations/*_add_markdown_report_format.sql`
+- `lib/api-spec/openapi.yaml`
+- `lib/api-client-react/src/generated/*`
+- `lib/api-zod/src/generated/*`
+
 ## GEO/AEO route behavior
 
 - All `/api/audits/:id/geo/*` routes require authentication and existing audit access.
@@ -65,6 +75,14 @@ Last updated: 2026-06-23
 - `hybrid` audits retain ordinary SEO issues and also persist deterministic GEO/AEO scanner findings.
 - GEO/AEO audit execution writes page assessments, draft recommendations, audit issue metadata, and a score snapshot when `GEO_AEO_ENABLED=true`.
 - Test mode raises the audit route rate-limit ceiling so integration polling does not mask runtime behavior; production remains capped at 20 audit-route requests per hour.
+
+## GEO/AEO report/export behavior
+
+- `POST /api/reports` defaults `geo_aeo` audits to `reportType=geo_aeo_audit` and `format=markdown`.
+- `geo_aeo_audit` reports use a deterministic canonical payload built from the audit, client, profile, prompts, approved observations, page assessments, recommendations, approved issues, and latest score snapshot.
+- `GET /api/reports/:id/download` returns `text/markdown` and a `.md` attachment for GEO/AEO reports.
+- GEO/AEO report generation rejects unsupported export formats instead of producing a misleading SEO PDF.
+- The Markdown export includes the required AI answer variability disclaimer and avoids live AI-platform checks.
 
 ## Phase 1 schema approach
 
@@ -104,4 +122,4 @@ There is no root lint script today.
 - GEO/AEO should use Drizzle migrations, not Prisma.
 - GEO/AEO client-facing data remains hidden until explicit approval paths are implemented.
 - Live AI-search platform checks remain disabled and unimplemented unless a compliant adapter is added later.
-- Markdown export should be added before extending PDF behavior if the current PDF path becomes a blocker.
+- PDF rendering for GEO/AEO should reuse the canonical payload later; Markdown is the first supported GEO/AEO export.

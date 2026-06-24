@@ -5,7 +5,7 @@ import { z } from "zod/v4";
 import { auditsTable } from "./audits";
 import { clientsTable } from "./clients";
 
-export const reportFormatEnum = pgEnum("report_format", ["pdf", "html", "json"]);
+export const reportFormatEnum = pgEnum("report_format", ["pdf", "html", "json", "markdown"]);
 export const reportTypeEnum = pgEnum("report_type", [
   "seo_audit",
   "geo_aeo_audit",
