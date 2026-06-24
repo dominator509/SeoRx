@@ -12,6 +12,7 @@ import pagespeedRouter from "./pagespeed";
 import stripeRouter from "./stripe";
 import apiKeysRouter from "./api-keys";
 import integrationsRouter from "./integrations";
+import geoAeoRouter from "./geo-aeo";
 import docsRouter from "./docs";
 
 const router: IRouter = Router();
@@ -29,6 +30,7 @@ router.use(pagespeedRouter);
 router.use(stripeRouter);
 router.use(apiKeysRouter);
 router.use(integrationsRouter);
+router.use(geoAeoRouter);
 router.use(docsRouter);
 
 export default router;

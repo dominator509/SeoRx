@@ -36,6 +36,8 @@ tags:
     description: Billing plans, checkout, portal, and Stripe webhooks
   - name: approvals
     description: Human approval workflow
+  - name: geo-aeo
+    description: Generative engine and answer engine optimization workflows
 
 paths:
   /healthz:
@@ -536,6 +538,189 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+
+  /audits/{id}/geo/overview:
+    get:
+      operationId: getGeoAeoOverview
+      tags: [geo-aeo]
+      summary: Get GEO/AEO profile, prompts, observations, recommendations, and score
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: GEO/AEO overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeoAeoOverview"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /audits/{id}/geo/profile:
+    put:
+      operationId: saveGeoAeoProfile
+      tags: [geo-aeo]
+      summary: Save a GEO/AEO audit profile
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GeoAeoProfileInput"
+      responses:
+        "201":
+          description: Saved GEO/AEO profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeoAeoProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /audits/{id}/geo/prompts/generate:
+    post:
+      operationId: generateGeoAeoPrompts
+      tags: [geo-aeo]
+      summary: Generate GEO/AEO prompt set for an audit
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateGeoAeoPromptsBody"
+      responses:
+        "201":
+          description: Generated prompts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeoAeoPromptList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /audits/{id}/geo/prompts:
+    get:
+      operationId: listGeoAeoPrompts
+      tags: [geo-aeo]
+      summary: List GEO/AEO prompts for an audit
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: GEO/AEO prompts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GeoAeoPrompt"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /audits/{id}/geo/observations:
+    post:
+      operationId: createGeoAeoObservation
+      tags: [geo-aeo]
+      summary: Create a manual GEO/AEO visibility observation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GeoAeoObservationInput"
+      responses:
+        "201":
+          description: Created observation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeoAeoObservation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /audits/{id}/geo/recommendations:
+    post:
+      operationId: createGeoAeoRecommendation
+      tags: [geo-aeo]
+      summary: Create a GEO/AEO recommendation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GeoAeoRecommendationInput"
+      responses:
+        "201":
+          description: Created recommendation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeoAeoRecommendation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /audits/{id}/geo/recommendations/{recommendationId}/approve:
+    post:
+      operationId: approveGeoAeoRecommendation
+      tags: [geo-aeo]
+      summary: Approve a GEO/AEO recommendation into an audit issue
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+        - name: recommendationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Approved recommendation and created audit issue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeoAeoApprovedRecommendation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /audits/{id}/geo/score:
+    post:
+      operationId: createGeoAeoScoreSnapshot
+      tags: [geo-aeo]
+      summary: Calculate and persist a GEO/AEO score snapshot
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "201":
+          description: GEO/AEO score snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeoAeoScoreSnapshot"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /reports:
     get:
@@ -1745,6 +1930,392 @@ components:
       properties:
         reason:
           type: string
+
+    GeoAeoPackageTier:
+      type: string
+      enum: [basic, standard, premium, custom]
+
+    GeoAeoSurface:
+      type: string
+      enum: [chatgpt, gemini, perplexity, google_ai_overviews, google_ai_mode, copilot, claude, manual_observation, simulated_retrieval]
+
+    GeoAeoPromptIntent:
+      type: string
+      enum: [discovery, local_service, comparison, best_provider, pricing, problem_solution, faq, alternative, trust_validation]
+
+    GeoAeoCompetitor:
+      type: object
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+      required:
+        - url
+
+    GeoAeoProfileInput:
+      type: object
+      properties:
+        businessName:
+          type: string
+        websiteUrl:
+          type: string
+          format: uri
+        primaryOffer:
+          type: string
+        targetLocations:
+          type: array
+          items:
+            type: string
+        targetServices:
+          type: array
+          items:
+            type: string
+        targetCustomers:
+          type: array
+          items:
+            type: string
+        competitors:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeoAeoCompetitor"
+        proofPoints:
+          type: array
+          items:
+            type: string
+        reviewsUrl:
+          type: string
+          format: uri
+        googleBusinessUrl:
+          type: string
+          format: uri
+        importantPages:
+          type: array
+          items:
+            type: string
+            format: uri
+        customerQuestions:
+          type: array
+          items:
+            type: string
+        knownFor:
+          type: string
+        packageTier:
+          $ref: "#/components/schemas/GeoAeoPackageTier"
+      required:
+        - businessName
+        - websiteUrl
+
+    GeoAeoProfile:
+      allOf:
+        - $ref: "#/components/schemas/GeoAeoProfileInput"
+        - type: object
+          properties:
+            id:
+              type: string
+            auditId:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+          required:
+            - id
+            - auditId
+            - businessName
+            - websiteUrl
+            - packageTier
+            - createdAt
+            - updatedAt
+
+    GeoAeoPrompt:
+      type: object
+      properties:
+        id:
+          type: string
+        auditId:
+          type: string
+        promptText:
+          type: string
+        intent:
+          $ref: "#/components/schemas/GeoAeoPromptIntent"
+        targetService:
+          type: string
+          nullable: true
+        targetLocation:
+          type: string
+          nullable: true
+        buyerStage:
+          type: string
+        priority:
+          type: integer
+        approved:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - auditId
+        - promptText
+        - intent
+        - buyerStage
+        - priority
+        - approved
+        - createdAt
+        - updatedAt
+
+    GenerateGeoAeoPromptsBody:
+      type: object
+      properties:
+        profile:
+          $ref: "#/components/schemas/GeoAeoProfileInput"
+        maxPrompts:
+          type: integer
+          minimum: 1
+          maximum: 100
+
+    GeoAeoPromptList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeoAeoPrompt"
+        total:
+          type: integer
+      required:
+        - items
+        - total
+
+    GeoAeoObservationInput:
+      type: object
+      properties:
+        promptId:
+          type: string
+        surface:
+          $ref: "#/components/schemas/GeoAeoSurface"
+        observedAt:
+          type: string
+          format: date-time
+        brandMentioned:
+          type: boolean
+        brandCited:
+          type: boolean
+        brandPosition:
+          type: integer
+        sentiment:
+          type: string
+          enum: [positive, neutral, negative, mixed, unknown]
+        answerSummary:
+          type: string
+        citedUrls:
+          type: array
+          items:
+            type: string
+            format: uri
+        competitorsMentioned:
+          type: array
+          items:
+            type: string
+        rawAnswerExcerpt:
+          type: string
+        confidenceScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        notes:
+          type: string
+      required:
+        - surface
+
+    GeoAeoObservation:
+      allOf:
+        - $ref: "#/components/schemas/GeoAeoObservationInput"
+        - type: object
+          properties:
+            id:
+              type: string
+            auditId:
+              type: string
+            observationMode:
+              type: string
+            approved:
+              type: boolean
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+          required:
+            - id
+            - auditId
+            - surface
+            - brandMentioned
+            - brandCited
+            - confidenceScore
+            - observationMode
+            - approved
+            - createdAt
+            - updatedAt
+
+    GeoAeoRecommendationInput:
+      type: object
+      properties:
+        pageUrl:
+          type: string
+          format: uri
+        category:
+          type: string
+        issueType:
+          type: string
+        title:
+          type: string
+        evidence:
+          type: string
+        recommendation:
+          type: string
+        aiVisibilityImpact:
+          type: string
+        businessImpact:
+          type: string
+        priorityScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        estimatedEffort:
+          type: string
+          enum: [low, medium, high]
+        owner:
+          type: string
+          enum: [business_owner, content_writer, developer, seo_specialist, agency]
+        fiverrPackageTier:
+          $ref: "#/components/schemas/GeoAeoPackageTier"
+        status:
+          type: string
+          enum: [draft, approved, hidden]
+      required:
+        - category
+        - issueType
+        - title
+        - evidence
+        - recommendation
+        - priorityScore
+
+    GeoAeoRecommendation:
+      allOf:
+        - $ref: "#/components/schemas/GeoAeoRecommendationInput"
+        - type: object
+          properties:
+            id:
+              type: string
+            auditId:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+          required:
+            - id
+            - auditId
+            - category
+            - issueType
+            - title
+            - evidence
+            - recommendation
+            - priorityScore
+            - status
+            - createdAt
+            - updatedAt
+
+    GeoAeoScoreSnapshot:
+      type: object
+      properties:
+        id:
+          type: string
+        auditId:
+          type: string
+        aiVisibilityScore:
+          type: integer
+        grade:
+          type: string
+        subScores:
+          type: object
+          additionalProperties: true
+        topRisks:
+          type: array
+          items:
+            type: string
+        quickWins:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - auditId
+        - aiVisibilityScore
+        - grade
+        - subScores
+        - createdAt
+
+    GeoAeoOverview:
+      type: object
+      properties:
+        profile:
+          anyOf:
+            - $ref: "#/components/schemas/GeoAeoProfile"
+            - type: "null"
+        prompts:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeoAeoPrompt"
+        observations:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeoAeoObservation"
+        pageAssessments:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        recommendations:
+          type: array
+          items:
+            $ref: "#/components/schemas/GeoAeoRecommendation"
+        latestScore:
+          anyOf:
+            - $ref: "#/components/schemas/GeoAeoScoreSnapshot"
+            - type: "null"
+      required:
+        - profile
+        - prompts
+        - observations
+        - pageAssessments
+        - recommendations
+        - latestScore
+
+    GeoAeoApprovedRecommendation:
+      type: object
+      properties:
+        recommendationId:
+          type: string
+        issue:
+          $ref: "#/components/schemas/AuditIssue"
+      required:
+        - recommendationId
+        - issue
 
     Report:
       type: object

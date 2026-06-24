@@ -560,6 +560,386 @@ export const DismissIssueResponse = zod.object({
 });
 
 /**
+ * @summary Get GEO/AEO profile, prompts, observations, recommendations, and score
+ */
+export const GetGeoAeoOverviewParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const getGeoAeoOverviewResponseObservationsItemOneConfidenceScoreMin = 0;
+export const getGeoAeoOverviewResponseObservationsItemOneConfidenceScoreMax = 100;
+
+export const getGeoAeoOverviewResponseRecommendationsItemOnePriorityScoreMin = 0;
+export const getGeoAeoOverviewResponseRecommendationsItemOnePriorityScoreMax = 100;
+
+export const GetGeoAeoOverviewResponse = zod.object({
+  profile: zod.union([
+    zod
+      .object({
+        businessName: zod.string(),
+        websiteUrl: zod.string().url(),
+        primaryOffer: zod.string().optional(),
+        targetLocations: zod.array(zod.string()).optional(),
+        targetServices: zod.array(zod.string()).optional(),
+        targetCustomers: zod.array(zod.string()).optional(),
+        competitors: zod
+          .array(
+            zod.object({
+              name: zod.string().optional(),
+              url: zod.string().url(),
+            }),
+          )
+          .optional(),
+        proofPoints: zod.array(zod.string()).optional(),
+        reviewsUrl: zod.string().url().optional(),
+        googleBusinessUrl: zod.string().url().optional(),
+        importantPages: zod.array(zod.string().url()).optional(),
+        customerQuestions: zod.array(zod.string()).optional(),
+        knownFor: zod.string().optional(),
+        packageTier: zod
+          .enum(["basic", "standard", "premium", "custom"])
+          .optional(),
+      })
+      .and(
+        zod.object({
+          id: zod.string(),
+          auditId: zod.string(),
+          createdAt: zod.coerce.date(),
+          updatedAt: zod.coerce.date(),
+        }),
+      ),
+    zod.null(),
+  ]),
+  prompts: zod.array(
+    zod.object({
+      id: zod.string(),
+      auditId: zod.string(),
+      promptText: zod.string(),
+      intent: zod.enum([
+        "discovery",
+        "local_service",
+        "comparison",
+        "best_provider",
+        "pricing",
+        "problem_solution",
+        "faq",
+        "alternative",
+        "trust_validation",
+      ]),
+      targetService: zod.string().nullish(),
+      targetLocation: zod.string().nullish(),
+      buyerStage: zod.string(),
+      priority: zod.number(),
+      approved: zod.boolean(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  ),
+  observations: zod.array(
+    zod
+      .object({
+        promptId: zod.string().optional(),
+        surface: zod.enum([
+          "chatgpt",
+          "gemini",
+          "perplexity",
+          "google_ai_overviews",
+          "google_ai_mode",
+          "copilot",
+          "claude",
+          "manual_observation",
+          "simulated_retrieval",
+        ]),
+        observedAt: zod.coerce.date().optional(),
+        brandMentioned: zod.boolean().optional(),
+        brandCited: zod.boolean().optional(),
+        brandPosition: zod.number().optional(),
+        sentiment: zod
+          .enum(["positive", "neutral", "negative", "mixed", "unknown"])
+          .optional(),
+        answerSummary: zod.string().optional(),
+        citedUrls: zod.array(zod.string().url()).optional(),
+        competitorsMentioned: zod.array(zod.string()).optional(),
+        rawAnswerExcerpt: zod.string().optional(),
+        confidenceScore: zod
+          .number()
+          .min(getGeoAeoOverviewResponseObservationsItemOneConfidenceScoreMin)
+          .max(getGeoAeoOverviewResponseObservationsItemOneConfidenceScoreMax)
+          .optional(),
+        notes: zod.string().optional(),
+      })
+      .and(
+        zod.object({
+          id: zod.string(),
+          auditId: zod.string(),
+          observationMode: zod.string(),
+          approved: zod.boolean(),
+          createdAt: zod.coerce.date(),
+          updatedAt: zod.coerce.date(),
+        }),
+      ),
+  ),
+  pageAssessments: zod.array(zod.record(zod.string(), zod.unknown())),
+  recommendations: zod.array(
+    zod
+      .object({
+        pageUrl: zod.string().url().optional(),
+        category: zod.string(),
+        issueType: zod.string(),
+        title: zod.string(),
+        evidence: zod.string(),
+        recommendation: zod.string(),
+        aiVisibilityImpact: zod.string().optional(),
+        businessImpact: zod.string().optional(),
+        priorityScore: zod
+          .number()
+          .min(getGeoAeoOverviewResponseRecommendationsItemOnePriorityScoreMin)
+          .max(getGeoAeoOverviewResponseRecommendationsItemOnePriorityScoreMax),
+        estimatedEffort: zod.enum(["low", "medium", "high"]).optional(),
+        owner: zod
+          .enum([
+            "business_owner",
+            "content_writer",
+            "developer",
+            "seo_specialist",
+            "agency",
+          ])
+          .optional(),
+        fiverrPackageTier: zod
+          .enum(["basic", "standard", "premium", "custom"])
+          .optional(),
+        status: zod.enum(["draft", "approved", "hidden"]).optional(),
+      })
+      .and(
+        zod.object({
+          id: zod.string(),
+          auditId: zod.string(),
+          createdAt: zod.coerce.date(),
+          updatedAt: zod.coerce.date(),
+        }),
+      ),
+  ),
+  latestScore: zod.union([
+    zod.object({
+      id: zod.string(),
+      auditId: zod.string(),
+      aiVisibilityScore: zod.number(),
+      grade: zod.string(),
+      subScores: zod.record(zod.string(), zod.unknown()),
+      topRisks: zod.array(zod.string()).optional(),
+      quickWins: zod.array(zod.string()).optional(),
+      createdAt: zod.coerce.date(),
+    }),
+    zod.null(),
+  ]),
+});
+
+/**
+ * @summary Save a GEO/AEO audit profile
+ */
+export const SaveGeoAeoProfileParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const SaveGeoAeoProfileBody = zod.object({
+  businessName: zod.string(),
+  websiteUrl: zod.string().url(),
+  primaryOffer: zod.string().optional(),
+  targetLocations: zod.array(zod.string()).optional(),
+  targetServices: zod.array(zod.string()).optional(),
+  targetCustomers: zod.array(zod.string()).optional(),
+  competitors: zod
+    .array(
+      zod.object({
+        name: zod.string().optional(),
+        url: zod.string().url(),
+      }),
+    )
+    .optional(),
+  proofPoints: zod.array(zod.string()).optional(),
+  reviewsUrl: zod.string().url().optional(),
+  googleBusinessUrl: zod.string().url().optional(),
+  importantPages: zod.array(zod.string().url()).optional(),
+  customerQuestions: zod.array(zod.string()).optional(),
+  knownFor: zod.string().optional(),
+  packageTier: zod.enum(["basic", "standard", "premium", "custom"]).optional(),
+});
+
+/**
+ * @summary Generate GEO/AEO prompt set for an audit
+ */
+export const GenerateGeoAeoPromptsParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const generateGeoAeoPromptsBodyMaxPromptsMax = 100;
+
+export const GenerateGeoAeoPromptsBody = zod.object({
+  profile: zod
+    .object({
+      businessName: zod.string(),
+      websiteUrl: zod.string().url(),
+      primaryOffer: zod.string().optional(),
+      targetLocations: zod.array(zod.string()).optional(),
+      targetServices: zod.array(zod.string()).optional(),
+      targetCustomers: zod.array(zod.string()).optional(),
+      competitors: zod
+        .array(
+          zod.object({
+            name: zod.string().optional(),
+            url: zod.string().url(),
+          }),
+        )
+        .optional(),
+      proofPoints: zod.array(zod.string()).optional(),
+      reviewsUrl: zod.string().url().optional(),
+      googleBusinessUrl: zod.string().url().optional(),
+      importantPages: zod.array(zod.string().url()).optional(),
+      customerQuestions: zod.array(zod.string()).optional(),
+      knownFor: zod.string().optional(),
+      packageTier: zod
+        .enum(["basic", "standard", "premium", "custom"])
+        .optional(),
+    })
+    .optional(),
+  maxPrompts: zod
+    .number()
+    .min(1)
+    .max(generateGeoAeoPromptsBodyMaxPromptsMax)
+    .optional(),
+});
+
+/**
+ * @summary List GEO/AEO prompts for an audit
+ */
+export const ListGeoAeoPromptsParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const ListGeoAeoPromptsResponseItem = zod.object({
+  id: zod.string(),
+  auditId: zod.string(),
+  promptText: zod.string(),
+  intent: zod.enum([
+    "discovery",
+    "local_service",
+    "comparison",
+    "best_provider",
+    "pricing",
+    "problem_solution",
+    "faq",
+    "alternative",
+    "trust_validation",
+  ]),
+  targetService: zod.string().nullish(),
+  targetLocation: zod.string().nullish(),
+  buyerStage: zod.string(),
+  priority: zod.number(),
+  approved: zod.boolean(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const ListGeoAeoPromptsResponse = zod.array(
+  ListGeoAeoPromptsResponseItem,
+);
+
+/**
+ * @summary Create a manual GEO/AEO visibility observation
+ */
+export const CreateGeoAeoObservationParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const createGeoAeoObservationBodyConfidenceScoreMin = 0;
+export const createGeoAeoObservationBodyConfidenceScoreMax = 100;
+
+export const CreateGeoAeoObservationBody = zod.object({
+  promptId: zod.string().optional(),
+  surface: zod.enum([
+    "chatgpt",
+    "gemini",
+    "perplexity",
+    "google_ai_overviews",
+    "google_ai_mode",
+    "copilot",
+    "claude",
+    "manual_observation",
+    "simulated_retrieval",
+  ]),
+  observedAt: zod.coerce.date().optional(),
+  brandMentioned: zod.boolean().optional(),
+  brandCited: zod.boolean().optional(),
+  brandPosition: zod.number().optional(),
+  sentiment: zod
+    .enum(["positive", "neutral", "negative", "mixed", "unknown"])
+    .optional(),
+  answerSummary: zod.string().optional(),
+  citedUrls: zod.array(zod.string().url()).optional(),
+  competitorsMentioned: zod.array(zod.string()).optional(),
+  rawAnswerExcerpt: zod.string().optional(),
+  confidenceScore: zod
+    .number()
+    .min(createGeoAeoObservationBodyConfidenceScoreMin)
+    .max(createGeoAeoObservationBodyConfidenceScoreMax)
+    .optional(),
+  notes: zod.string().optional(),
+});
+
+/**
+ * @summary Create a GEO/AEO recommendation
+ */
+export const CreateGeoAeoRecommendationParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const createGeoAeoRecommendationBodyPriorityScoreMin = 0;
+export const createGeoAeoRecommendationBodyPriorityScoreMax = 100;
+
+export const CreateGeoAeoRecommendationBody = zod.object({
+  pageUrl: zod.string().url().optional(),
+  category: zod.string(),
+  issueType: zod.string(),
+  title: zod.string(),
+  evidence: zod.string(),
+  recommendation: zod.string(),
+  aiVisibilityImpact: zod.string().optional(),
+  businessImpact: zod.string().optional(),
+  priorityScore: zod
+    .number()
+    .min(createGeoAeoRecommendationBodyPriorityScoreMin)
+    .max(createGeoAeoRecommendationBodyPriorityScoreMax),
+  estimatedEffort: zod.enum(["low", "medium", "high"]).optional(),
+  owner: zod
+    .enum([
+      "business_owner",
+      "content_writer",
+      "developer",
+      "seo_specialist",
+      "agency",
+    ])
+    .optional(),
+  fiverrPackageTier: zod
+    .enum(["basic", "standard", "premium", "custom"])
+    .optional(),
+  status: zod.enum(["draft", "approved", "hidden"]).optional(),
+});
+
+/**
+ * @summary Approve a GEO/AEO recommendation into an audit issue
+ */
+export const ApproveGeoAeoRecommendationParams = zod.object({
+  id: zod.coerce.string(),
+  recommendationId: zod.coerce.string(),
+});
+
+/**
+ * @summary Calculate and persist a GEO/AEO score snapshot
+ */
+export const CreateGeoAeoScoreSnapshotParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+/**
  * @summary List generated reports
  */
 export const ListReportsQueryParams = zod.object({

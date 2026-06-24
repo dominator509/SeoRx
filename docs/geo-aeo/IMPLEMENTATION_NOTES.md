@@ -30,6 +30,34 @@ Last updated: 2026-06-23
 - `artifacts/api-server/src/lib/geo-aeo/constants.ts`
 - `lib/db/migrations/*_add_geo_aeo_foundation.sql`
 
+## Phase 2 domain service files added
+
+- `artifacts/api-server/src/lib/geo-aeo/observations.ts`
+- `artifacts/api-server/src/lib/geo-aeo/packages.ts`
+- `artifacts/api-server/src/lib/geo-aeo/prompt-set.ts`
+- `artifacts/api-server/src/lib/geo-aeo/schemas.ts`
+- `artifacts/api-server/src/lib/geo-aeo/scoring.ts`
+- `artifacts/api-server/src/test/geo-aeo.unit.test.ts`
+
+## Phase 3 scanner/API files added
+
+- `artifacts/api-server/src/lib/geo-aeo/scanners.ts`
+- `artifacts/api-server/src/test/geo-aeo-scanners.unit.test.ts`
+- `artifacts/api-server/src/routes/geo-aeo.ts`
+- `artifacts/api-server/src/routes/index.ts`
+- `artifacts/api-server/src/test/api.integration.test.ts`
+- `lib/api-spec/openapi.yaml`
+- `lib/api-client-react/src/generated/*`
+- `lib/api-zod/src/generated/*`
+
+## GEO/AEO route behavior
+
+- All `/api/audits/:id/geo/*` routes require authentication and existing audit access.
+- Routes return `404` while `GEO_AEO_ENABLED` is not `true`.
+- Profile, generated prompts, manual observations, draft recommendations, approval-to-audit-issue metadata, and score snapshots now persist through Drizzle.
+- Recommendation approval creates a normal `audit_issues` row with GEO/AEO issue metadata while preserving the existing issue approval workflow.
+- Live AI-search platform checks remain disabled; observation capture is manual or deterministic until a compliant external adapter is added.
+
 ## Phase 1 schema approach
 
 - Added `audit_type` with existing audits defaulting to `seo`.

@@ -45,6 +45,18 @@ import type {
   DeveloperAuthorizeResponse,
   DismissIssueBody,
   ForbiddenResponse,
+  GenerateGeoAeoPromptsBody,
+  GeoAeoApprovedRecommendation,
+  GeoAeoObservation,
+  GeoAeoObservationInput,
+  GeoAeoOverview,
+  GeoAeoProfile,
+  GeoAeoProfileInput,
+  GeoAeoPrompt,
+  GeoAeoPromptList,
+  GeoAeoRecommendation,
+  GeoAeoRecommendationInput,
+  GeoAeoScoreSnapshot,
   GetRecentAuditsParams,
   GetScoreTrendsParams,
   GscAnalyticsBody,
@@ -1998,6 +2010,714 @@ export const useDismissIssue = <
   TContext
 > => {
   return useMutation(getDismissIssueMutationOptions(options));
+};
+
+/**
+ * @summary Get GEO/AEO profile, prompts, observations, recommendations, and score
+ */
+export const getGetGeoAeoOverviewUrl = (id: string) => {
+  return `/api/audits/${id}/geo/overview`;
+};
+
+export const getGeoAeoOverview = async (
+  id: string,
+  options?: RequestInit,
+): Promise<GeoAeoOverview> => {
+  return customFetch<GeoAeoOverview>(getGetGeoAeoOverviewUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetGeoAeoOverviewQueryKey = (id: string) => {
+  return [`/api/audits/${id}/geo/overview`] as const;
+};
+
+export const getGetGeoAeoOverviewQueryOptions = <
+  TData = Awaited<ReturnType<typeof getGeoAeoOverview>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGeoAeoOverview>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetGeoAeoOverviewQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getGeoAeoOverview>>
+  > = ({ signal }) => getGeoAeoOverview(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getGeoAeoOverview>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetGeoAeoOverviewQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getGeoAeoOverview>>
+>;
+export type GetGeoAeoOverviewQueryError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Get GEO/AEO profile, prompts, observations, recommendations, and score
+ */
+
+export function useGetGeoAeoOverview<
+  TData = Awaited<ReturnType<typeof getGeoAeoOverview>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getGeoAeoOverview>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetGeoAeoOverviewQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Save a GEO/AEO audit profile
+ */
+export const getSaveGeoAeoProfileUrl = (id: string) => {
+  return `/api/audits/${id}/geo/profile`;
+};
+
+export const saveGeoAeoProfile = async (
+  id: string,
+  geoAeoProfileInput: GeoAeoProfileInput,
+  options?: RequestInit,
+): Promise<GeoAeoProfile> => {
+  return customFetch<GeoAeoProfile>(getSaveGeoAeoProfileUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(geoAeoProfileInput),
+  });
+};
+
+export const getSaveGeoAeoProfileMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveGeoAeoProfile>>,
+    TError,
+    { id: string; data: BodyType<GeoAeoProfileInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof saveGeoAeoProfile>>,
+  TError,
+  { id: string; data: BodyType<GeoAeoProfileInput> },
+  TContext
+> => {
+  const mutationKey = ["saveGeoAeoProfile"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof saveGeoAeoProfile>>,
+    { id: string; data: BodyType<GeoAeoProfileInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return saveGeoAeoProfile(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SaveGeoAeoProfileMutationResult = NonNullable<
+  Awaited<ReturnType<typeof saveGeoAeoProfile>>
+>;
+export type SaveGeoAeoProfileMutationBody = BodyType<GeoAeoProfileInput>;
+export type SaveGeoAeoProfileMutationError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Save a GEO/AEO audit profile
+ */
+export const useSaveGeoAeoProfile = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof saveGeoAeoProfile>>,
+    TError,
+    { id: string; data: BodyType<GeoAeoProfileInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof saveGeoAeoProfile>>,
+  TError,
+  { id: string; data: BodyType<GeoAeoProfileInput> },
+  TContext
+> => {
+  return useMutation(getSaveGeoAeoProfileMutationOptions(options));
+};
+
+/**
+ * @summary Generate GEO/AEO prompt set for an audit
+ */
+export const getGenerateGeoAeoPromptsUrl = (id: string) => {
+  return `/api/audits/${id}/geo/prompts/generate`;
+};
+
+export const generateGeoAeoPrompts = async (
+  id: string,
+  generateGeoAeoPromptsBody?: GenerateGeoAeoPromptsBody,
+  options?: RequestInit,
+): Promise<GeoAeoPromptList> => {
+  return customFetch<GeoAeoPromptList>(getGenerateGeoAeoPromptsUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(generateGeoAeoPromptsBody),
+  });
+};
+
+export const getGenerateGeoAeoPromptsMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateGeoAeoPrompts>>,
+    TError,
+    { id: string; data: BodyType<GenerateGeoAeoPromptsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateGeoAeoPrompts>>,
+  TError,
+  { id: string; data: BodyType<GenerateGeoAeoPromptsBody> },
+  TContext
+> => {
+  const mutationKey = ["generateGeoAeoPrompts"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateGeoAeoPrompts>>,
+    { id: string; data: BodyType<GenerateGeoAeoPromptsBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return generateGeoAeoPrompts(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateGeoAeoPromptsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateGeoAeoPrompts>>
+>;
+export type GenerateGeoAeoPromptsMutationBody =
+  BodyType<GenerateGeoAeoPromptsBody>;
+export type GenerateGeoAeoPromptsMutationError =
+  ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Generate GEO/AEO prompt set for an audit
+ */
+export const useGenerateGeoAeoPrompts = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateGeoAeoPrompts>>,
+    TError,
+    { id: string; data: BodyType<GenerateGeoAeoPromptsBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateGeoAeoPrompts>>,
+  TError,
+  { id: string; data: BodyType<GenerateGeoAeoPromptsBody> },
+  TContext
+> => {
+  return useMutation(getGenerateGeoAeoPromptsMutationOptions(options));
+};
+
+/**
+ * @summary List GEO/AEO prompts for an audit
+ */
+export const getListGeoAeoPromptsUrl = (id: string) => {
+  return `/api/audits/${id}/geo/prompts`;
+};
+
+export const listGeoAeoPrompts = async (
+  id: string,
+  options?: RequestInit,
+): Promise<GeoAeoPrompt[]> => {
+  return customFetch<GeoAeoPrompt[]>(getListGeoAeoPromptsUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListGeoAeoPromptsQueryKey = (id: string) => {
+  return [`/api/audits/${id}/geo/prompts`] as const;
+};
+
+export const getListGeoAeoPromptsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listGeoAeoPrompts>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listGeoAeoPrompts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListGeoAeoPromptsQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listGeoAeoPrompts>>
+  > = ({ signal }) => listGeoAeoPrompts(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listGeoAeoPrompts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListGeoAeoPromptsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listGeoAeoPrompts>>
+>;
+export type ListGeoAeoPromptsQueryError = ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary List GEO/AEO prompts for an audit
+ */
+
+export function useListGeoAeoPrompts<
+  TData = Awaited<ReturnType<typeof listGeoAeoPrompts>>,
+  TError = ErrorType<UnauthorizedResponse>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listGeoAeoPrompts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListGeoAeoPromptsQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a manual GEO/AEO visibility observation
+ */
+export const getCreateGeoAeoObservationUrl = (id: string) => {
+  return `/api/audits/${id}/geo/observations`;
+};
+
+export const createGeoAeoObservation = async (
+  id: string,
+  geoAeoObservationInput: GeoAeoObservationInput,
+  options?: RequestInit,
+): Promise<GeoAeoObservation> => {
+  return customFetch<GeoAeoObservation>(getCreateGeoAeoObservationUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(geoAeoObservationInput),
+  });
+};
+
+export const getCreateGeoAeoObservationMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGeoAeoObservation>>,
+    TError,
+    { id: string; data: BodyType<GeoAeoObservationInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createGeoAeoObservation>>,
+  TError,
+  { id: string; data: BodyType<GeoAeoObservationInput> },
+  TContext
+> => {
+  const mutationKey = ["createGeoAeoObservation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createGeoAeoObservation>>,
+    { id: string; data: BodyType<GeoAeoObservationInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return createGeoAeoObservation(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateGeoAeoObservationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createGeoAeoObservation>>
+>;
+export type CreateGeoAeoObservationMutationBody =
+  BodyType<GeoAeoObservationInput>;
+export type CreateGeoAeoObservationMutationError =
+  ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Create a manual GEO/AEO visibility observation
+ */
+export const useCreateGeoAeoObservation = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGeoAeoObservation>>,
+    TError,
+    { id: string; data: BodyType<GeoAeoObservationInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createGeoAeoObservation>>,
+  TError,
+  { id: string; data: BodyType<GeoAeoObservationInput> },
+  TContext
+> => {
+  return useMutation(getCreateGeoAeoObservationMutationOptions(options));
+};
+
+/**
+ * @summary Create a GEO/AEO recommendation
+ */
+export const getCreateGeoAeoRecommendationUrl = (id: string) => {
+  return `/api/audits/${id}/geo/recommendations`;
+};
+
+export const createGeoAeoRecommendation = async (
+  id: string,
+  geoAeoRecommendationInput: GeoAeoRecommendationInput,
+  options?: RequestInit,
+): Promise<GeoAeoRecommendation> => {
+  return customFetch<GeoAeoRecommendation>(
+    getCreateGeoAeoRecommendationUrl(id),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(geoAeoRecommendationInput),
+    },
+  );
+};
+
+export const getCreateGeoAeoRecommendationMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGeoAeoRecommendation>>,
+    TError,
+    { id: string; data: BodyType<GeoAeoRecommendationInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createGeoAeoRecommendation>>,
+  TError,
+  { id: string; data: BodyType<GeoAeoRecommendationInput> },
+  TContext
+> => {
+  const mutationKey = ["createGeoAeoRecommendation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createGeoAeoRecommendation>>,
+    { id: string; data: BodyType<GeoAeoRecommendationInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return createGeoAeoRecommendation(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateGeoAeoRecommendationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createGeoAeoRecommendation>>
+>;
+export type CreateGeoAeoRecommendationMutationBody =
+  BodyType<GeoAeoRecommendationInput>;
+export type CreateGeoAeoRecommendationMutationError =
+  ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Create a GEO/AEO recommendation
+ */
+export const useCreateGeoAeoRecommendation = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGeoAeoRecommendation>>,
+    TError,
+    { id: string; data: BodyType<GeoAeoRecommendationInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createGeoAeoRecommendation>>,
+  TError,
+  { id: string; data: BodyType<GeoAeoRecommendationInput> },
+  TContext
+> => {
+  return useMutation(getCreateGeoAeoRecommendationMutationOptions(options));
+};
+
+/**
+ * @summary Approve a GEO/AEO recommendation into an audit issue
+ */
+export const getApproveGeoAeoRecommendationUrl = (
+  id: string,
+  recommendationId: string,
+) => {
+  return `/api/audits/${id}/geo/recommendations/${recommendationId}/approve`;
+};
+
+export const approveGeoAeoRecommendation = async (
+  id: string,
+  recommendationId: string,
+  options?: RequestInit,
+): Promise<GeoAeoApprovedRecommendation> => {
+  return customFetch<GeoAeoApprovedRecommendation>(
+    getApproveGeoAeoRecommendationUrl(id, recommendationId),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getApproveGeoAeoRecommendationMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveGeoAeoRecommendation>>,
+    TError,
+    { id: string; recommendationId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof approveGeoAeoRecommendation>>,
+  TError,
+  { id: string; recommendationId: string },
+  TContext
+> => {
+  const mutationKey = ["approveGeoAeoRecommendation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof approveGeoAeoRecommendation>>,
+    { id: string; recommendationId: string }
+  > = (props) => {
+    const { id, recommendationId } = props ?? {};
+
+    return approveGeoAeoRecommendation(id, recommendationId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApproveGeoAeoRecommendationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof approveGeoAeoRecommendation>>
+>;
+
+export type ApproveGeoAeoRecommendationMutationError =
+  ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Approve a GEO/AEO recommendation into an audit issue
+ */
+export const useApproveGeoAeoRecommendation = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveGeoAeoRecommendation>>,
+    TError,
+    { id: string; recommendationId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof approveGeoAeoRecommendation>>,
+  TError,
+  { id: string; recommendationId: string },
+  TContext
+> => {
+  return useMutation(getApproveGeoAeoRecommendationMutationOptions(options));
+};
+
+/**
+ * @summary Calculate and persist a GEO/AEO score snapshot
+ */
+export const getCreateGeoAeoScoreSnapshotUrl = (id: string) => {
+  return `/api/audits/${id}/geo/score`;
+};
+
+export const createGeoAeoScoreSnapshot = async (
+  id: string,
+  options?: RequestInit,
+): Promise<GeoAeoScoreSnapshot> => {
+  return customFetch<GeoAeoScoreSnapshot>(getCreateGeoAeoScoreSnapshotUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCreateGeoAeoScoreSnapshotMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGeoAeoScoreSnapshot>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createGeoAeoScoreSnapshot>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["createGeoAeoScoreSnapshot"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createGeoAeoScoreSnapshot>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return createGeoAeoScoreSnapshot(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateGeoAeoScoreSnapshotMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createGeoAeoScoreSnapshot>>
+>;
+
+export type CreateGeoAeoScoreSnapshotMutationError =
+  ErrorType<UnauthorizedResponse>;
+
+/**
+ * @summary Calculate and persist a GEO/AEO score snapshot
+ */
+export const useCreateGeoAeoScoreSnapshot = <
+  TError = ErrorType<UnauthorizedResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGeoAeoScoreSnapshot>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createGeoAeoScoreSnapshot>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  return useMutation(getCreateGeoAeoScoreSnapshotMutationOptions(options));
 };
 
 /**

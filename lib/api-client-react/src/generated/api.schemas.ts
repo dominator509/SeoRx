@@ -301,6 +301,227 @@ export interface DismissIssueBody {
   reason?: string;
 }
 
+export type GeoAeoPackageTier =
+  (typeof GeoAeoPackageTier)[keyof typeof GeoAeoPackageTier];
+
+export const GeoAeoPackageTier = {
+  basic: "basic",
+  standard: "standard",
+  premium: "premium",
+  custom: "custom",
+} as const;
+
+export type GeoAeoSurface = (typeof GeoAeoSurface)[keyof typeof GeoAeoSurface];
+
+export const GeoAeoSurface = {
+  chatgpt: "chatgpt",
+  gemini: "gemini",
+  perplexity: "perplexity",
+  google_ai_overviews: "google_ai_overviews",
+  google_ai_mode: "google_ai_mode",
+  copilot: "copilot",
+  claude: "claude",
+  manual_observation: "manual_observation",
+  simulated_retrieval: "simulated_retrieval",
+} as const;
+
+export type GeoAeoPromptIntent =
+  (typeof GeoAeoPromptIntent)[keyof typeof GeoAeoPromptIntent];
+
+export const GeoAeoPromptIntent = {
+  discovery: "discovery",
+  local_service: "local_service",
+  comparison: "comparison",
+  best_provider: "best_provider",
+  pricing: "pricing",
+  problem_solution: "problem_solution",
+  faq: "faq",
+  alternative: "alternative",
+  trust_validation: "trust_validation",
+} as const;
+
+export interface GeoAeoCompetitor {
+  name?: string;
+  url: string;
+}
+
+export interface GeoAeoProfileInput {
+  businessName: string;
+  websiteUrl: string;
+  primaryOffer?: string;
+  targetLocations?: string[];
+  targetServices?: string[];
+  targetCustomers?: string[];
+  competitors?: GeoAeoCompetitor[];
+  proofPoints?: string[];
+  reviewsUrl?: string;
+  googleBusinessUrl?: string;
+  importantPages?: string[];
+  customerQuestions?: string[];
+  knownFor?: string;
+  packageTier?: GeoAeoPackageTier;
+}
+
+export type GeoAeoProfile = GeoAeoProfileInput & {
+  id: string;
+  auditId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export interface GeoAeoPrompt {
+  id: string;
+  auditId: string;
+  promptText: string;
+  intent: GeoAeoPromptIntent;
+  targetService?: string | null;
+  targetLocation?: string | null;
+  buyerStage: string;
+  priority: number;
+  approved: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GenerateGeoAeoPromptsBody {
+  profile?: GeoAeoProfileInput;
+  /**
+   * @minimum 1
+   * @maximum 100
+   */
+  maxPrompts?: number;
+}
+
+export interface GeoAeoPromptList {
+  items: GeoAeoPrompt[];
+  total: number;
+}
+
+export type GeoAeoObservationInputSentiment =
+  (typeof GeoAeoObservationInputSentiment)[keyof typeof GeoAeoObservationInputSentiment];
+
+export const GeoAeoObservationInputSentiment = {
+  positive: "positive",
+  neutral: "neutral",
+  negative: "negative",
+  mixed: "mixed",
+  unknown: "unknown",
+} as const;
+
+export interface GeoAeoObservationInput {
+  promptId?: string;
+  surface: GeoAeoSurface;
+  observedAt?: string;
+  brandMentioned?: boolean;
+  brandCited?: boolean;
+  brandPosition?: number;
+  sentiment?: GeoAeoObservationInputSentiment;
+  answerSummary?: string;
+  citedUrls?: string[];
+  competitorsMentioned?: string[];
+  rawAnswerExcerpt?: string;
+  /**
+   * @minimum 0
+   * @maximum 100
+   */
+  confidenceScore?: number;
+  notes?: string;
+}
+
+export type GeoAeoObservation = GeoAeoObservationInput & {
+  id: string;
+  auditId: string;
+  observationMode: string;
+  approved: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type GeoAeoRecommendationInputEstimatedEffort =
+  (typeof GeoAeoRecommendationInputEstimatedEffort)[keyof typeof GeoAeoRecommendationInputEstimatedEffort];
+
+export const GeoAeoRecommendationInputEstimatedEffort = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+} as const;
+
+export type GeoAeoRecommendationInputOwner =
+  (typeof GeoAeoRecommendationInputOwner)[keyof typeof GeoAeoRecommendationInputOwner];
+
+export const GeoAeoRecommendationInputOwner = {
+  business_owner: "business_owner",
+  content_writer: "content_writer",
+  developer: "developer",
+  seo_specialist: "seo_specialist",
+  agency: "agency",
+} as const;
+
+export type GeoAeoRecommendationInputStatus =
+  (typeof GeoAeoRecommendationInputStatus)[keyof typeof GeoAeoRecommendationInputStatus];
+
+export const GeoAeoRecommendationInputStatus = {
+  draft: "draft",
+  approved: "approved",
+  hidden: "hidden",
+} as const;
+
+export interface GeoAeoRecommendationInput {
+  pageUrl?: string;
+  category: string;
+  issueType: string;
+  title: string;
+  evidence: string;
+  recommendation: string;
+  aiVisibilityImpact?: string;
+  businessImpact?: string;
+  /**
+   * @minimum 0
+   * @maximum 100
+   */
+  priorityScore: number;
+  estimatedEffort?: GeoAeoRecommendationInputEstimatedEffort;
+  owner?: GeoAeoRecommendationInputOwner;
+  fiverrPackageTier?: GeoAeoPackageTier;
+  status?: GeoAeoRecommendationInputStatus;
+}
+
+export type GeoAeoRecommendation = GeoAeoRecommendationInput & {
+  id: string;
+  auditId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type GeoAeoScoreSnapshotSubScores = { [key: string]: unknown };
+
+export interface GeoAeoScoreSnapshot {
+  id: string;
+  auditId: string;
+  aiVisibilityScore: number;
+  grade: string;
+  subScores: GeoAeoScoreSnapshotSubScores;
+  topRisks?: string[];
+  quickWins?: string[];
+  createdAt: string;
+}
+
+export type GeoAeoOverviewPageAssessmentsItem = { [key: string]: unknown };
+
+export interface GeoAeoOverview {
+  profile: GeoAeoProfile | null;
+  prompts: GeoAeoPrompt[];
+  observations: GeoAeoObservation[];
+  pageAssessments: GeoAeoOverviewPageAssessmentsItem[];
+  recommendations: GeoAeoRecommendation[];
+  latestScore: GeoAeoScoreSnapshot | null;
+}
+
+export interface GeoAeoApprovedRecommendation {
+  recommendationId: string;
+  issue: AuditIssue;
+}
+
 export type ReportReportType =
   (typeof ReportReportType)[keyof typeof ReportReportType];
 

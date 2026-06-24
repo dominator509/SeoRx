@@ -336,6 +336,7 @@ afterEach(() => {
   delete process.env.GOOGLE_CLIENT_SECRET;
   delete process.env.PAGESPEED_API_KEY;
   delete process.env.STRIPE_WEBHOOK_SECRET;
+  delete process.env.GEO_AEO_ENABLED;
 });
 
 describe("production-critical API behavior", () => {
@@ -809,6 +810,203 @@ describe("production-critical API behavior", () => {
 
     expect(readyDownloadRes.status).toBe(200);
     expect(readyDownloadRes.headers["content-type"]).toContain("application/pdf");
+  });
+
+  it("guards GEO/AEO routes behind the feature flag and audit access", async () => {
+    const allowed = await seedAudit(`geo-allowed-${crypto.randomUUID()}`);
+    const blocked = await seedAudit(`geo-blocked-${crypto.randomUUID()}`, OTHER_USER_ID);
+
+    const disabledRes = await request(app)
+      .get(`/api/audits/${allowed.auditId}/geo/overview`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(disabledRes.status).toBe(404);
+    expect(disabledRes.body).toEqual({ error: "GEO/AEO is disabled" });
+
+    process.env.GEO_AEO_ENABLED = "true";
+
+    const blockedRes = await request(app)
+      .get(`/api/audits/${blocked.auditId}/geo/overview`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(blockedRes.status).toBe(403);
+
+    const allowedRes = await request(app)
+      .get(`/api/audits/${allowed.auditId}/geo/overview`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(allowedRes.status).toBe(200);
+    expect(allowedRes.body).toMatchObject({
+      profile: null,
+      prompts: [],
+      observations: [],
+      pageAssessments: [],
+      recommendations: [],
+      latestScore: null,
+    });
+  });
+
+  it("persists GEO/AEO profiles, prompts, observations, recommendations, and score snapshots", async () => {
+    process.env.GEO_AEO_ENABLED = "true";
+    const { auditId } = await seedAudit(`geo-flow-${crypto.randomUUID()}`);
+
+    const profilePayload = {
+      businessName: "Northstar Dental",
+      websiteUrl: "https://northstar.example/",
+      primaryOffer: "emergency dental care",
+      targetLocations: ["Austin"],
+      targetServices: ["root canals", "same-day crowns"],
+      targetCustomers: ["families"],
+      competitors: [{ name: "Bright Bite", url: "https://bright.example/" }],
+      proofPoints: ["1,000 five-star reviews"],
+      reviewsUrl: "https://reviews.example/northstar",
+      googleBusinessUrl: "https://maps.google.com/?cid=123",
+      importantPages: ["https://northstar.example/services"],
+      customerQuestions: ["Can I get a same-day appointment"],
+      knownFor: "fast emergency appointments",
+      packageTier: "standard",
+    };
+
+    const profileRes = await request(app)
+      .put(`/api/audits/${auditId}/geo/profile`)
+      .set("x-test-user-id", TEST_USER_ID)
+      .send(profilePayload);
+
+    expect(profileRes.status).toBe(201);
+    expect(profileRes.body).toMatchObject({
+      auditId,
+      businessName: "Northstar Dental",
+      packageTier: "standard",
+    });
+
+    const promptsRes = await request(app)
+      .post(`/api/audits/${auditId}/geo/prompts/generate`)
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ maxPrompts: 6 });
+
+    expect(promptsRes.status).toBe(201);
+    expect(promptsRes.body).toMatchObject({ total: 6 });
+    expect(promptsRes.body.items[0]).toMatchObject({
+      auditId,
+      intent: expect.any(String),
+      priority: expect.any(Number),
+    });
+    const promptId = promptsRes.body.items[0].id as string;
+
+    const observationRes = await request(app)
+      .post(`/api/audits/${auditId}/geo/observations`)
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        promptId,
+        surface: "manual_observation",
+        brandMentioned: true,
+        brandCited: true,
+        brandPosition: 1,
+        sentiment: "positive",
+        answerSummary: "Northstar was cited as a trusted option.",
+        citedUrls: ["https://northstar.example/services"],
+        competitorsMentioned: ["Bright Bite"],
+        rawAnswerExcerpt: "Northstar Dental is often recommended.",
+        confidenceScore: 90,
+      });
+
+    expect(observationRes.status).toBe(201);
+    expect(observationRes.body).toMatchObject({
+      auditId,
+      promptId,
+      surface: "manual_observation",
+      brandMentioned: true,
+      brandCited: true,
+      approved: false,
+    });
+
+    const recommendationRes = await request(app)
+      .post(`/api/audits/${auditId}/geo/recommendations`)
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        pageUrl: "https://northstar.example/services",
+        category: "ai_answer_coverage",
+        issueType: "MISSING_DIRECT_ANSWER_BLOCKS",
+        title: "Add direct answer sections",
+        evidence: "Service pages do not answer buyer questions directly.",
+        recommendation: "Add concise Q&A blocks to priority service pages.",
+        aiVisibilityImpact: "Improves answer extraction likelihood.",
+        businessImpact: "May increase qualified appointment requests.",
+        priorityScore: 88,
+        estimatedEffort: "medium",
+        owner: "content_writer",
+        fiverrPackageTier: "standard",
+      });
+
+    expect(recommendationRes.status).toBe(201);
+    expect(recommendationRes.body).toMatchObject({
+      auditId,
+      status: "draft",
+      priorityScore: 88,
+    });
+
+    const approveRes = await request(app)
+      .post(`/api/audits/${auditId}/geo/recommendations/${recommendationRes.body.id}/approve`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(approveRes.status).toBe(201);
+    expect(approveRes.body.issue).toMatchObject({
+      auditId,
+      category: "ai_answer_coverage",
+      issueType: "MISSING_DIRECT_ANSWER_BLOCKS",
+      status: "approved",
+      approvedBy: TEST_USER_ID,
+      aiVisibilityImpact: "Improves answer extraction likelihood.",
+      businessImpact: "May increase qualified appointment requests.",
+      estimatedEffort: "medium",
+      recommendedOwner: "content_writer",
+    });
+
+    const scoreRes = await request(app)
+      .post(`/api/audits/${auditId}/geo/score`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(scoreRes.status).toBe(201);
+    expect(scoreRes.body).toMatchObject({
+      auditId,
+      aiVisibilityScore: expect.any(Number),
+      grade: expect.any(String),
+      subScores: expect.any(Object),
+    });
+
+    const audit = await dbModule.db.query.auditsTable.findFirst({
+      where: eq(dbModule.auditsTable.id, auditId),
+    });
+    expect(audit?.aiVisibilityScore).toBe(scoreRes.body.aiVisibilityScore);
+  });
+
+  it("rejects GEO/AEO observations for prompts from another audit", async () => {
+    process.env.GEO_AEO_ENABLED = "true";
+    const allowed = await seedAudit(`geo-prompt-allowed-${crypto.randomUUID()}`);
+    const other = await seedAudit(`geo-prompt-other-${crypto.randomUUID()}`);
+    const promptId = crypto.randomUUID();
+
+    await dbModule.db.insert(dbModule.geoPromptsTable).values({
+      id: promptId,
+      auditId: other.auditId,
+      promptText: "Who is the best provider near me?",
+      intent: "best_provider",
+      buyerStage: "consideration",
+      priority: 90,
+    });
+
+    const res = await request(app)
+      .post(`/api/audits/${allowed.auditId}/geo/observations`)
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        promptId,
+        surface: "manual_observation",
+        brandMentioned: false,
+        brandCited: false,
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: "Prompt does not belong to this audit" });
   });
 
   it("returns empty dashboard aggregate shapes for users with no organizations", async () => {
