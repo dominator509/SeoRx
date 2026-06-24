@@ -957,6 +957,17 @@ describe("production-critical API behavior", () => {
       fiverrPackageTier: "standard",
       status: "draft",
     });
+    await dbModule.db.insert(dbModule.geoRecommendationsTable).values({
+      id: crypto.randomUUID(),
+      auditId,
+      category: "proof_trust",
+      issueType: "WEAK_SOURCEABLE_CLAIMS",
+      title: "Hidden weak proof draft",
+      evidence: "This hidden draft should not be exported.",
+      recommendation: "Do not include this hidden recommendation.",
+      priorityScore: 55,
+      status: "hidden",
+    });
     await dbModule.db.insert(dbModule.geoScoreSnapshotsTable).values({
       id: crypto.randomUUID(),
       auditId,
@@ -1019,6 +1030,7 @@ describe("production-critical API behavior", () => {
     expect(downloadRes.text).toContain("Overall AI Visibility Score: 68/100");
     expect(downloadRes.text).toContain("Who is the best AI visibility consultant in Austin?");
     expect(downloadRes.text).toContain("Add direct answer blocks to service pages");
+    expect(downloadRes.text).not.toContain("Hidden weak proof draft");
     expect(downloadRes.text).toContain("AI-generated answers vary by model");
   });
 
@@ -1154,6 +1166,58 @@ describe("production-critical API behavior", () => {
       status: "draft",
       priorityScore: 88,
     });
+
+    const editRes = await request(app)
+      .patch(`/api/audits/${auditId}/geo/recommendations/${recommendationRes.body.id}`)
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        title: "Add direct answer blocks and proof",
+        recommendation: "Add concise Q&A blocks with evidence-backed proof to priority service pages.",
+        priorityScore: 91,
+      });
+
+    expect(editRes.status).toBe(200);
+    expect(editRes.body).toMatchObject({
+      auditId,
+      id: recommendationRes.body.id,
+      title: "Add direct answer blocks and proof",
+      recommendation: "Add concise Q&A blocks with evidence-backed proof to priority service pages.",
+      priorityScore: 91,
+      status: "draft",
+    });
+
+    const hiddenRecommendationRes = await request(app)
+      .post(`/api/audits/${auditId}/geo/recommendations`)
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        category: "proof_trust",
+        issueType: "WEAK_SOURCEABLE_CLAIMS",
+        title: "Hide this weak draft",
+        evidence: "This draft should not be client visible.",
+        recommendation: "This draft should stay out of reports.",
+        priorityScore: 55,
+      });
+
+    expect(hiddenRecommendationRes.status).toBe(201);
+
+    const hideRes = await request(app)
+      .patch(`/api/audits/${auditId}/geo/recommendations/${hiddenRecommendationRes.body.id}`)
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ status: "hidden" });
+
+    expect(hideRes.status).toBe(200);
+    expect(hideRes.body).toMatchObject({
+      id: hiddenRecommendationRes.body.id,
+      status: "hidden",
+    });
+
+    const other = await seedAudit(`geo-update-other-${crypto.randomUUID()}`);
+    const crossAuditEditRes = await request(app)
+      .patch(`/api/audits/${other.auditId}/geo/recommendations/${recommendationRes.body.id}`)
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({ status: "hidden" });
+
+    expect(crossAuditEditRes.status).toBe(404);
 
     const approveRes = await request(app)
       .post(`/api/audits/${auditId}/geo/recommendations/${recommendationRes.body.id}/approve`)

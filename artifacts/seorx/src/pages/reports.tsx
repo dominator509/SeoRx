@@ -24,7 +24,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, FileText, ArrowRight, Trash2, Download } from "lucide-react";
 import { format } from "date-fns";
 
-const createSchema = z.object({ auditId: z.string().min(1, "Select an audit"), title: z.string().min(3, "Title required"), format: z.enum(["pdf", "html", "csv"]), });
+const createSchema = z.object({
+  auditId: z.string().min(1, "Select an audit"),
+  title: z.string().min(3, "Title required"),
+  reportType: z.enum(["seo_audit", "geo_aeo_audit", "hybrid_audit", "retainer_proposal"]),
+  format: z.enum(["pdf", "html", "json", "markdown"]),
+});
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
@@ -55,7 +60,10 @@ export default function Reports() {
     mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: getListReportsQueryKey() }); setDeleteId(null); toast({ title: "Deleted", description: "Report removed." }); } },
   });
 
-  const form = useForm<z.infer<typeof createSchema>>({ resolver: zodResolver(createSchema), defaultValues: { auditId: "", title: "", format: "pdf" } });
+  const form = useForm<z.infer<typeof createSchema>>({
+    resolver: zodResolver(createSchema),
+    defaultValues: { auditId: "", title: "", reportType: "seo_audit", format: "pdf" },
+  });
 
   return (
     <div className="p-4 sm:p-6 space-y-5 max-w-5xl mx-auto">
@@ -73,13 +81,22 @@ export default function Reports() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Generate Report</DialogTitle></DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit((v) => createReport.mutate({ data: v as any }))} className="space-y-4">
+              <form onSubmit={form.handleSubmit((v) => createReport.mutate({
+                data: {
+                  ...v,
+                  format: v.reportType === "geo_aeo_audit" ? "markdown" : v.format,
+                } as any,
+              }))} className="space-y-4">
                 <FormField control={form.control} name="auditId" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Audit</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl><SelectTrigger data-testid="select-audit"><SelectValue placeholder="Select audit" /></SelectTrigger></FormControl>
-                      <SelectContent>{completedAudits.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.clientName} - {a.url}</SelectItem>)}</SelectContent>
+                      <SelectContent>{completedAudits.map((a: any) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.clientName} - {a.auditType === "geo_aeo" ? "GEO/AEO" : a.auditType === "hybrid" ? "Hybrid" : "SEO"} - {a.url}
+                        </SelectItem>
+                      ))}</SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
@@ -91,15 +108,37 @@ export default function Reports() {
                     <FormMessage />
                   </FormItem>
                 )} />
+                <FormField control={form.control} name="reportType" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Report Type</FormLabel>
+                    <Select
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        if (value === "geo_aeo_audit") form.setValue("format", "markdown");
+                      }}
+                      value={field.value}
+                    >
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>
+                        <SelectItem value="seo_audit">SEO audit</SelectItem>
+                        <SelectItem value="geo_aeo_audit">GEO/AEO AI visibility audit</SelectItem>
+                        <SelectItem value="hybrid_audit">Hybrid audit</SelectItem>
+                        <SelectItem value="retainer_proposal">Retainer proposal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                 <FormField control={form.control} name="format" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Format</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={form.watch("reportType") === "geo_aeo_audit"}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="pdf">PDF</SelectItem>
                         <SelectItem value="html">HTML</SelectItem>
-                        <SelectItem value="csv">CSV</SelectItem>
+                        <SelectItem value="json">JSON</SelectItem>
+                        <SelectItem value="markdown">Markdown</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -129,6 +168,7 @@ export default function Reports() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-sm text-foreground">{report.title}</span>
                       {statusBadge(report.status)}
+                      {report.reportType && <Badge variant="secondary" className="text-[10px]">{report.reportType.replace(/_/g, " ")}</Badge>}
                       <Badge variant="outline" className="text-[10px] uppercase">{report.format}</Badge>
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">

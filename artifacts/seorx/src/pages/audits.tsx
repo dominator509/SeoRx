@@ -26,6 +26,16 @@ function auditStatusBadge(status: string) {
   return <Badge variant="outline" className={`text-[10px] font-semibold ${s.cls}`}>{s.label}</Badge>;
 }
 
+function auditTypeBadge(auditType?: string | null) {
+  const label = auditType === "geo_aeo" ? "GEO/AEO" : auditType === "hybrid" ? "Hybrid" : "SEO";
+  const cls = auditType === "geo_aeo"
+    ? "bg-violet-100 text-violet-700 border-violet-200"
+    : auditType === "hybrid"
+      ? "bg-cyan-100 text-cyan-700 border-cyan-200"
+      : "bg-gray-100 text-gray-600 border-gray-200";
+  return <Badge variant="outline" className={`text-[10px] font-semibold ${cls}`}>{label}</Badge>;
+}
+
 function SeverityPill({ count, color }: { count?: number | null; color: string }) {
   if (!count) return null;
   return <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${color}`}>{count}</span>;
@@ -101,6 +111,7 @@ export default function Audits() {
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <span className="font-semibold text-sm text-foreground">{audit.clientName}</span>
                       {auditStatusBadge(audit.status)}
+                      {auditTypeBadge(audit.auditType)}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5 truncate">{audit.url}</div>
                   </div>
@@ -114,6 +125,11 @@ export default function Audits() {
                     {audit.seoScore != null && (
                       <span className={`text-sm font-bold tabular-nums ${audit.seoScore >= 70 ? "text-emerald-600" : audit.seoScore >= 40 ? "text-amber-500" : "text-red-500"}`}>
                         {audit.seoScore}
+                      </span>
+                    )}
+                    {audit.aiVisibilityScore != null && (
+                      <span className={`text-sm font-bold tabular-nums ${audit.aiVisibilityScore >= 70 ? "text-emerald-600" : audit.aiVisibilityScore >= 40 ? "text-amber-500" : "text-red-500"}`}>
+                        AI {Math.round(audit.aiVisibilityScore)}
                       </span>
                     )}
                     {audit.completedAt && (

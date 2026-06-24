@@ -493,6 +493,55 @@ export type GeoAeoRecommendation = GeoAeoRecommendationInput & {
   updatedAt: string;
 };
 
+export type GeoAeoRecommendationUpdateEstimatedEffort =
+  (typeof GeoAeoRecommendationUpdateEstimatedEffort)[keyof typeof GeoAeoRecommendationUpdateEstimatedEffort];
+
+export const GeoAeoRecommendationUpdateEstimatedEffort = {
+  low: "low",
+  medium: "medium",
+  high: "high",
+} as const;
+
+export type GeoAeoRecommendationUpdateOwner =
+  (typeof GeoAeoRecommendationUpdateOwner)[keyof typeof GeoAeoRecommendationUpdateOwner];
+
+export const GeoAeoRecommendationUpdateOwner = {
+  business_owner: "business_owner",
+  content_writer: "content_writer",
+  developer: "developer",
+  seo_specialist: "seo_specialist",
+  agency: "agency",
+} as const;
+
+export type GeoAeoRecommendationUpdateStatus =
+  (typeof GeoAeoRecommendationUpdateStatus)[keyof typeof GeoAeoRecommendationUpdateStatus];
+
+export const GeoAeoRecommendationUpdateStatus = {
+  draft: "draft",
+  approved: "approved",
+  hidden: "hidden",
+} as const;
+
+export interface GeoAeoRecommendationUpdate {
+  pageUrl?: string;
+  category?: string;
+  issueType?: string;
+  title?: string;
+  evidence?: string;
+  recommendation?: string;
+  aiVisibilityImpact?: string;
+  businessImpact?: string;
+  /**
+   * @minimum 0
+   * @maximum 100
+   */
+  priorityScore?: number;
+  estimatedEffort?: GeoAeoRecommendationUpdateEstimatedEffort;
+  owner?: GeoAeoRecommendationUpdateOwner;
+  fiverrPackageTier?: GeoAeoPackageTier;
+  status?: GeoAeoRecommendationUpdateStatus;
+}
+
 export type GeoAeoScoreSnapshotSubScores = { [key: string]: unknown };
 
 export interface GeoAeoScoreSnapshot {

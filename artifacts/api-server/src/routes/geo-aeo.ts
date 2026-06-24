@@ -41,6 +41,11 @@ const issueCategories = new Set([
   "citation_readiness",
 ]);
 
+const geoRecommendationUpdateSchema = geoRecommendationInputSchema.partial().refine(
+  (value) => Object.keys(value).length > 0,
+  "At least one recommendation field is required",
+);
+
 router.use("/audits/:id/geo", requireAuth, async (req, res, next) => {
   if (process.env.GEO_AEO_ENABLED !== "true") {
     res.status(404).json({ error: "GEO/AEO is disabled" });
@@ -228,6 +233,45 @@ router.post("/audits/:id/geo/recommendations", async (req, res) => {
     res.status(201).json(saved);
   } catch (err) {
     handleRouteError(req, res, err, "Failed to create GEO/AEO recommendation");
+  }
+});
+
+router.patch("/audits/:id/geo/recommendations/:recommendationId", async (req, res) => {
+  try {
+    const auditId = req.params.id as string;
+    const recommendationId = req.params.recommendationId as string;
+    const existing = await db.query.geoRecommendationsTable.findFirst({
+      where: and(eq(geoRecommendationsTable.id, recommendationId), eq(geoRecommendationsTable.auditId, auditId)),
+    });
+    if (!existing) {
+      res.status(404).json({ error: "Recommendation not found" });
+      return;
+    }
+
+    const patch = geoRecommendationUpdateSchema.parse(req.body);
+    await db.update(geoRecommendationsTable)
+      .set({
+        ...(patch.pageUrl !== undefined ? { pageUrl: emptyToNull(patch.pageUrl) } : {}),
+        ...(patch.category !== undefined ? { category: normalizeIssueCategory(patch.category) } : {}),
+        ...(patch.issueType !== undefined ? { issueType: patch.issueType } : {}),
+        ...(patch.title !== undefined ? { title: patch.title } : {}),
+        ...(patch.evidence !== undefined ? { evidence: patch.evidence } : {}),
+        ...(patch.recommendation !== undefined ? { recommendation: patch.recommendation } : {}),
+        ...(patch.aiVisibilityImpact !== undefined ? { aiVisibilityImpact: emptyToNull(patch.aiVisibilityImpact) } : {}),
+        ...(patch.businessImpact !== undefined ? { businessImpact: emptyToNull(patch.businessImpact) } : {}),
+        ...(patch.priorityScore !== undefined ? { priorityScore: patch.priorityScore } : {}),
+        ...(patch.estimatedEffort !== undefined ? { estimatedEffort: patch.estimatedEffort ?? null } : {}),
+        ...(patch.owner !== undefined ? { owner: patch.owner ?? null } : {}),
+        ...(patch.fiverrPackageTier !== undefined ? { fiverrPackageTier: patch.fiverrPackageTier ?? null } : {}),
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(geoRecommendationsTable.id, recommendationId));
+
+    const saved = await db.query.geoRecommendationsTable.findFirst({ where: eq(geoRecommendationsTable.id, recommendationId) });
+    res.json(saved);
+  } catch (err) {
+    handleRouteError(req, res, err, "Failed to update GEO/AEO recommendation");
   }
 });
 

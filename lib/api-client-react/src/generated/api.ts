@@ -56,6 +56,7 @@ import type {
   GeoAeoPromptList,
   GeoAeoRecommendation,
   GeoAeoRecommendationInput,
+  GeoAeoRecommendationUpdate,
   GeoAeoScoreSnapshot,
   GetRecentAuditsParams,
   GetScoreTrendsParams,
@@ -2541,6 +2542,128 @@ export const useCreateGeoAeoRecommendation = <
   TContext
 > => {
   return useMutation(getCreateGeoAeoRecommendationMutationOptions(options));
+};
+
+/**
+ * @summary Edit or hide a GEO/AEO recommendation
+ */
+export const getUpdateGeoAeoRecommendationUrl = (
+  id: string,
+  recommendationId: string,
+) => {
+  return `/api/audits/${id}/geo/recommendations/${recommendationId}`;
+};
+
+export const updateGeoAeoRecommendation = async (
+  id: string,
+  recommendationId: string,
+  geoAeoRecommendationUpdate: GeoAeoRecommendationUpdate,
+  options?: RequestInit,
+): Promise<GeoAeoRecommendation> => {
+  return customFetch<GeoAeoRecommendation>(
+    getUpdateGeoAeoRecommendationUrl(id, recommendationId),
+    {
+      ...options,
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(geoAeoRecommendationUpdate),
+    },
+  );
+};
+
+export const getUpdateGeoAeoRecommendationMutationOptions = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateGeoAeoRecommendation>>,
+    TError,
+    {
+      id: string;
+      recommendationId: string;
+      data: BodyType<GeoAeoRecommendationUpdate>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateGeoAeoRecommendation>>,
+  TError,
+  {
+    id: string;
+    recommendationId: string;
+    data: BodyType<GeoAeoRecommendationUpdate>;
+  },
+  TContext
+> => {
+  const mutationKey = ["updateGeoAeoRecommendation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateGeoAeoRecommendation>>,
+    {
+      id: string;
+      recommendationId: string;
+      data: BodyType<GeoAeoRecommendationUpdate>;
+    }
+  > = (props) => {
+    const { id, recommendationId, data } = props ?? {};
+
+    return updateGeoAeoRecommendation(
+      id,
+      recommendationId,
+      data,
+      requestOptions,
+    );
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateGeoAeoRecommendationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateGeoAeoRecommendation>>
+>;
+export type UpdateGeoAeoRecommendationMutationBody =
+  BodyType<GeoAeoRecommendationUpdate>;
+export type UpdateGeoAeoRecommendationMutationError = ErrorType<
+  UnauthorizedResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Edit or hide a GEO/AEO recommendation
+ */
+export const useUpdateGeoAeoRecommendation = <
+  TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateGeoAeoRecommendation>>,
+    TError,
+    {
+      id: string;
+      recommendationId: string;
+      data: BodyType<GeoAeoRecommendationUpdate>;
+    },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateGeoAeoRecommendation>>,
+  TError,
+  {
+    id: string;
+    recommendationId: string;
+    data: BodyType<GeoAeoRecommendationUpdate>;
+  },
+  TContext
+> => {
+  return useMutation(getUpdateGeoAeoRecommendationMutationOptions(options));
 };
 
 /**

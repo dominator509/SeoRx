@@ -925,6 +925,88 @@ export const CreateGeoAeoRecommendationBody = zod.object({
 });
 
 /**
+ * @summary Edit or hide a GEO/AEO recommendation
+ */
+export const UpdateGeoAeoRecommendationParams = zod.object({
+  id: zod.coerce.string(),
+  recommendationId: zod.coerce.string(),
+});
+
+export const updateGeoAeoRecommendationBodyPriorityScoreMin = 0;
+export const updateGeoAeoRecommendationBodyPriorityScoreMax = 100;
+
+export const UpdateGeoAeoRecommendationBody = zod.object({
+  pageUrl: zod.string().url().optional(),
+  category: zod.string().optional(),
+  issueType: zod.string().optional(),
+  title: zod.string().optional(),
+  evidence: zod.string().optional(),
+  recommendation: zod.string().optional(),
+  aiVisibilityImpact: zod.string().optional(),
+  businessImpact: zod.string().optional(),
+  priorityScore: zod
+    .number()
+    .min(updateGeoAeoRecommendationBodyPriorityScoreMin)
+    .max(updateGeoAeoRecommendationBodyPriorityScoreMax)
+    .optional(),
+  estimatedEffort: zod.enum(["low", "medium", "high"]).optional(),
+  owner: zod
+    .enum([
+      "business_owner",
+      "content_writer",
+      "developer",
+      "seo_specialist",
+      "agency",
+    ])
+    .optional(),
+  fiverrPackageTier: zod
+    .enum(["basic", "standard", "premium", "custom"])
+    .optional(),
+  status: zod.enum(["draft", "approved", "hidden"]).optional(),
+});
+
+export const updateGeoAeoRecommendationResponseOnePriorityScoreMin = 0;
+export const updateGeoAeoRecommendationResponseOnePriorityScoreMax = 100;
+
+export const UpdateGeoAeoRecommendationResponse = zod
+  .object({
+    pageUrl: zod.string().url().optional(),
+    category: zod.string(),
+    issueType: zod.string(),
+    title: zod.string(),
+    evidence: zod.string(),
+    recommendation: zod.string(),
+    aiVisibilityImpact: zod.string().optional(),
+    businessImpact: zod.string().optional(),
+    priorityScore: zod
+      .number()
+      .min(updateGeoAeoRecommendationResponseOnePriorityScoreMin)
+      .max(updateGeoAeoRecommendationResponseOnePriorityScoreMax),
+    estimatedEffort: zod.enum(["low", "medium", "high"]).optional(),
+    owner: zod
+      .enum([
+        "business_owner",
+        "content_writer",
+        "developer",
+        "seo_specialist",
+        "agency",
+      ])
+      .optional(),
+    fiverrPackageTier: zod
+      .enum(["basic", "standard", "premium", "custom"])
+      .optional(),
+    status: zod.enum(["draft", "approved", "hidden"]).optional(),
+  })
+  .and(
+    zod.object({
+      id: zod.string(),
+      auditId: zod.string(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date(),
+    }),
+  );
+
+/**
  * @summary Approve a GEO/AEO recommendation into an audit issue
  */
 export const ApproveGeoAeoRecommendationParams = zod.object({

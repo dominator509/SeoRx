@@ -16,6 +16,7 @@ import { ArrowLeft, Search } from "lucide-react";
 const schema = z.object({
   clientId: z.string().min(1, "Select a client"),
   url: z.string().url("Enter a valid URL including https://"),
+  auditType: z.enum(["seo", "geo_aeo", "hybrid"]),
   maxPages: z.number().int().min(1).max(1000),
   includePageSpeed: z.boolean(),
 });
@@ -32,7 +33,7 @@ export default function AuditNew() {
 
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
-    defaultValues: { clientId: preClientId, url: "", maxPages: 100, includePageSpeed: false },
+    defaultValues: { clientId: preClientId, url: "", auditType: "seo", maxPages: 100, includePageSpeed: false },
   });
 
   const createAudit = useCreateAudit({
@@ -89,6 +90,26 @@ export default function AuditNew() {
                     <Input placeholder="https://example.com" {...field} data-testid="input-audit-url" />
                   </FormControl>
                   <FormDescription>The URL to begin crawling from.</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              <FormField control={form.control} name="auditType" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Audit Mode</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-audit-type">
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="seo">SEO audit</SelectItem>
+                      <SelectItem value="geo_aeo">GEO/AEO AI visibility audit</SelectItem>
+                      <SelectItem value="hybrid">Hybrid SEO + GEO/AEO audit</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>Choose GEO/AEO when the deliverable is an AI visibility report.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )} />

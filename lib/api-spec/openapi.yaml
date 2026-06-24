@@ -679,6 +679,38 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /audits/{id}/geo/recommendations/{recommendationId}:
+    patch:
+      operationId: updateGeoAeoRecommendation
+      tags: [geo-aeo]
+      summary: Edit or hide a GEO/AEO recommendation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+        - name: recommendationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GeoAeoRecommendationUpdate"
+      responses:
+        "200":
+          description: Updated recommendation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GeoAeoRecommendation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /audits/{id}/geo/recommendations/{recommendationId}/approve:
     post:
       operationId: approveGeoAeoRecommendation
@@ -2236,6 +2268,42 @@ components:
             - status
             - createdAt
             - updatedAt
+
+    GeoAeoRecommendationUpdate:
+      type: object
+      properties:
+        pageUrl:
+          type: string
+          format: uri
+        category:
+          type: string
+        issueType:
+          type: string
+        title:
+          type: string
+        evidence:
+          type: string
+        recommendation:
+          type: string
+        aiVisibilityImpact:
+          type: string
+        businessImpact:
+          type: string
+        priorityScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        estimatedEffort:
+          type: string
+          enum: [low, medium, high]
+        owner:
+          type: string
+          enum: [business_owner, content_writer, developer, seo_specialist, agency]
+        fiverrPackageTier:
+          $ref: "#/components/schemas/GeoAeoPackageTier"
+        status:
+          type: string
+          enum: [draft, approved, hidden]
 
     GeoAeoScoreSnapshot:
       type: object

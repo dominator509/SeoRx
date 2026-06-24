@@ -60,6 +60,17 @@ Last updated: 2026-06-23
 - `lib/api-client-react/src/generated/*`
 - `lib/api-zod/src/generated/*`
 
+## Phase 7 admin UI files added
+
+- `artifacts/api-server/src/routes/geo-aeo.ts`
+- `artifacts/seorx/src/pages/audit-new.tsx`
+- `artifacts/seorx/src/pages/audits.tsx`
+- `artifacts/seorx/src/pages/audit-detail.tsx`
+- `artifacts/seorx/src/pages/reports.tsx`
+- `lib/api-spec/openapi.yaml`
+- `lib/api-client-react/src/generated/*`
+- `lib/api-zod/src/generated/*`
+
 ## GEO/AEO route behavior
 
 - All `/api/audits/:id/geo/*` routes require authentication and existing audit access.
@@ -83,6 +94,14 @@ Last updated: 2026-06-23
 - `GET /api/reports/:id/download` returns `text/markdown` and a `.md` attachment for GEO/AEO reports.
 - GEO/AEO report generation rejects unsupported export formats instead of producing a misleading SEO PDF.
 - The Markdown export includes the required AI answer variability disclaimer and avoids live AI-platform checks.
+
+## GEO/AEO admin UI behavior
+
+- Admins can select SEO, GEO/AEO, or hybrid mode when starting an audit.
+- Audit lists and detail headers show audit mode and AI Visibility score when present.
+- GEO/AEO audit detail includes a dedicated admin tab for score review, quick wins, risks, prompts, approved observations, and recommendations.
+- Admins can approve recommendations into existing approved audit issues, edit recommendation copy/priority, hide recommendations from report export, recalculate the GEO/AEO score, and generate the Markdown report.
+- GEO/AEO report creation is available from the reports page with Markdown enforced for `geo_aeo_audit`.
 
 ## Phase 1 schema approach
 
