@@ -29,6 +29,7 @@ import type {
   BillingPortalResponse,
   BillingSessionResponse,
   Client,
+  ClientAiVisibilitySummary,
   ConflictResponse,
   ConnectGoogleSearchConsoleParams,
   CreateAiProviderBody,
@@ -1372,6 +1373,103 @@ export const useDeleteClient = <
 > => {
   return useMutation(getDeleteClientMutationOptions(options));
 };
+
+/**
+ * @summary Get approved client AI visibility summary
+ */
+export const getGetClientAiVisibilityUrl = (id: string) => {
+  return `/api/clients/${id}/ai-visibility`;
+};
+
+export const getClientAiVisibility = async (
+  id: string,
+  options?: RequestInit,
+): Promise<ClientAiVisibilitySummary> => {
+  return customFetch<ClientAiVisibilitySummary>(
+    getGetClientAiVisibilityUrl(id),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetClientAiVisibilityQueryKey = (id: string) => {
+  return [`/api/clients/${id}/ai-visibility`] as const;
+};
+
+export const getGetClientAiVisibilityQueryOptions = <
+  TData = Awaited<ReturnType<typeof getClientAiVisibility>>,
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getClientAiVisibility>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetClientAiVisibilityQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getClientAiVisibility>>
+  > = ({ signal }) => getClientAiVisibility(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getClientAiVisibility>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetClientAiVisibilityQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getClientAiVisibility>>
+>;
+export type GetClientAiVisibilityQueryError = ErrorType<
+  UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+>;
+
+/**
+ * @summary Get approved client AI visibility summary
+ */
+
+export function useGetClientAiVisibility<
+  TData = Awaited<ReturnType<typeof getClientAiVisibility>>,
+  TError = ErrorType<
+    UnauthorizedResponse | ForbiddenResponse | NotFoundResponse
+  >,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getClientAiVisibility>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetClientAiVisibilityQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary List audit jobs

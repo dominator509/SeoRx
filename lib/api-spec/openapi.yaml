@@ -356,6 +356,29 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /clients/{id}/ai-visibility:
+    get:
+      operationId: getClientAiVisibility
+      tags: [geo-aeo]
+      summary: Get approved client AI visibility summary
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/IdParam"
+      responses:
+        "200":
+          description: Approved client AI visibility summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientAiVisibilitySummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /audits:
     get:
       operationId: listAudits
@@ -1993,6 +2016,179 @@ components:
     GeoAeoPackageTier:
       type: string
       enum: [basic, standard, premium, custom]
+
+    ClientAiVisibilitySummary:
+      type: object
+      properties:
+        available:
+          type: boolean
+        client:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            domain:
+              type: string
+          required: [id, name, domain]
+        latestAudit:
+          nullable: true
+          allOf:
+            - type: object
+              properties:
+                id:
+                  type: string
+                url:
+                  type: string
+                auditType:
+                  type: string
+                  enum: [geo_aeo, hybrid]
+                completedAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+                aiVisibilityScore:
+                  type: number
+                  nullable: true
+              required: [id, url, auditType]
+        score:
+          nullable: true
+          allOf:
+            - type: object
+              properties:
+                aiVisibilityScore:
+                  type: integer
+                grade:
+                  type: string
+                subScores:
+                  type: object
+                  additionalProperties:
+                    type: number
+                topRisks:
+                  type: array
+                  items:
+                    type: string
+                quickWins:
+                  type: array
+                  items:
+                    type: string
+              required: [aiVisibilityScore, grade, subScores, topRisks, quickWins]
+        promptCoverage:
+          type: object
+          properties:
+            totalPrompts:
+              type: integer
+            approvedObservationCount:
+              type: integer
+            brandMentionedCount:
+              type: integer
+            brandCitedCount:
+              type: integer
+            surfaces:
+              type: array
+              items:
+                type: string
+          required: [totalPrompts, approvedObservationCount, brandMentionedCount, brandCitedCount, surfaces]
+        quickWins:
+          type: array
+          items:
+            type: string
+        topRisks:
+          type: array
+          items:
+            type: string
+        recommendations:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              pageUrl:
+                type: string
+                nullable: true
+              recommendation:
+                type: string
+              aiVisibilityImpact:
+                type: string
+                nullable: true
+              businessImpact:
+                type: string
+                nullable: true
+              priorityScore:
+                type: integer
+              estimatedEffort:
+                type: string
+                nullable: true
+              owner:
+                type: string
+                nullable: true
+            required: [id, title, recommendation, priorityScore]
+        actionPlan:
+          type: array
+          items:
+            type: object
+            properties:
+              week:
+                type: string
+              focus:
+                type: string
+              tasks:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    task:
+                      type: string
+                    why:
+                      type: string
+                    owner:
+                      type: string
+                    estimatedEffort:
+                      type: string
+                    priority:
+                      type: integer
+                    expectedOutput:
+                      type: string
+                  required: [task, why, owner, estimatedEffort, priority, expectedOutput]
+            required: [week, focus, tasks]
+        latestReport:
+          nullable: true
+          allOf:
+            - type: object
+              properties:
+                id:
+                  type: string
+                title:
+                  type: string
+                format:
+                  type: string
+                  enum: [markdown]
+                downloadUrl:
+                  type: string
+                  nullable: true
+                createdAt:
+                  type: string
+                  format: date-time
+              required: [id, title, format, createdAt]
+        disclaimer:
+          type: string
+          nullable: true
+      required:
+        - available
+        - client
+        - latestAudit
+        - score
+        - promptCoverage
+        - quickWins
+        - topRisks
+        - recommendations
+        - actionPlan
+        - latestReport
+        - disclaimer
 
     GeoAeoSurface:
       type: string

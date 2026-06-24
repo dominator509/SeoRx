@@ -82,6 +82,17 @@ Last updated: 2026-06-23
 - `lib/api-client-react/src/generated/*`
 - `lib/api-zod/src/generated/*`
 
+## Phase 8 client-safe UI files added
+
+- `artifacts/api-server/src/routes/geo-aeo.ts`
+- `artifacts/api-server/src/test/api.integration.test.ts`
+- `artifacts/seorx/src/App.tsx`
+- `artifacts/seorx/src/pages/client-detail.tsx`
+- `artifacts/seorx/src/pages/client-ai-visibility.tsx`
+- `lib/api-spec/openapi.yaml`
+- `lib/api-client-react/src/generated/*`
+- `lib/api-zod/src/generated/*`
+
 ## GEO/AEO route behavior
 
 - All `/api/audits/:id/geo/*` routes require authentication and existing audit access.
@@ -123,6 +134,14 @@ Last updated: 2026-06-23
 - Admins can approve recommendations into existing approved audit issues, edit recommendation copy/priority, hide recommendations from report export, recalculate the GEO/AEO score, and generate the Markdown report.
 - GEO/AEO report creation is available from the reports page with Markdown enforced for `geo_aeo_audit`.
 
+## GEO/AEO client-safe visibility behavior
+
+- `GET /api/clients/:id/ai-visibility` is server-side gated by authentication, existing client access, and `GEO_AEO_ENABLED=true`.
+- The client AI Visibility page is available at `/clients/:id/ai-visibility` from the client detail page.
+- The endpoint builds from the canonical GEO/AEO report payload, so manual observations and recommendations are filtered through approval rules before client display.
+- The client summary exposes aggregate prompt coverage, approved quick wins, approved risks, approved recommendations, a 30-day action plan, and the latest ready GEO/AEO Markdown report download.
+- Raw prompt text, raw AI answer excerpts, draft recommendations, hidden recommendations, and unapproved observations are not returned by the client-facing endpoint.
+
 ## Phase 1 schema approach
 
 - Added `audit_type` with existing audits defaulting to `seo`.
@@ -159,6 +178,6 @@ There is no root lint script today.
 ## Assumptions
 
 - GEO/AEO should use Drizzle migrations, not Prisma.
-- GEO/AEO client-facing data remains hidden until explicit approval paths are implemented.
+- GEO/AEO client-facing data is limited to the server-gated AI Visibility summary and generated reports, both based on approved canonical data.
 - Live AI-search platform checks remain disabled and unimplemented unless a compliant adapter is added later.
 - PDF rendering for GEO/AEO should reuse the canonical payload later; Markdown is the first supported GEO/AEO export.

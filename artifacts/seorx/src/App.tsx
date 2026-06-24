@@ -15,6 +15,7 @@ const Landing = lazy(() => import("@/pages/landing"));
 const Dashboard = lazy(() => import("@/pages/dashboard"));
 const Clients = lazy(() => import("@/pages/clients"));
 const ClientDetail = lazy(() => import("@/pages/client-detail"));
+const ClientAiVisibility = lazy(() => import("@/pages/client-ai-visibility"));
 const Audits = lazy(() => import("@/pages/audits"));
 const AuditNew = lazy(() => import("@/pages/audit-new"));
 const AuditDetail = lazy(() => import("@/pages/audit-detail"));
@@ -210,6 +211,7 @@ function Router() {
       </Route>
       <Route path="/dashboard"><ProtectedRoute component={Dashboard} /></Route>
       <Route path="/clients"><ProtectedRoute component={Clients} /></Route>
+      <Route path="/clients/:id/ai-visibility"><ProtectedRoute component={ClientAiVisibility} /></Route>
       <Route path="/clients/:id"><ProtectedRoute component={ClientDetail} /></Route>
       <Route path="/audits"><ProtectedRoute component={Audits} /></Route>
       <Route path="/audits/new"><ProtectedRoute component={AuditNew} /></Route>

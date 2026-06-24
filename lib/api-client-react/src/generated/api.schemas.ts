@@ -311,6 +311,85 @@ export const GeoAeoPackageTier = {
   custom: "custom",
 } as const;
 
+export type ClientAiVisibilitySummaryClient = {
+  id: string;
+  name: string;
+  domain: string;
+};
+
+export type ClientAiVisibilitySummaryLatestAudit = {
+  id: string;
+  url: string;
+  auditType: "geo_aeo" | "hybrid";
+  completedAt?: string | null;
+  aiVisibilityScore?: number | null;
+} | null;
+
+export type ClientAiVisibilitySummaryScore = {
+  aiVisibilityScore: number;
+  grade: string;
+  subScores: { [key: string]: number };
+  topRisks: string[];
+  quickWins: string[];
+} | null;
+
+export type ClientAiVisibilitySummaryPromptCoverage = {
+  totalPrompts: number;
+  approvedObservationCount: number;
+  brandMentionedCount: number;
+  brandCitedCount: number;
+  surfaces: string[];
+};
+
+export type ClientAiVisibilitySummaryRecommendationsItem = {
+  id: string;
+  title: string;
+  pageUrl?: string | null;
+  recommendation: string;
+  aiVisibilityImpact?: string | null;
+  businessImpact?: string | null;
+  priorityScore: number;
+  estimatedEffort?: string | null;
+  owner?: string | null;
+};
+
+export type ClientAiVisibilitySummaryActionPlanItemTasksItem = {
+  task: string;
+  why: string;
+  owner: string;
+  estimatedEffort: string;
+  priority: number;
+  expectedOutput: string;
+};
+
+export type ClientAiVisibilitySummaryActionPlanItem = {
+  week: string;
+  focus: string;
+  tasks: ClientAiVisibilitySummaryActionPlanItemTasksItem[];
+};
+
+export type ClientAiVisibilitySummaryLatestReport = {
+  id: string;
+  title: string;
+  format: "markdown";
+  downloadUrl?: string | null;
+  createdAt: string;
+} | null;
+
+export interface ClientAiVisibilitySummary {
+  available: boolean;
+  client: ClientAiVisibilitySummaryClient;
+  latestAudit: ClientAiVisibilitySummaryLatestAudit;
+  score: ClientAiVisibilitySummaryScore;
+  promptCoverage: ClientAiVisibilitySummaryPromptCoverage;
+  quickWins: string[];
+  topRisks: string[];
+  recommendations: ClientAiVisibilitySummaryRecommendationsItem[];
+  actionPlan: ClientAiVisibilitySummaryActionPlanItem[];
+  latestReport: ClientAiVisibilitySummaryLatestReport;
+  disclaimer: string | null;
+}
+
 export type GeoAeoSurface = (typeof GeoAeoSurface)[keyof typeof GeoAeoSurface];
 
 export const GeoAeoSurface = {

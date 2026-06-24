@@ -1080,6 +1080,130 @@ describe("production-critical API behavior", () => {
     });
   });
 
+  it("returns only approved GEO/AEO data in the client AI visibility summary", async () => {
+    const allowed = await seedAudit(`geo-client-summary-${crypto.randomUUID()}`, TEST_USER_ID, "completed", "geo_aeo");
+    const blocked = await seedAudit(`geo-client-summary-private-${crypto.randomUUID()}`, OTHER_USER_ID, "completed", "geo_aeo");
+
+    const disabledRes = await request(app)
+      .get(`/api/clients/${allowed.clientId}/ai-visibility`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(disabledRes.status).toBe(404);
+
+    process.env.GEO_AEO_ENABLED = "true";
+
+    await dbModule.db.insert(dbModule.geoAuditProfilesTable).values({
+      id: crypto.randomUUID(),
+      auditId: allowed.auditId,
+      businessName: "Client Safe Dental",
+      websiteUrl: "https://client-safe.example/",
+      targetServices: ["emergency dental"],
+      targetLocations: ["Austin"],
+      packageTier: "standard",
+    });
+    await dbModule.db.insert(dbModule.geoPromptsTable).values({
+      id: crypto.randomUUID(),
+      auditId: allowed.auditId,
+      promptText: "Best emergency dentist in Austin",
+      intent: "best_provider",
+      buyerStage: "decision",
+      priority: 90,
+      approved: true,
+    });
+    await dbModule.db.insert(dbModule.geoVisibilityObservationsTable).values({
+      id: crypto.randomUUID(),
+      auditId: allowed.auditId,
+      surface: "manual_observation",
+      brandMentioned: true,
+      brandCited: false,
+      answerSummary: "Approved observation summary.",
+      rawAnswerExcerpt: "Approved excerpt should not be exposed by this endpoint.",
+      competitorsMentioned: ["Private Competitor"],
+      citedUrls: [],
+      confidenceScore: 80,
+      observationMode: "manual",
+      approved: true,
+    });
+    await dbModule.db.insert(dbModule.geoRecommendationsTable).values([
+      {
+        id: crypto.randomUUID(),
+        auditId: allowed.auditId,
+        category: "ai_answer_coverage",
+        issueType: "MISSING_DIRECT_ANSWER_BLOCKS",
+        title: "Approved answer block fix",
+        evidence: "Approved evidence for client-safe summary.",
+        recommendation: "Add an answer-first service section.",
+        aiVisibilityImpact: "Improves AI readability without guaranteeing placement.",
+        businessImpact: "Clarifies the service for high-intent buyers.",
+        priorityScore: 90,
+        estimatedEffort: "medium",
+        owner: "content_writer",
+        status: "approved",
+      },
+      {
+        id: crypto.randomUUID(),
+        auditId: allowed.auditId,
+        category: "proof_trust",
+        issueType: "WEAK_SOURCEABLE_CLAIMS",
+        title: "Draft should stay hidden from clients",
+        evidence: "Draft-only evidence.",
+        recommendation: "Draft-only recommendation.",
+        priorityScore: 60,
+        status: "draft",
+      },
+    ]);
+    await dbModule.db.insert(dbModule.geoScoreSnapshotsTable).values({
+      id: crypto.randomUUID(),
+      auditId: allowed.auditId,
+      aiVisibilityScore: 72,
+      grade: "Strong",
+      subScores: { answerCoverage: 70 },
+      topRisks: ["Unapproved drafts must not leak"],
+      quickWins: ["Publish approved answer blocks"],
+    });
+    const reportId = await seedReport(
+      allowed.auditId,
+      allowed.clientId,
+      "Approved GEO Client Report",
+      "ready",
+      { format: "markdown", reportType: "geo_aeo_audit" },
+    );
+
+    const blockedRes = await request(app)
+      .get(`/api/clients/${blocked.clientId}/ai-visibility`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(blockedRes.status).toBe(403);
+
+    const summaryRes = await request(app)
+      .get(`/api/clients/${allowed.clientId}/ai-visibility`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(summaryRes.status).toBe(200);
+    expect(summaryRes.body).toMatchObject({
+      available: true,
+      client: { id: allowed.clientId },
+      latestAudit: { id: allowed.auditId, auditType: "geo_aeo" },
+      score: { aiVisibilityScore: 72, grade: "Strong" },
+      promptCoverage: {
+        totalPrompts: 1,
+        approvedObservationCount: 1,
+        brandMentionedCount: 1,
+        brandCitedCount: 0,
+      },
+      latestReport: {
+        id: reportId,
+        title: "Approved GEO Client Report",
+        format: "markdown",
+        downloadUrl: `/api/reports/${reportId}/download`,
+      },
+    });
+    expect(summaryRes.body.recommendations).toHaveLength(1);
+    expect(summaryRes.body.recommendations[0].title).toBe("Approved answer block fix");
+    expect(JSON.stringify(summaryRes.body)).not.toContain("Draft should stay hidden from clients");
+    expect(JSON.stringify(summaryRes.body)).not.toContain("Approved excerpt should not be exposed");
+  });
+
   it("persists GEO/AEO profiles, prompts, observations, recommendations, and score snapshots", async () => {
     process.env.GEO_AEO_ENABLED = "true";
     const { auditId } = await seedAudit(`geo-flow-${crypto.randomUUID()}`);

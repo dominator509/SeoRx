@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Globe, Mail, Search, ArrowLeft, ArrowRight, Building2 } from "lucide-react";
+import { Globe, Mail, Search, ArrowLeft, ArrowRight, Building2, Sparkles } from "lucide-react";
 import { format } from "date-fns";
 
 function seoScoreRing(score?: number | null) {
@@ -101,6 +101,11 @@ export default function ClientDetail() {
                 <div className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">SEO Score</div>
                 {seoScoreRing(client.seoScore)}
               </div>
+              <Link href={`/clients/${client.id}/ai-visibility`}>
+                <Button variant="outline" size="sm" className="gap-1.5 whitespace-nowrap">
+                  <Sparkles className="w-4 h-4" />AI Visibility
+                </Button>
+              </Link>
               <Link href={`/audits/new?clientId=${client.id}`}>
                 <Button size="sm" className="gap-1.5 whitespace-nowrap">
                   <Search className="w-4 h-4" />New Audit

@@ -260,6 +260,88 @@ export const DeleteClientParams = zod.object({
 });
 
 /**
+ * @summary Get approved client AI visibility summary
+ */
+export const GetClientAiVisibilityParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetClientAiVisibilityResponse = zod.object({
+  available: zod.boolean(),
+  client: zod.object({
+    id: zod.string(),
+    name: zod.string(),
+    domain: zod.string(),
+  }),
+  latestAudit: zod
+    .object({
+      id: zod.string(),
+      url: zod.string(),
+      auditType: zod.enum(["geo_aeo", "hybrid"]),
+      completedAt: zod.coerce.date().nullish(),
+      aiVisibilityScore: zod.number().nullish(),
+    })
+    .nullable(),
+  score: zod
+    .object({
+      aiVisibilityScore: zod.number(),
+      grade: zod.string(),
+      subScores: zod.record(zod.string(), zod.number()),
+      topRisks: zod.array(zod.string()),
+      quickWins: zod.array(zod.string()),
+    })
+    .nullable(),
+  promptCoverage: zod.object({
+    totalPrompts: zod.number(),
+    approvedObservationCount: zod.number(),
+    brandMentionedCount: zod.number(),
+    brandCitedCount: zod.number(),
+    surfaces: zod.array(zod.string()),
+  }),
+  quickWins: zod.array(zod.string()),
+  topRisks: zod.array(zod.string()),
+  recommendations: zod.array(
+    zod.object({
+      id: zod.string(),
+      title: zod.string(),
+      pageUrl: zod.string().nullish(),
+      recommendation: zod.string(),
+      aiVisibilityImpact: zod.string().nullish(),
+      businessImpact: zod.string().nullish(),
+      priorityScore: zod.number(),
+      estimatedEffort: zod.string().nullish(),
+      owner: zod.string().nullish(),
+    }),
+  ),
+  actionPlan: zod.array(
+    zod.object({
+      week: zod.string(),
+      focus: zod.string(),
+      tasks: zod.array(
+        zod.object({
+          task: zod.string(),
+          why: zod.string(),
+          owner: zod.string(),
+          estimatedEffort: zod.string(),
+          priority: zod.number(),
+          expectedOutput: zod.string(),
+        }),
+      ),
+    }),
+  ),
+  latestReport: zod
+    .object({
+      id: zod.string(),
+      title: zod.string(),
+      format: zod.enum(["markdown"]),
+      downloadUrl: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+    })
+    .nullable(),
+  disclaimer: zod.string().nullable(),
+});
+
+/**
  * @summary List audit jobs
  */
 export const listAuditsQueryLimitDefault = 20;

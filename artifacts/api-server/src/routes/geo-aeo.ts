@@ -8,13 +8,15 @@ import {
   geoPageAssessmentsTable,
   geoPromptsTable,
   geoRecommendationsTable,
+  reportsTable,
   geoScoreSnapshotsTable,
   geoVisibilityObservationsTable,
 } from "@workspace/db";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { ZodError } from "zod";
-import { assertAuditAccess, requireAuth } from "../lib/rbac";
+import { assertAuditAccess, assertClientAccess, requireAuth } from "../lib/rbac";
 import { generateAiText, getActiveProvider } from "../lib/ai-adapter";
+import { buildGeoAeoReportPayload } from "../lib/geo-aeo/report";
 import {
   calculateGeoAeoScore,
   generateGeoAeoDraftRecommendations,
@@ -64,6 +66,107 @@ router.use("/audits/:id/geo", requireAuth, async (req, res, next) => {
 
   res.locals.audit = audit;
   next();
+});
+
+router.get("/clients/:id/ai-visibility", requireAuth, async (req, res) => {
+  try {
+    if (process.env.GEO_AEO_ENABLED !== "true") {
+      res.status(404).json({ error: "GEO/AEO is disabled" });
+      return;
+    }
+
+    const client = await assertClientAccess(req, req.params.id as string);
+    if (!client) {
+      res.status(403).json({ error: "Access denied" });
+      return;
+    }
+
+    const audit = await db.query.auditsTable.findFirst({
+      where: and(
+        eq(auditsTable.clientId, client.id),
+        eq(auditsTable.status, "completed"),
+        inArray(auditsTable.auditType, ["geo_aeo", "hybrid"]),
+      ),
+      orderBy: desc(auditsTable.completedAt),
+    });
+
+    if (!audit) {
+      res.json({
+        available: false,
+        client: pickClient(client),
+        latestAudit: null,
+        score: null,
+        promptCoverage: emptyPromptCoverage(),
+        quickWins: [],
+        topRisks: [],
+        recommendations: [],
+        actionPlan: [],
+        latestReport: null,
+        disclaimer: null,
+      });
+      return;
+    }
+
+    const [payload, latestReport] = await Promise.all([
+      buildGeoAeoReportPayload({ audit, client }),
+      db.query.reportsTable.findFirst({
+        where: and(
+          eq(reportsTable.clientId, client.id),
+          eq(reportsTable.auditId, audit.id),
+          eq(reportsTable.reportType, "geo_aeo_audit"),
+          eq(reportsTable.status, "ready"),
+        ),
+        orderBy: desc(reportsTable.updatedAt),
+      }),
+    ]);
+
+    res.json({
+      available: true,
+      client: pickClient(client),
+      latestAudit: {
+        id: audit.id,
+        url: audit.url,
+        auditType: audit.auditType,
+        completedAt: audit.completedAt,
+        aiVisibilityScore: audit.aiVisibilityScore,
+      },
+      score: payload.score,
+      promptCoverage: {
+        totalPrompts: payload.prompts.length,
+        approvedObservationCount: payload.observations.length,
+        brandMentionedCount: payload.observations.filter((item) => item.brandMentioned).length,
+        brandCitedCount: payload.observations.filter((item) => item.brandCited).length,
+        surfaces: Array.from(new Set(payload.observations.map((item) => item.surface))),
+      },
+      quickWins: payload.score.quickWins.slice(0, 5),
+      topRisks: payload.score.topRisks.slice(0, 5),
+      recommendations: payload.recommendations.slice(0, 5).map((item) => ({
+        id: item.id,
+        title: item.title,
+        pageUrl: item.pageUrl,
+        recommendation: item.recommendation,
+        aiVisibilityImpact: item.aiVisibilityImpact,
+        businessImpact: item.businessImpact,
+        priorityScore: item.priorityScore,
+        estimatedEffort: item.estimatedEffort,
+        owner: item.owner,
+      })),
+      actionPlan: payload.actionPlan,
+      latestReport: latestReport
+        ? {
+          id: latestReport.id,
+          title: latestReport.title,
+          format: latestReport.format,
+          downloadUrl: latestReport.downloadUrl,
+          createdAt: latestReport.createdAt,
+        }
+        : null,
+      disclaimer: payload.disclaimer,
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to get client AI visibility summary");
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 router.get("/audits/:id/geo/overview", async (req, res) => {
@@ -487,6 +590,24 @@ function profileRowToPayload(profile: NonNullable<Awaited<ReturnType<typeof late
     knownFor: profile.knownFor ?? undefined,
     packageTier: profile.packageTier,
   });
+}
+
+function pickClient(client: typeof clientsTable.$inferSelect) {
+  return {
+    id: client.id,
+    name: client.name,
+    domain: client.domain,
+  };
+}
+
+function emptyPromptCoverage() {
+  return {
+    totalPrompts: 0,
+    approvedObservationCount: 0,
+    brandMentionedCount: 0,
+    brandCitedCount: 0,
+    surfaces: [],
+  };
 }
 
 function arrayFromJson(value: unknown): any[] {
