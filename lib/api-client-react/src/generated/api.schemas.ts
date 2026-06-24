@@ -371,7 +371,7 @@ export type ClientAiVisibilitySummaryActionPlanItem = {
 export type ClientAiVisibilitySummaryLatestReport = {
   id: string;
   title: string;
-  format: "markdown";
+  format: "markdown" | "pdf";
   downloadUrl?: string | null;
   createdAt: string;
 } | null;

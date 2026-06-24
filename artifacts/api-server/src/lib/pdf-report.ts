@@ -1,6 +1,7 @@
 import PDFDocument from "pdfkit";
 import type { Readable } from "stream";
 import type { AuditIssue, Audit } from "@workspace/db";
+import type { GeoAeoReportPayload } from "./geo-aeo/report";
 
 export interface ReportData {
   reportTitle: string;
@@ -290,4 +291,170 @@ export function generatePdfReport(data: ReportData): Readable {
 
   doc.end();
   return doc as unknown as Readable;
+}
+
+export function generateGeoAeoPdfReport(payload: GeoAeoReportPayload): Readable {
+  const doc = new PDFDocument({
+    margin: 50,
+    size: "A4",
+    bufferPages: true,
+    info: { Title: payload.title, Author: "SEORx" },
+  });
+  const pageWidth = doc.page.width - 100;
+
+  doc.rect(0, 0, doc.page.width, 165).fill(COLORS.dark);
+  doc
+    .fillColor("#ffffff")
+    .font("Helvetica-Bold")
+    .fontSize(26)
+    .text(payload.title, 50, 42, { width: pageWidth });
+  doc
+    .font("Helvetica")
+    .fontSize(10)
+    .fillColor("#d1d5db")
+    .text(payload.subtitle, 50, 78, { width: pageWidth });
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(14)
+    .fillColor("#ffffff")
+    .text(payload.profile?.businessName ?? payload.client.name, 50, 116, { width: pageWidth });
+
+  const metaY = 190;
+  const score = payload.score.aiVisibilityScore;
+  const cards = [
+    { label: "AI Visibility", value: `${score}/100`, color: scoreColor(score) },
+    { label: "Grade", value: payload.score.grade, color: COLORS.dark },
+    { label: "Approved Issues", value: String(payload.approvedIssues.length), color: COLORS.primary },
+    { label: "Approved Observations", value: String(payload.observations.length), color: COLORS.medium },
+  ];
+
+  doc
+    .font("Helvetica")
+    .fontSize(9)
+    .fillColor(COLORS.muted)
+    .text("Website", 50, metaY)
+    .text("Generated", 230, metaY)
+    .text("Package", 380, metaY);
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .fillColor(COLORS.dark)
+    .text(payload.profile?.websiteUrl ?? payload.audit.url, 50, metaY + 14, { width: 160 })
+    .text(payload.generatedAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), 230, metaY + 14, { width: 130 })
+    .text(payload.profile?.packageTier ?? "standard", 380, metaY + 14, { width: 120 });
+
+  const cardY = metaY + 55;
+  cards.forEach((card, index) => {
+    const x = 50 + index * 130;
+    doc.roundedRect(x, cardY, 115, 64, 6).strokeColor(COLORS.border).lineWidth(1).stroke();
+    doc.font("Helvetica-Bold").fontSize(20).fillColor(card.color).text(card.value, x + 12, cardY + 13, { width: 91 });
+    doc.font("Helvetica").fontSize(8).fillColor(COLORS.muted).text(card.label, x + 12, cardY + 44, { width: 91 });
+  });
+
+  let y = cardY + 92;
+  y = section(doc, "Executive Summary", y);
+  y = paragraph(
+    doc,
+    `This AI Visibility Audit gives ${payload.client.name} an overall score of ${score}/100 (${payload.score.grade}). It summarizes approved evidence only and highlights the highest-impact fixes for AI answer systems and search visibility.`,
+    y,
+    pageWidth,
+  );
+  y = list(doc, "Top blockers", payload.score.topRisks.slice(0, 3), y, pageWidth);
+  y = list(doc, "Quick wins", payload.score.quickWins.slice(0, 3), y, pageWidth);
+
+  doc.addPage();
+  y = 50;
+  y = section(doc, "Prompt and Observation Coverage", y);
+  y = paragraph(doc, `${payload.prompts.length} prompts generated/tested. ${payload.observations.length} approved AI visibility observations are included.`, y, pageWidth);
+  y = list(
+    doc,
+    "Approved observations",
+    payload.observations.slice(0, 8).map((item) => `${readablePdfKey(item.surface)}: ${item.promptText ?? "Manual observation"} - brand mentioned: ${item.brandMentioned ? "yes" : "no"}, cited: ${item.brandCited ? "yes" : "no"}`),
+    y,
+    pageWidth,
+  );
+
+  y = section(doc, "Top GEO/AEO Recommendations", y);
+  const recommendations = payload.recommendations.slice(0, 10);
+  if (!recommendations.length) {
+    y = paragraph(doc, "No approved GEO/AEO recommendations are available yet.", y, pageWidth);
+  } else {
+    for (const item of recommendations) {
+      y = ensureSpace(doc, y, 95);
+      doc.font("Helvetica-Bold").fontSize(10.5).fillColor(COLORS.dark).text(item.title, 50, y, { width: pageWidth });
+      y += 16;
+      doc.font("Helvetica").fontSize(9).fillColor(COLORS.muted).text(`Priority ${item.priorityScore}/100 - ${item.category}`, 50, y, { width: pageWidth });
+      y += 13;
+      y = paragraph(doc, item.recommendation, y, pageWidth);
+    }
+  }
+
+  y = section(doc, "30-Day Action Plan", y);
+  for (const week of payload.actionPlan) {
+    y = ensureSpace(doc, y, 95);
+    doc.font("Helvetica-Bold").fontSize(10.5).fillColor(COLORS.dark).text(`${week.week}: ${week.focus}`, 50, y, { width: pageWidth });
+    y += 16;
+    for (const task of week.tasks) {
+      y = paragraph(doc, `${task.task} Owner: ${task.owner}. Expected output: ${task.expectedOutput}`, y, pageWidth);
+    }
+  }
+
+  y = section(doc, "Disclaimer", y);
+  paragraph(doc, payload.disclaimer, y, pageWidth);
+
+  const totalPages = (doc as any).bufferedPageRange?.()?.count ?? 1;
+  for (let index = 0; index < totalPages; index++) {
+    doc.switchToPage(index);
+    doc
+      .fontSize(8)
+      .font("Helvetica")
+      .fillColor(COLORS.muted)
+      .text(
+        `SEORx AI Visibility Audit - ${payload.client.name} - Page ${index + 1}`,
+        50,
+        doc.page.height - 35,
+        { width: pageWidth, align: "center" },
+      );
+  }
+
+  doc.end();
+  return doc as unknown as Readable;
+}
+
+function section(doc: PDFKit.PDFDocument, title: string, y: number): number {
+  y = ensureSpace(doc, y, 55);
+  doc.font("Helvetica-Bold").fontSize(14).fillColor(COLORS.dark).text(title, 50, y);
+  return y + 24;
+}
+
+function paragraph(doc: PDFKit.PDFDocument, text: string, y: number, width: number): number {
+  y = ensureSpace(doc, y, 70);
+  const height = doc.font("Helvetica").fontSize(9.5).heightOfString(text, { width, lineGap: 3 });
+  doc.font("Helvetica").fontSize(9.5).fillColor(COLORS.muted).text(text, 50, y, { width, lineGap: 3 });
+  return y + height + 10;
+}
+
+function list(doc: PDFKit.PDFDocument, title: string, values: string[], y: number, width: number): number {
+  y = ensureSpace(doc, y, 70);
+  doc.font("Helvetica-Bold").fontSize(10).fillColor(COLORS.dark).text(title, 50, y, { width });
+  y += 16;
+  const items = values.length ? values : ["No items recorded yet."];
+  for (const value of items) {
+    y = ensureSpace(doc, y, 32);
+    const text = `- ${value}`;
+    const height = doc.font("Helvetica").fontSize(9).heightOfString(text, { width, lineGap: 2 });
+    doc.font("Helvetica").fontSize(9).fillColor(COLORS.muted).text(text, 50, y, { width, lineGap: 2 });
+    y += height + 5;
+  }
+  return y + 8;
+}
+
+function ensureSpace(doc: PDFKit.PDFDocument, y: number, needed: number): number {
+  if (y + needed <= doc.page.height - 70) return y;
+  doc.addPage();
+  return 50;
+}
+
+function readablePdfKey(key: string): string {
+  return key.replace(/_/g, " ").replace(/[A-Z]/g, (match) => ` ${match.toLowerCase()}`).trim();
 }

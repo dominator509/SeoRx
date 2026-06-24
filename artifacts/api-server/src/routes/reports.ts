@@ -3,7 +3,7 @@ import { db, reportsTable, auditsTable, clientsTable, auditIssuesTable } from "@
 import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth, assertAuditAccess, getAllowedClientIds } from "../lib/rbac";
 import { logger } from "../lib/logger";
-import { generatePdfReport } from "../lib/pdf-report";
+import { generateGeoAeoPdfReport, generatePdfReport } from "../lib/pdf-report";
 import {
   buildGeoAeoReportPayload,
   renderGeoAeoMarkdownReport,
@@ -60,8 +60,8 @@ router.post("/reports", requireAuth, async (req, res) => {
     const reportType = req.body.reportType ?? defaultReportTypeForAudit(audit.auditType);
     const format = req.body.format ?? (reportType === "geo_aeo_audit" ? "markdown" : "pdf");
 
-    if (reportType === "geo_aeo_audit" && format !== "markdown") {
-      res.status(400).json({ error: "GEO/AEO reports currently support markdown export only" });
+    if (reportType === "geo_aeo_audit" && !["markdown", "pdf"].includes(format)) {
+      res.status(400).json({ error: "GEO/AEO reports support markdown and PDF export only" });
       return;
     }
 
@@ -149,13 +149,24 @@ router.get("/reports/:id/download", requireAuth, async (req, res) => {
 
     const safeTitle = (report.title ?? "SEO-Audit-Report").replace(/[^a-z0-9-_ ]/gi, "").replace(/\s+/g, "-");
 
-    if (report.reportType === "geo_aeo_audit" || report.format === "markdown") {
+    if (report.reportType === "geo_aeo_audit") {
       if (!client) { res.status(404).json({ error: "Client not found" }); return; }
       const payload = await buildGeoAeoReportPayload({ audit, client });
+      if (report.format === "pdf") {
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${safeTitle}.pdf"`);
+        generateGeoAeoPdfReport(payload).pipe(res);
+        return;
+      }
       const markdown = renderGeoAeoMarkdownReport(payload);
       res.setHeader("Content-Type", "text/markdown; charset=utf-8");
       res.setHeader("Content-Disposition", `attachment; filename="${safeTitle}.md"`);
       res.send(markdown);
+      return;
+    }
+
+    if (report.format === "markdown") {
+      res.status(400).json({ error: "Markdown export is supported for GEO/AEO reports only" });
       return;
     }
 

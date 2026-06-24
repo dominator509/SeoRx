@@ -1044,7 +1044,46 @@ describe("production-critical API behavior", () => {
     expect(downloadRes.text).not.toContain("Unapproved draft answer block");
     expect(downloadRes.text).not.toContain("Hidden weak proof draft");
     expect(downloadRes.text).toContain("AI-generated answers vary by model");
-  });
+
+    const pdfCreateRes = await request(app)
+      .post("/api/reports")
+      .set("x-test-user-id", TEST_USER_ID)
+      .send({
+        auditId,
+        title: "GEO PDF Report",
+        reportType: "geo_aeo_audit",
+        format: "pdf",
+      });
+
+    expect(pdfCreateRes.status).toBe(201);
+    const pdfCreated = ListReportsResponseItem.parse(pdfCreateRes.body);
+    expect(pdfCreated).toMatchObject({
+      auditId,
+      clientId,
+      title: "GEO PDF Report",
+      reportType: "geo_aeo_audit",
+      format: "pdf",
+      status: "generating",
+    });
+
+    const pdfReadyDetailRes = await waitForReportReady(pdfCreated.id);
+    const pdfReadyDetail = GetReportResponse.parse(pdfReadyDetailRes.body);
+    expect(pdfReadyDetail).toMatchObject({
+      id: pdfCreated.id,
+      reportType: "geo_aeo_audit",
+      format: "pdf",
+      status: "ready",
+      downloadUrl: `/api/reports/${pdfCreated.id}/download`,
+    });
+
+    const pdfDownloadRes = await request(app)
+      .get(`/api/reports/${pdfCreated.id}/download`)
+      .set("x-test-user-id", TEST_USER_ID);
+
+    expect(pdfDownloadRes.status).toBe(200);
+    expect(pdfDownloadRes.headers["content-type"]).toContain("application/pdf");
+    expect(pdfDownloadRes.headers["content-disposition"]).toContain("GEO-PDF-Report.pdf");
+  }, 15000);
 
   it("guards GEO/AEO routes behind the feature flag and audit access", async () => {
     const allowed = await seedAudit(`geo-allowed-${crypto.randomUUID()}`);

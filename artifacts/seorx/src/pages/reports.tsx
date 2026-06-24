@@ -81,12 +81,7 @@ export default function Reports() {
           <DialogContent className="sm:max-w-md">
             <DialogHeader><DialogTitle>Generate Report</DialogTitle></DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit((v) => createReport.mutate({
-                data: {
-                  ...v,
-                  format: v.reportType === "geo_aeo_audit" ? "markdown" : v.format,
-                } as any,
-              }))} className="space-y-4">
+              <form onSubmit={form.handleSubmit((v) => createReport.mutate({ data: v as any }))} className="space-y-4">
                 <FormField control={form.control} name="auditId" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Audit</FormLabel>
@@ -132,13 +127,17 @@ export default function Reports() {
                 <FormField control={form.control} name="format" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Format</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={form.watch("reportType") === "geo_aeo_audit"}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="pdf">PDF</SelectItem>
-                        <SelectItem value="html">HTML</SelectItem>
-                        <SelectItem value="json">JSON</SelectItem>
                         <SelectItem value="markdown">Markdown</SelectItem>
+                        {form.watch("reportType") !== "geo_aeo_audit" && (
+                          <>
+                            <SelectItem value="html">HTML</SelectItem>
+                            <SelectItem value="json">JSON</SelectItem>
+                          </>
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />

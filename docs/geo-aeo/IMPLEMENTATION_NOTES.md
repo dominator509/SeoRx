@@ -16,7 +16,7 @@ Last updated: 2026-06-23
 - Current approval workflow is issue-level: `audit_issues.status` moves through `open`, `approved`, `dismissed`, and `fixed`.
 - Current report creation and download are in `artifacts/api-server/src/routes/reports.ts`.
 - Current PDF rendering is in `artifacts/api-server/src/lib/pdf-report.ts`.
-- Markdown export is implemented for `geo_aeo_audit` reports; existing SEO PDF behavior remains separate.
+- Markdown and PDF export are implemented for `geo_aeo_audit` reports from the canonical GEO/AEO payload; existing SEO PDF behavior remains separate.
 - There is no dedicated client dashboard route separate from the authenticated product app.
 
 ## Phase 1 files extended
@@ -64,6 +64,7 @@ Last updated: 2026-06-23
 ## Phase 5 report/export files added
 
 - `artifacts/api-server/src/lib/geo-aeo/report.ts`
+- `artifacts/api-server/src/lib/pdf-report.ts`
 - `artifacts/api-server/src/routes/reports.ts`
 - `lib/db/src/schema/reports.ts`
 - `lib/db/migrations/*_add_markdown_report_format.sql`
@@ -113,9 +114,10 @@ Last updated: 2026-06-23
 
 - `POST /api/reports` defaults `geo_aeo` audits to `reportType=geo_aeo_audit` and `format=markdown`.
 - `geo_aeo_audit` reports use a deterministic canonical payload built from the audit, client, profile, prompts, approved observations, page assessments, approved recommendations, approved issues, and latest score snapshot.
-- `GET /api/reports/:id/download` returns `text/markdown` and a `.md` attachment for GEO/AEO reports.
+- `GET /api/reports/:id/download` returns `text/markdown` and a `.md` attachment for Markdown GEO/AEO reports.
+- `GET /api/reports/:id/download` returns `application/pdf` and a `.pdf` attachment for PDF GEO/AEO reports through the existing PdfKit adapter.
 - GEO/AEO report generation rejects unsupported export formats instead of producing a misleading SEO PDF.
-- The Markdown export includes the required AI answer variability disclaimer and avoids live AI-platform checks.
+- Markdown and PDF exports include or summarize the required AI answer variability disclaimer and avoid live AI-platform checks.
 - Draft and hidden GEO/AEO recommendations are excluded from canonical report export until explicitly approved.
 
 ## GEO/AEO AI draft behavior
@@ -131,15 +133,15 @@ Last updated: 2026-06-23
 - Admins can select SEO, GEO/AEO, or hybrid mode when starting an audit.
 - Audit lists and detail headers show audit mode and AI Visibility score when present.
 - GEO/AEO audit detail includes a dedicated admin tab for score review, quick wins, risks, prompts, approved observations, and recommendations.
-- Admins can approve recommendations into existing approved audit issues, edit recommendation copy/priority, hide recommendations from report export, recalculate the GEO/AEO score, and generate the Markdown report.
-- GEO/AEO report creation is available from the reports page with Markdown enforced for `geo_aeo_audit`.
+- Admins can approve recommendations into existing approved audit issues, edit recommendation copy/priority, hide recommendations from report export, recalculate the GEO/AEO score, and generate Markdown or PDF reports.
+- GEO/AEO report creation is available from the reports page with Markdown as the default for `geo_aeo_audit`; PDF is supported by the API/export layer.
 
 ## GEO/AEO client-safe visibility behavior
 
 - `GET /api/clients/:id/ai-visibility` is server-side gated by authentication, existing client access, and `GEO_AEO_ENABLED=true`.
 - The client AI Visibility page is available at `/clients/:id/ai-visibility` from the client detail page.
 - The endpoint builds from the canonical GEO/AEO report payload, so manual observations and recommendations are filtered through approval rules before client display.
-- The client summary exposes aggregate prompt coverage, approved quick wins, approved risks, approved recommendations, a 30-day action plan, and the latest ready GEO/AEO Markdown report download.
+- The client summary exposes aggregate prompt coverage, approved quick wins, approved risks, approved recommendations, a 30-day action plan, and the latest ready GEO/AEO report download.
 - Raw prompt text, raw AI answer excerpts, draft recommendations, hidden recommendations, and unapproved observations are not returned by the client-facing endpoint.
 
 ## Phase 1 schema approach
@@ -180,4 +182,4 @@ There is no root lint script today.
 - GEO/AEO should use Drizzle migrations, not Prisma.
 - GEO/AEO client-facing data is limited to the server-gated AI Visibility summary and generated reports, both based on approved canonical data.
 - Live AI-search platform checks remain disabled and unimplemented unless a compliant adapter is added later.
-- PDF rendering for GEO/AEO should reuse the canonical payload later; Markdown is the first supported GEO/AEO export.
+- PDF rendering for GEO/AEO now reuses the canonical payload through the existing PdfKit adapter; visual polish can improve later without changing report data rules.

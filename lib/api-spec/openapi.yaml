@@ -2166,7 +2166,7 @@ components:
                   type: string
                 format:
                   type: string
-                  enum: [markdown]
+                  enum: [markdown, pdf]
                 downloadUrl:
                   type: string
                   nullable: true

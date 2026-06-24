@@ -333,7 +333,7 @@ export const GetClientAiVisibilityResponse = zod.object({
     .object({
       id: zod.string(),
       title: zod.string(),
-      format: zod.enum(["markdown"]),
+      format: zod.enum(["markdown", "pdf"]),
       downloadUrl: zod.string().nullish(),
       createdAt: zod.coerce.date(),
     })
