@@ -807,7 +807,7 @@ test("@signed-in reports page generates a report and opens ready detail", async 
 
   await page.getByTestId("generate-report-button").click();
   await page.getByTestId("select-audit").click();
-  await page.getByRole("option", { name: "Acme Dental - https://acme.example" }).click();
+  await page.getByRole("option", { name: "Acme Dental - SEO - https://acme.example" }).click();
   await page.getByTestId("input-report-title").fill("Acme May SEO Report");
   await page.getByTestId("submit-report").click();
 
@@ -822,6 +822,187 @@ test("@signed-in reports page generates a report and opens ready detail", async 
   await expect(page.getByText("Two high-priority fixes are ready for client delivery.")).toBeVisible();
   await expect(page.getByText("Missing title tag")).toBeVisible();
   await expect(page.getByTestId("download-report")).toHaveAttribute("href", "/api/reports/report-1/download");
+
+  expect(browserErrors).toEqual([]);
+});
+
+test("@signed-in GEO/AEO report and client visibility flow renders approved data only", async ({ page }) => {
+  const browserErrors: string[] = [];
+  const reports: any[] = [];
+  let createdReportPayload: { auditId?: string; reportType?: string; format?: string; title?: string } = {};
+  const geoAudit = {
+    id: "geo-audit-1",
+    clientId: "client-geo",
+    clientName: "Northstar Dental",
+    url: "https://northstar.example",
+    auditType: "geo_aeo",
+    status: "completed",
+    seoScore: null,
+    aiVisibilityScore: 76,
+    issueCount: 4,
+    createdAt: "2026-05-10T12:00:00.000Z",
+    completedAt: "2026-05-10T12:04:00.000Z",
+  };
+  const geoReport = {
+    id: "geo-report-1",
+    auditId: "geo-audit-1",
+    clientId: "client-geo",
+    clientName: "Northstar Dental",
+    title: "Northstar AI Visibility PDF",
+    reportType: "geo_aeo_audit",
+    format: "pdf",
+    status: "ready",
+    summary: "Northstar Dental has a 76/100 AI Visibility score with approved fixes ready.",
+    downloadUrl: "/api/reports/geo-report-1/download",
+    issueCount: 4,
+    createdAt: "2026-05-12T12:00:00.000Z",
+    updatedAt: "2026-05-12T12:00:01.000Z",
+    topIssues: [],
+  };
+
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      browserErrors.push(message.text());
+    }
+  });
+  page.on("pageerror", (error) => {
+    browserErrors.push(error.message);
+  });
+
+  await page.route("**/api/audits?*", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ items: [geoAudit], total: 1 }),
+    });
+  });
+  await page.route("**/api/reports**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+
+    if (request.method() === "POST" && url.pathname === "/api/reports") {
+      createdReportPayload = request.postDataJSON() as typeof createdReportPayload;
+      reports.splice(0, reports.length, {
+        ...geoReport,
+        title: createdReportPayload.title,
+        format: createdReportPayload.format,
+      });
+      await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(reports[0]) });
+      return;
+    }
+
+    if (request.method() === "GET" && url.pathname === "/api/reports") {
+      await route.fulfill({ contentType: "application/json", body: JSON.stringify(reports) });
+      return;
+    }
+
+    await route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ error: "Not found" }) });
+  });
+  await page.route("**/api/clients/client-geo/ai-visibility", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        available: true,
+        client: { id: "client-geo", name: "Northstar Dental", domain: "northstar.example" },
+        latestAudit: {
+          id: "geo-audit-1",
+          url: "https://northstar.example",
+          auditType: "geo_aeo",
+          completedAt: "2026-05-10T12:04:00.000Z",
+          aiVisibilityScore: 76,
+        },
+        score: {
+          aiVisibilityScore: 76,
+          grade: "Strong",
+          subScores: {
+            answerCoverage: 74,
+            entityClarity: 82,
+            proofAndSourceability: 68,
+          },
+          topRisks: ["Proof signals need clearer citations"],
+          quickWins: ["Add concise answer blocks", "Add FAQPage schema"],
+        },
+        promptCoverage: {
+          totalPrompts: 25,
+          approvedObservationCount: 8,
+          brandMentionedCount: 5,
+          brandCitedCount: 2,
+          surfaces: ["chatgpt", "gemini"],
+        },
+        quickWins: ["Add concise answer blocks", "Add FAQPage schema"],
+        topRisks: ["Proof signals need clearer citations"],
+        recommendations: [
+          {
+            id: "approved-rec",
+            title: "Improve service page answer block",
+            pageUrl: "https://northstar.example/services",
+            recommendation: "Add a direct answer block that names the service, location, proof, and next step.",
+            aiVisibilityImpact: "Makes the service easier for AI systems to summarize.",
+            businessImpact: "Clarifies the offer for high-intent patients.",
+            priorityScore: 91,
+            estimatedEffort: "medium",
+            owner: "content_writer",
+          },
+        ],
+        actionPlan: [
+          {
+            week: "Week 1",
+            focus: "entity and answer coverage",
+            tasks: [
+              {
+                task: "Add direct answer blocks",
+                why: "Improves AI readability.",
+                owner: "content_writer",
+                estimatedEffort: "medium",
+                priority: 91,
+                expectedOutput: "Updated service page",
+              },
+            ],
+          },
+        ],
+        latestReport: {
+          id: "geo-report-1",
+          title: "Northstar AI Visibility PDF",
+          format: "pdf",
+          downloadUrl: "/api/reports/geo-report-1/download",
+          createdAt: "2026-05-12T12:00:00.000Z",
+        },
+        disclaimer: "AI-generated answers vary by model, location, prompt wording, date, personalization, available sources, and index freshness.",
+      }),
+    });
+  });
+
+  await page.goto("/reports");
+
+  await page.getByTestId("generate-report-button").click();
+  await page.getByTestId("select-audit").click();
+  await page.getByRole("option", { name: "Northstar Dental - GEO/AEO - https://northstar.example" }).click();
+  await page.getByTestId("input-report-title").fill("Northstar AI Visibility PDF");
+  await page.getByTestId("select-report-type").click();
+  await page.getByRole("option", { name: "GEO/AEO AI visibility audit" }).click();
+  await page.getByTestId("select-report-format").click();
+  await page.getByRole("option", { name: "PDF" }).click();
+  await page.getByTestId("submit-report").click();
+
+  expect(createdReportPayload).toMatchObject({
+    auditId: "geo-audit-1",
+    reportType: "geo_aeo_audit",
+    format: "pdf",
+    title: "Northstar AI Visibility PDF",
+  });
+  await expect(page.getByTestId("report-row-geo-report-1")).toContainText("Northstar AI Visibility PDF");
+  await expect(page.getByTestId("report-row-geo-report-1")).toContainText("geo aeo audit");
+  await expect(page.getByTestId("report-row-geo-report-1")).toContainText("PDF");
+  await expect(page.getByTestId("download-report-geo-report-1")).toHaveAttribute("href", "/api/reports/geo-report-1/download");
+
+  await page.goto("/clients/client-geo/ai-visibility");
+
+  await expect(page.getByRole("heading", { name: "Northstar Dental" })).toBeVisible();
+  await expect(page.getByText("AI Visibility Score")).toBeVisible();
+  await expect(page.getByText("76")).toBeVisible();
+  await expect(page.getByText("Improve service page answer block")).toBeVisible();
+  await expect(page.getByText("Draft internal note")).toHaveCount(0);
+  await expect(page.getByText("AI-generated answers vary by model")).toBeVisible();
+  await expect(page.getByRole("link", { name: /Download Report/i })).toHaveAttribute("href", "/api/reports/geo-report-1/download");
 
   expect(browserErrors).toEqual([]);
 });

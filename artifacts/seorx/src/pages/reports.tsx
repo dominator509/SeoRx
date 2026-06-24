@@ -113,7 +113,7 @@ export default function Reports() {
                       }}
                       value={field.value}
                     >
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <FormControl><SelectTrigger data-testid="select-report-type"><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="seo_audit">SEO audit</SelectItem>
                         <SelectItem value="geo_aeo_audit">GEO/AEO AI visibility audit</SelectItem>
@@ -128,7 +128,7 @@ export default function Reports() {
                   <FormItem>
                     <FormLabel>Format</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <FormControl><SelectTrigger data-testid="select-report-format"><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="pdf">PDF</SelectItem>
                         <SelectItem value="markdown">Markdown</SelectItem>

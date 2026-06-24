@@ -94,6 +94,10 @@ Last updated: 2026-06-23
 - `lib/api-client-react/src/generated/*`
 - `lib/api-zod/src/generated/*`
 
+## Phase 9 QA/demo coverage files added
+
+- `artifacts/seorx/tests/e2e/app-smoke.spec.ts`
+
 ## GEO/AEO route behavior
 
 - All `/api/audits/:id/geo/*` routes require authentication and existing audit access.
@@ -171,6 +175,7 @@ Last updated: 2026-06-23
 - `rtk corepack pnpm --filter @workspace/api-server run typecheck`
 - `rtk corepack pnpm --filter @workspace/seorx run typecheck`
 - `rtk corepack pnpm --filter @workspace/api-server run test`
+- `rtk corepack pnpm --filter @workspace/seorx exec playwright test --grep "@signed-in GEO/AEO report"`
 - `rtk corepack pnpm test`
 - `rtk corepack pnpm run build`
 - `rtk git diff --check`
@@ -181,5 +186,6 @@ There is no root lint script today.
 
 - GEO/AEO should use Drizzle migrations, not Prisma.
 - GEO/AEO client-facing data is limited to the server-gated AI Visibility summary and generated reports, both based on approved canonical data.
+- The repo has mocked Playwright E2E patterns but no production/demo database seed script; Phase 9 coverage uses mocked signed-in browser flows unless a seed harness is added later.
 - Live AI-search platform checks remain disabled and unimplemented unless a compliant adapter is added later.
 - PDF rendering for GEO/AEO now reuses the canonical payload through the existing PdfKit adapter; visual polish can improve later without changing report data rules.

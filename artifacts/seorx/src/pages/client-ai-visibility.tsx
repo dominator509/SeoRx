@@ -104,7 +104,7 @@ export default function ClientAiVisibility() {
             <div>
               <h2 className="text-base font-semibold">No approved AI visibility report yet</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Run a GEO/AEO or hybrid audit, approve recommendations, and generate the Markdown report to publish this view.
+                Run a GEO/AEO or hybrid audit, approve recommendations, and generate a report to publish this view.
               </p>
             </div>
             <Link href={`/audits/new?clientId=${data.client.id}`}>
@@ -223,14 +223,14 @@ export default function ClientAiVisibility() {
                 <div>
                   <div className="font-semibold">{data.latestReport?.title ?? "Report not generated yet"}</div>
                   <div className="mt-1 text-sm text-muted-foreground">
-                    {data.latestReport ? `Generated ${format(new Date(data.latestReport.createdAt), "MMM d, yyyy")}` : "Generate a GEO/AEO Markdown report after approvals."}
+                    {data.latestReport ? `Generated ${format(new Date(data.latestReport.createdAt), "MMM d, yyyy")}` : "Generate a GEO/AEO report after approvals."}
                   </div>
                 </div>
               </div>
               {data.latestReport?.downloadUrl && (
                 <a href={data.latestReport.downloadUrl}>
                   <Button variant="outline" className="w-full gap-1.5 sm:w-auto">
-                    <Download className="h-4 w-4" />Markdown
+                    <Download className="h-4 w-4" />Download
                   </Button>
                 </a>
               )}
