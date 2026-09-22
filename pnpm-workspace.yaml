@@ -69,6 +69,17 @@ onlyBuiltDependencies:
   - msw
   - unrs-resolver
 
+# pnpm 11+ replaced `onlyBuiltDependencies` with `allowBuilds` and silently
+# ignores the old key (see ERR_PNPM_IGNORED_BUILDS). Keep both so pnpm 10
+# (onlyBuiltDependencies) and pnpm 11/12 (allowBuilds) approve the same set.
+allowBuilds:
+  '@clerk/shared': true
+  '@scarf/scarf': true
+  '@swc/core': true
+  esbuild: true
+  msw: true
+  unrs-resolver: true
+
 overrides:
   # drizzle-kit uses esbuild internally on an older version that's vulnerable, this overrides it
   "@esbuild-kit/esm-loader": "npm:tsx@^4.21.0"

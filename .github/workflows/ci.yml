@@ -38,6 +38,12 @@ jobs:
       - name: Install Playwright Chromium
         run: corepack pnpm --filter @workspace/seorx exec playwright install --with-deps chromium
 
+      - name: Build workspace libraries
+        # The frontend typechecks against the composite lib projects via
+        # TypeScript project references, so the libs must be built first
+        # (same ordering as the repo's own `pnpm typecheck` script).
+        run: corepack pnpm run typecheck:libs
+
       - name: Frontend typecheck
         run: corepack pnpm --filter @workspace/seorx run typecheck
 
